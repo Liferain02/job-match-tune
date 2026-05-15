@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
+
+# Local runtime
+*.log
+*.pid
+
+# Model and training artifacts
+models/
+outputs/
+scripts/outputs/
+
+# Generated data
+data/*
+!data/eval/
+data/eval/*
+!data/eval/*.jsonl
+*.sqlite3
+*.db
+
+# Misc temporary files
+*.tmp
+*.swp
+*.swo
+
+# Frontend local cache
+frontend/.cache/

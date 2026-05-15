@@ -1,0 +1,22 @@
+db_path: data/jobmatch_tune.sqlite3
+output_raw_jsonl: data/raw/jd_raw.jsonl
+output_clean_jsonl: data/interim/jd_clean.jsonl
+
+request:
+  timeout: 20
+  interval_seconds: 2
+  user_agent: "JobMatchTuneBot/0.1 (+research demo; public pages only)"
+
+# Add public JD detail page URLs here. The crawler intentionally does not bypass login,
+# CAPTCHA, robots, or anti-crawling controls.
+seed_urls: []
+
+keywords:
+  - AI应用开发
+  - 大模型应用开发
+  - LLM应用开发
+  - RAG
+  - Agent
+  - LangChain
+  - Java后端开发
+  - Python后端开发

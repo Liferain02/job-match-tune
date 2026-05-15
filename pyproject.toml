@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jobmatch-tune"
+version = "0.1.0"
+description = "Low-resource Qwen fine-tuning practice for job matching and structured extraction."
+requires-python = ">=3.10"
+dependencies = [
+  "torch>=2.3",
+  "transformers>=4.51.0",
+  "accelerate>=0.34",
+  "datasets>=2.20",
+  "peft>=0.12",
+  "trl>=0.10",
+  "bitsandbytes>=0.43",
+  "liger-kernel>=0.8",
+  "pandas>=2.2",
+  "numpy>=1.26",
+  "scikit-learn>=1.5",
+  "pydantic>=2.7",
+  "pyyaml>=6.0",
+  "jsonlines>=4.0",
+  "tqdm>=4.66",
+  "requests>=2.32",
+  "beautifulsoup4>=4.12",
+  "lxml>=5.2",
+  "readability-lxml>=0.8",
+  "trafilatura>=1.12",
+  "datasketch>=1.6",
+  "fastapi>=0.115",
+  "openai>=1.30",
+  "uvicorn>=0.30",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

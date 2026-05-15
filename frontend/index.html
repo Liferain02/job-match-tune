@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JobMatchTune</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">JobMatchTune</p>
+            <h1>招聘文本结构化抽取</h1>
+          </div>
+          <div class="status" id="status">未连接</div>
+        </header>
+
+        <section class="controls" aria-label="controls">
+          <label class="field api-field">
+            <span>API 地址</span>
+            <input id="apiBase" value="http://localhost:8000" />
+          </label>
+          <div class="segmented" role="tablist" aria-label="task">
+            <button class="segment active" id="jdMode" type="button">JD</button>
+            <button class="segment" id="resumeMode" type="button">简历</button>
+          </div>
+          <button class="ghost" id="warmupButton" type="button">预热模型</button>
+          <button class="ghost" id="exampleButton" type="button">填入示例</button>
+          <button class="primary" id="parseButton" type="button">结构化</button>
+        </section>
+
+        <section class="service-panel">
+          <div class="service-item">
+            <span>模型</span>
+            <strong id="modelPath">-</strong>
+          </div>
+          <div class="service-item">
+            <span>Adapter</span>
+            <strong id="adapterPath">-</strong>
+          </div>
+          <div class="service-item">
+            <span>GPU</span>
+            <strong id="gpuState">-</strong>
+          </div>
+          <div class="service-item">
+            <span>模型状态</span>
+            <strong id="loadState">-</strong>
+          </div>
+        </section>
+
+        <section class="panes">
+          <label class="pane">
+            <span>输入文本</span>
+            <textarea id="inputText" spellcheck="false"></textarea>
+          </label>
+          <section class="pane result-pane" aria-label="result">
+            <div class="result-head">
+              <div class="result-tabs">
+                <button class="result-tab active" id="structuredTab" type="button">结构化视图</button>
+                <button class="result-tab" id="rawTab" type="button">原始 JSON</button>
+              </div>
+              <span id="latency"></span>
+            </div>
+            <section class="result-body active" id="structuredView"></section>
+            <pre class="result-body" id="rawView">{}</pre>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
