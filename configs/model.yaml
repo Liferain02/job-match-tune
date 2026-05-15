@@ -1,0 +1,9 @@
+default_model: Qwen/Qwen3-1.7B
+effect_first_model: Qwen/Qwen3-4B-Instruct-2507
+fallback_model: Qwen/Qwen2.5-1.5B-Instruct
+
+generation:
+  enable_thinking: false
+  temperature: 0.1
+  top_p: 0.8
+  max_new_tokens: 1024

@@ -1,0 +1,44 @@
+job_directions:
+  - AI应用开发
+  - 大模型应用开发
+  - 后端开发
+  - 算法工程
+  - 数据开发
+  - 前端开发
+  - 测试开发
+  - 产品经理
+
+skill_alias:
+  LangChain:
+    - langchain
+    - Langchain
+  LangGraph:
+    - langgraph
+  RAG:
+    - 检索增强生成
+    - Retrieval Augmented Generation
+  Agent:
+    - 智能体
+    - agents
+  MCP:
+    - Model Context Protocol
+  Java:
+    - java
+    - JAVA
+  Spring Boot:
+    - springboot
+    - SpringBoot
+  MySQL:
+    - mysql
+  Redis:
+    - redis
+  Python:
+    - python
+  PyTorch:
+    - pytorch
+  Transformers:
+    - transformers
+  LoRA:
+    - lora
+  QLoRA:
+    - qlora

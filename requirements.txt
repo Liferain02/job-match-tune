@@ -1,0 +1,36 @@
+# Core runtime
+torch>=2.3
+transformers>=4.51.0
+accelerate>=0.34
+datasets>=2.20
+peft>=0.12
+trl>=0.10
+bitsandbytes>=0.43
+kernels>=0.11.1
+liger-kernel>=0.8
+
+# Data processing
+pandas>=2.2
+numpy>=1.26
+scikit-learn>=1.5
+pydantic>=2.7
+pyyaml>=6.0
+jsonlines>=4.0
+tqdm>=4.66
+
+# Crawling and text extraction
+requests>=2.32
+beautifulsoup4>=4.12
+lxml>=5.2
+readability-lxml>=0.8
+trafilatura>=1.12
+datasketch>=1.6
+
+# Demo
+fastapi>=0.115
+openai>=1.30
+uvicorn>=0.30
+
+# Development and tests
+pytest>=8.0
+ruff>=0.6
