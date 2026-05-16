@@ -67,3 +67,21 @@ React
 Vue
 Spring
 微服务
+智能体
+Copilot
+Prompt
+提示工程
+强化学习
+RLHF
+后训练
+对齐
+评测
+AI应用
+AI Infra
+推理系统
+推理引擎
+MCP
+Model Context Protocol
+Agentic
+世界模型
+Agent Workflow

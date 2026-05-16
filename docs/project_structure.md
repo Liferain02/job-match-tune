@@ -25,6 +25,7 @@
   - checkpoints、日志、评估报告，默认不纳入版本控制
 - `scripts/`
   - 当前保留的运行入口
+  - `legacy/`：历史实验脚本，默认不再推荐
 - `src/jobmatch_tune/`
   - 业务代码
 
@@ -52,10 +53,14 @@
 保留两类脚本：
 
 - 当前主链路入口
+  - `build_preference_dataset.sh`
+  - `refresh_tencent_data.sh`
   - `start_api.sh`
   - `start_frontend.sh`
+  - `train_qwen3_14b_dpo_smoke.sh`
   - `train_qwen3_14b_smoke.sh`
   - `train_qwen3_14b_full.sh`
+  - `train_qwen3_14b_dpo.sh`
   - `download_qwen_models_python.sh`
 - 数据准备入口
   - `init_db.sh`
@@ -64,4 +69,4 @@
   - `clean_jd.sh`
   - `build_sft.sh`
 
-历史实验脚本仍可保留，但不作为默认推荐流程。
+历史实验脚本已归档到 `scripts/legacy/`，不作为默认推荐流程。

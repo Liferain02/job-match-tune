@@ -22,12 +22,13 @@
 - `src/jobmatch_tune/`
   - `crawler/`：公开 JD 抓取
   - `preprocess/`：清洗、去重、规则抽取
-  - `dataset/`：SFT 数据构造
-  - `train/`：QLoRA 训练
+  - `dataset/`：SFT / DPO 数据构造
+  - `train/`：QLoRA / DPO 训练
   - `inference/`：推理与后处理
   - `api/`：FastAPI 服务
   - `eval/`：人工评估与指标
 - `scripts/`：当前保留的可执行入口
+- `scripts/legacy/`：历史 1.7B 实验脚本归档
 - `configs/`：训练、爬取、标签 schema
 - `frontend/`：静态前端
 - `docs/`：实验记录与口径文档
@@ -69,6 +70,59 @@ python -m jobmatch_tune.crawler.tencent_careers \
   --db data/jobmatch_tune.sqlite3
 ```
 
+抓取百度公开招聘 JD：
+
+```bash
+python -m jobmatch_tune.crawler.baidu_talent \
+  --keywords-file configs/baidu_keywords.txt \
+  --interval-seconds 0.5 \
+  --out data/raw/baidu_jd_raw.jsonl \
+  --db data/jobmatch_tune.sqlite3
+```
+
+如需一键刷新腾讯数据：
+
+```bash
+bash scripts/refresh_tencent_data.sh auto
+```
+
+如需一键刷新百度数据：
+
+```bash
+bash scripts/refresh_baidu_data.sh
+```
+
+如需一键刷新腾讯 + 百度并重建下游：
+
+```bash
+bash scripts/refresh_official_job_data.sh
+```
+
+说明：
+
+- `auto`：先尝试抓取，失败则直接用现有 raw 数据重建下游
+- `crawl`：强制抓取后再重建
+- `rebuild`：只重建清洗、去重和 SFT 数据
+
+导入公开职位导出文件并扩充原始语料：
+
+```bash
+bash scripts/import_public_job_exports.sh
+```
+
+当前这条链路会导入三类补充源：
+
+- GitHub `jhcoco/bosszp` CSV
+- GitHub `WorkAggregation` CSV
+- Hugging Face `open-apply-jobs` 的 Greenhouse / Ashby / Lever parquet 分片
+- 百度招聘 SSR 搜索结果页抓取
+
+注意：
+
+- 这一步配合腾讯、百度官网抓取后，会把 `jd_raw / jd_clean` 持续扩到 5 万级以上。
+- 默认 `data/sft/` 仍只保留当前高质量中文训练集。
+- 原因是新增公开语料里有大量浅字段样本和英文 JD，当前主链路不会直接把它们塞进默认 SFT。
+
 清洗与构造训练集：
 
 ```bash
@@ -107,6 +161,28 @@ bash scripts/download_qwen_models_python.sh 14B
 ```bash
 bash scripts/download_qwen_models_python.sh 1.7B
 ```
+
+## 偏好优化
+
+从人工评估预测结果生成偏好数据：
+
+```bash
+bash scripts/build_preference_dataset.sh
+```
+
+14B DPO 训练：
+
+```bash
+bash scripts/train_qwen3_14b_dpo.sh
+```
+
+说明：
+
+- 当前环境中 `trl==1.4.0` 可直接使用 `DPOTrainer`
+- `ORPOTrainer` 当前环境不可直接用，所以仓库先接入了 `DPO`
+- `GRPO` 属于更重的在线后训练，不是当前第一优先级
+- 当前 DPO adapter 评估报告：
+  - [outputs/eval_reports/manual_eval_50_qwen3_14b_dpo_report.json](/share/home/lifr/workspace/code/job-match-tune/outputs/eval_reports/manual_eval_50_qwen3_14b_dpo_report.json)
 
 ## 推理与评估
 
@@ -185,7 +261,7 @@ bash scripts/start_api.sh
 - 简历写法与项目亮点：[docs/resume_project_highlights.md](/share/home/lifr/workspace/code/job-match-tune/docs/resume_project_highlights.md)
 - 数据来源：[docs/data_sources.md](/share/home/lifr/workspace/code/job-match-tune/docs/data_sources.md)
 - 岗位方向标注口径：[docs/job_direction_policy.md](/share/home/lifr/workspace/code/job-match-tune/docs/job_direction_policy.md)
-- 14B 之前的实验记录：
-  - [docs/experiment_results_2026-05-11.md](/share/home/lifr/workspace/code/job-match-tune/docs/experiment_results_2026-05-11.md)
-  - [docs/incremental_sft_2026-05-13.md](/share/home/lifr/workspace/code/job-match-tune/docs/incremental_sft_2026-05-13.md)
-  - [docs/manual_eval_2026-05-13.md](/share/home/lifr/workspace/code/job-match-tune/docs/manual_eval_2026-05-13.md)
+- 历史实验记录：
+  - [docs/history/experiment_results_2026-05-11.md](/share/home/lifr/workspace/code/job-match-tune/docs/history/experiment_results_2026-05-11.md)
+  - [docs/history/incremental_sft_2026-05-13.md](/share/home/lifr/workspace/code/job-match-tune/docs/history/incremental_sft_2026-05-13.md)
+  - [docs/history/manual_eval_2026-05-13.md](/share/home/lifr/workspace/code/job-match-tune/docs/history/manual_eval_2026-05-13.md)
