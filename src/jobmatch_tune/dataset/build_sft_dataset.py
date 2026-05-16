@@ -93,7 +93,7 @@ def main() -> None:
     parser.add_argument("--valid-ratio", type=float, default=0.1)
     args = parser.parse_args()
 
-    samples = [build_jd_parse_sample(row) for row in read_jsonl(args.jd)]
+    samples = [build_jd_parse_sample(row) for row in read_jsonl(args.jd) if row.get("sft_ready", True)]
     splits = split_samples(samples, args.train_ratio, args.valid_ratio, args.seed)
     for split, rows in splits.items():
         write_jsonl(f"{args.out_dir}/{split}.jsonl", rows)

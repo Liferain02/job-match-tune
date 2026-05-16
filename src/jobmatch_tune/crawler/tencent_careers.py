@@ -14,7 +14,13 @@ from jobmatch_tune.utils.io import read_jsonl, write_jsonl
 TENCENT_QUERY_URL = "https://careers.tencent.com/tencentcareer/api/post/Query"
 
 
-def fetch_tencent_posts(keyword: str, page_size: int = 20, page_index: int = 1) -> tuple[int, list[dict[str, Any]]]:
+def fetch_tencent_posts(
+    keyword: str,
+    page_size: int = 20,
+    page_index: int = 1,
+    retries: int = 3,
+    retry_sleep_seconds: float = 1.0,
+) -> tuple[int, list[dict[str, Any]]]:
     params = {
         "timestamp": int(datetime.now().timestamp() * 1000),
         "countryId": "",
@@ -30,13 +36,23 @@ def fetch_tencent_posts(keyword: str, page_size: int = 20, page_index: int = 1) 
         "language": "zh-cn",
         "area": "cn",
     }
-    response = requests.get(TENCENT_QUERY_URL, params=params, timeout=20)
-    response.raise_for_status()
-    payload = response.json()
-    if payload.get("Code") != 200:
-        raise RuntimeError(f"Tencent API error: {payload}")
-    data = payload.get("Data", {})
-    return int(data.get("Count") or 0), data.get("Posts", [])
+    last_error: Exception | None = None
+    for attempt in range(1, retries + 1):
+        try:
+            response = requests.get(TENCENT_QUERY_URL, params=params, timeout=20)
+            response.raise_for_status()
+            payload = response.json()
+            if payload.get("Code") != 200:
+                raise RuntimeError(f"Tencent API error: {payload}")
+            data = payload.get("Data", {})
+            return int(data.get("Count") or 0), data.get("Posts", [])
+        except (requests.RequestException, ValueError, RuntimeError) as exc:
+            last_error = exc
+            if attempt >= retries:
+                break
+            time.sleep(retry_sleep_seconds * attempt)
+    assert last_error is not None
+    raise last_error
 
 
 def convert_post(post: dict[str, Any]) -> dict[str, Any]:
@@ -83,16 +99,22 @@ def crawl_tencent(
     max_pages: int,
     interval_seconds: float,
     category_allowlist: set[str] | None = None,
+    retries: int = 3,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     seen: set[str] = set()
     for keyword in keywords:
         for page_index in range(1, max_pages + 1):
-            total, posts = fetch_tencent_posts(
-                keyword=keyword,
-                page_size=page_size,
-                page_index=page_index,
-            )
+            try:
+                total, posts = fetch_tencent_posts(
+                    keyword=keyword,
+                    page_size=page_size,
+                    page_index=page_index,
+                    retries=retries,
+                )
+            except Exception as exc:
+                print(f"skip keyword={keyword} page={page_index}: {exc}")
+                break
             if not posts:
                 break
             for post in posts:
@@ -121,6 +143,7 @@ def main() -> None:
     parser.add_argument("--page-size", type=int, default=20)
     parser.add_argument("--max-pages", type=int, default=5)
     parser.add_argument("--interval-seconds", type=float, default=0.5)
+    parser.add_argument("--retries", type=int, default=3)
     parser.add_argument("--category", action="append", default=["技术"])
     parser.add_argument("--out", default="data/raw/tencent_jd_raw.jsonl")
     parser.add_argument("--db", default="data/jobmatch_tune.sqlite3")
@@ -141,6 +164,7 @@ def main() -> None:
         max_pages=args.max_pages,
         interval_seconds=args.interval_seconds,
         category_allowlist=set(args.category) if args.category else None,
+        retries=args.retries,
     )
     jsonl_rows = [{key: value for key, value in row.items() if key != "html"} for row in rows]
     merged_rows = jsonl_rows

@@ -20,6 +20,7 @@
 - 服务形态：
   - `Transformers + PEFT` 本地推理
   - `vLLM + OpenAI-compatible API` 服务化推理
+- 后训练延展：`DPO preference tuning`
 - 结果约束：`JSON Schema structured outputs + 规则后处理`
 
 ## 2. 为什么做这个项目
@@ -50,6 +51,7 @@
   - `Liger Kernel`
   - `packing`
   - `gradient checkpointing`
+  - `DPO`
 
 ### 3.2 推理与服务
 
@@ -114,6 +116,13 @@
   - 调用腾讯公开招聘接口
   - 支持关键词批量抓取
   - 支持增量写入 JSONL 和 SQLite
+- `import_public_job_data.py`
+  - 导入公开发布的职位导出文件
+  - 当前支持：
+    - `bosszp_csv`
+    - `workaggregation_csv`
+    - `open_apply_jobs_parquet`
+  - 支持把大规模公开语料统一映射到项目的 `jd_raw` schema
 
 #### `preprocess/`
 
@@ -143,6 +152,8 @@
   - 构造方向 hard case 训练样本
 - `build_incremental_sft_dataset.py`
   - 拼接增量训练数据
+- `build_preference_dataset.py`
+  - 从人工评估预测结果生成 `prompt / chosen / rejected` 偏好数据
 
 #### `train/`
 
@@ -150,6 +161,10 @@
   - 统一训练入口
   - 支持覆盖模型、adapter、数据集、lr、epoch、LoRA rank 等参数
   - 支持现代训练选项：`loss_type / use_liger_kernel / packing / activation_offloading`
+- `train_dpo.py`
+  - 偏好优化训练入口
+  - 基于 `TRL DPOTrainer`
+  - 支持在已有 LoRA adapter 基础上继续做 DPO
 
 #### `inference/`
 
@@ -219,6 +234,31 @@ python -m jobmatch_tune.crawler.tencent_careers \
   --db data/jobmatch_tune.sqlite3
 ```
 
+抓取百度公开招聘 JD：
+
+```bash
+python -m jobmatch_tune.crawler.baidu_talent \
+  --keywords-file configs/baidu_keywords.txt \
+  --out data/raw/baidu_jd_raw.jsonl \
+  --db data/jobmatch_tune.sqlite3
+```
+
+导入公开职位导出文件：
+
+```bash
+bash scripts/import_public_job_exports.sh
+```
+
+这一步当前会导入：
+
+1. GitHub `jhcoco/bosszp` CSV
+2. GitHub `WorkAggregation` CSV
+3. Hugging Face `open-apply-jobs` Greenhouse parquet 分片
+4. Hugging Face `open-apply-jobs` Ashby parquet 分片
+5. Hugging Face `open-apply-jobs` Lever parquet 分片
+
+这样当前 `jd_raw / jd_clean` 已经扩到 5 万级以上，不再只依赖腾讯官网公开职位。
+
 清洗：
 
 ```bash
@@ -235,6 +275,32 @@ python -m jobmatch_tune.dataset.build_sft_dataset \
   --jd data/interim/jd_clean.jsonl \
   --out-dir data/sft
 ```
+
+这里有一个关键设计：
+
+1. 项目现在明确区分“原始职位语料规模”和“默认可训练 SFT 样本质量”。
+2. 新增公开导出语料会进入 `jd_raw / jd_clean`，但不默认进入 `data/sft/`。
+3. 原因是这批新语料里混有：
+   - 只有浅字段的职位导出 CSV
+   - 大量英文 ATS JD
+4. 当前默认规则标注链路主要针对中文 JD，因此新增语料先作为扩量语料保留，后续再做多语种规则或蒸馏，而不是直接污染现有训练集。
+
+### 6.2.1 这轮为什么没有直接接入更多中文官网 API
+
+这轮我验证了三个候选：
+
+1. 网易招聘候选路径  
+   当前直接请求返回对象存储 `NoSuchKey / 404`，还没拿到稳定职位列表接口。
+2. 字节招聘候选路径  
+   公开招聘页可访问，但试探到的接口路径返回 404 或非职位 JSON 页面，暂时还不能稳定复用。
+3. 百度招聘候选路径  
+   `https://talent.baidu.com/jobs/social-list` 会直接返回 SSR 的 `window.__INITIAL_DATA__`。虽然分页 API 还没有完全抠出来，但服务端 `search` 参数已经可用，因此先落地了关键词批量抓取器。
+
+所以这轮的取舍是：
+
+1. 先把公开职位仓和 ATS 公开分片做成稳定扩量通道。
+2. 把腾讯和百度这两条稳定的公开中文官网链路接进主链路。
+3. 字节、网易、JD、阿里继续单独验证，不为了赶数据量把不稳定路径接进主链路。
 
 ### 6.3 训练
 
@@ -296,6 +362,20 @@ export JOBMATCH_INFERENCE_BACKEND=vllm
 export JOBMATCH_VLLM_BASE_URL=http://127.0.0.1:8010/v1
 export JOBMATCH_VLLM_MODEL=jobmatch-lora
 bash scripts/start_api.sh
+```
+
+### 6.7 偏好优化
+
+先从人工评估预测结果构造 preference dataset：
+
+```bash
+bash scripts/build_preference_dataset.sh
+```
+
+再执行 14B DPO：
+
+```bash
+bash scripts/train_qwen3_14b_dpo.sh
 ```
 
 ## 7. 关键实现细节
@@ -446,6 +526,16 @@ bash scripts/start_api.sh
 
 到了这一步，项目就不再只是“微调实验”，而是“一个有训练、有评估、有服务的 LLM 工程项目”。
 
+### 阶段 9：补偏好优化入口
+
+在完成 SFT、规则收敛和 14B 服务化之后，又补了一条更贴近当前业界后训练实践的路径：
+
+- 从人工评估预测结果构造偏好数据
+- 使用 `TRL DPOTrainer` 做离线 preference tuning
+- 保持与现有 `Qwen3-14B + LoRA` 链路兼容
+
+这里没有优先上 `GRPO`，因为当前数据规模和资源更适合先把离线偏好优化做稳。
+
 ## 9. 当前结果与结论
 
 当前最佳默认方案：
@@ -453,6 +543,10 @@ bash scripts/start_api.sh
 - `Qwen3-14B`
 - `outputs/checkpoints/qwen3-14b-jobmatch-qlora`
 - `postprocess_json.py` 最新后处理规则
+
+当前已验证的后训练扩展方案：
+
+- `outputs/checkpoints/qwen3-14b-jobmatch-dpo`
 
 人工 holdout 最新结果：
 
@@ -462,6 +556,8 @@ bash scripts/start_api.sh
 - `加分项 F1 = 1.0`
 - `经验要求 exact_match = 1.0`
 - `学历要求 exact_match = 1.0`
+
+`DPO` adapter 当前在同一 50 条 holdout 上也达到了同样结果，说明偏好优化链路已经可用，但还没有在更大评估集上证明它显著优于默认 SFT adapter。
 
 需要注意的一点：
 
@@ -476,7 +572,8 @@ bash scripts/start_api.sh
 
 ### 10.1 高优先级
 
-- 增加 `DPO / ORPO` 偏好优化链路
+- 跑通并验证 `DPO` 的真实收益
+- 等训练栈升级后再评估 `ORPO / OnlineDPO / GRPO`
 - 增加真实简历评估集
 - 扩展 API：
   - 批量解析
@@ -502,6 +599,6 @@ bash scripts/start_api.sh
 - 简历亮点：[resume_project_highlights.md](/share/home/lifr/workspace/code/job-match-tune/docs/resume_project_highlights.md)
 - 岗位方向口径：[job_direction_policy.md](/share/home/lifr/workspace/code/job-match-tune/docs/job_direction_policy.md)
 - 历史实验记录：
-  - [experiment_results_2026-05-11.md](/share/home/lifr/workspace/code/job-match-tune/docs/experiment_results_2026-05-11.md)
-  - [incremental_sft_2026-05-13.md](/share/home/lifr/workspace/code/job-match-tune/docs/incremental_sft_2026-05-13.md)
-  - [manual_eval_2026-05-13.md](/share/home/lifr/workspace/code/job-match-tune/docs/manual_eval_2026-05-13.md)
+  - [history/experiment_results_2026-05-11.md](/share/home/lifr/workspace/code/job-match-tune/docs/history/experiment_results_2026-05-11.md)
+  - [history/incremental_sft_2026-05-13.md](/share/home/lifr/workspace/code/job-match-tune/docs/history/incremental_sft_2026-05-13.md)
+  - [history/manual_eval_2026-05-13.md](/share/home/lifr/workspace/code/job-match-tune/docs/history/manual_eval_2026-05-13.md)

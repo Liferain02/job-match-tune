@@ -53,6 +53,16 @@ def load_label_schema(path: str | Path) -> dict[str, Any]:
 
 
 def normalize_jd_row(row: dict[str, Any], schema: dict[str, Any]) -> dict[str, Any]:
+    meta = row.get("meta")
+    if not isinstance(meta, dict):
+        meta_json = row.get("meta_json")
+        if isinstance(meta_json, str) and meta_json.strip():
+            try:
+                meta = json.loads(meta_json)
+            except json.JSONDecodeError:
+                meta = {}
+        else:
+            meta = {}
     raw_text = row.get("raw_text") or row.get("html") or ""
     cleaned = clean_text(raw_text, is_html=False)
     sections = split_sections(cleaned)
@@ -67,11 +77,15 @@ def normalize_jd_row(row: dict[str, Any], schema: dict[str, Any]) -> dict[str, A
         "id": row["id"],
         "raw_id": row["id"],
         "job_title": title,
+        "source": row.get("source") or meta.get("source"),
         "company": row.get("company") or "",
         "location": row.get("location") or "",
         "clean_text": cleaned,
         "sections": sections,
         "labels": labels,
+        "meta": meta,
+        "language": meta.get("language", ""),
+        "sft_ready": bool(meta.get("sft_ready", True)),
     }
 
 
