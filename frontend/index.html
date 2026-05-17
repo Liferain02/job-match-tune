@@ -7,65 +7,121 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="shell">
-      <section class="workspace">
-        <header class="topbar">
-          <div>
-            <p class="eyebrow">JobMatchTune</p>
-            <h1>招聘文本结构化抽取</h1>
+    <main class="app-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="hero-kicker">JobMatchTune</p>
+          <h1>招聘文本结构化抽取工作台</h1>
+          <p class="hero-summary">Qwen3-14B + LoRA + 规则后处理，用于 JD / 简历结构化抽取与字段审查。</p>
+        </div>
+        <div class="hero-status">
+          <span class="status-pill" id="status">未连接</span>
+          <div class="hero-actions">
+            <button class="button secondary" id="warmupButton" type="button">预热模型</button>
+            <button class="button primary" id="parseButton" type="button">开始结构化</button>
           </div>
-          <div class="status" id="status">未连接</div>
-        </header>
+        </div>
+      </header>
 
-        <section class="controls" aria-label="controls">
-          <label class="field api-field">
+      <section class="summary-grid">
+        <article class="summary-card">
+          <span>服务后端</span>
+          <strong id="backendName">-</strong>
+        </article>
+        <article class="summary-card">
+          <span>GPU 状态</span>
+          <strong id="gpuState">-</strong>
+        </article>
+        <article class="summary-card">
+          <span>模型状态</span>
+          <strong id="loadState">-</strong>
+        </article>
+        <article class="summary-card">
+          <span>单次延迟</span>
+          <strong id="latency">-</strong>
+        </article>
+      </section>
+
+      <section class="workspace-grid">
+        <section class="panel control-panel">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">输入配置</p>
+              <h2>请求面板</h2>
+            </div>
+          </div>
+
+          <label class="field">
             <span>API 地址</span>
             <input id="apiBase" value="http://localhost:8000" />
           </label>
-          <div class="segmented" role="tablist" aria-label="task">
-            <button class="segment active" id="jdMode" type="button">JD</button>
-            <button class="segment" id="resumeMode" type="button">简历</button>
-          </div>
-          <button class="ghost" id="warmupButton" type="button">预热模型</button>
-          <button class="ghost" id="exampleButton" type="button">填入示例</button>
-          <button class="primary" id="parseButton" type="button">结构化</button>
-        </section>
 
-        <section class="service-panel">
-          <div class="service-item">
-            <span>模型</span>
-            <strong id="modelPath">-</strong>
+          <div class="mode-row">
+            <div class="segmented" role="tablist" aria-label="task">
+              <button class="segment active" id="jdMode" type="button">JD 解析</button>
+              <button class="segment" id="resumeMode" type="button">简历解析</button>
+            </div>
+            <button class="button secondary compact" id="exampleButton" type="button">填入示例</button>
           </div>
-          <div class="service-item">
-            <span>Adapter</span>
-            <strong id="adapterPath">-</strong>
-          </div>
-          <div class="service-item">
-            <span>GPU</span>
-            <strong id="gpuState">-</strong>
-          </div>
-          <div class="service-item">
-            <span>模型状态</span>
-            <strong id="loadState">-</strong>
-          </div>
-        </section>
 
-        <section class="panes">
-          <label class="pane">
+          <div class="service-meta">
+            <div class="meta-item">
+              <span>模型路径</span>
+              <strong id="modelPath">-</strong>
+            </div>
+            <div class="meta-item">
+              <span>Adapter</span>
+              <strong id="adapterPath">-</strong>
+            </div>
+          </div>
+
+          <label class="field">
             <span>输入文本</span>
             <textarea id="inputText" spellcheck="false"></textarea>
           </label>
-          <section class="pane result-pane" aria-label="result">
-            <div class="result-head">
+
+          <div class="editor-footer">
+            <span id="inputStats">0 字</span>
+            <span id="taskHint">当前任务：JD 结构化</span>
+          </div>
+        </section>
+
+        <section class="panel result-panel">
+          <div class="panel-head result-head">
+            <div>
+              <p class="panel-kicker">输出结果</p>
+              <h2>结构化视图</h2>
+            </div>
+            <div class="result-actions">
               <div class="result-tabs">
-                <button class="result-tab active" id="structuredTab" type="button">结构化视图</button>
+                <button class="result-tab active" id="structuredTab" type="button">结构化</button>
                 <button class="result-tab" id="rawTab" type="button">原始 JSON</button>
               </div>
-              <span id="latency"></span>
+              <button class="button secondary compact" id="copyJsonButton" type="button">复制 JSON</button>
             </div>
-            <section class="result-body active" id="structuredView"></section>
-            <pre class="result-body" id="rawView">{}</pre>
-          </section>
+          </div>
+
+          <div class="result-overview" id="resultOverview">
+            <div class="overview-card">
+              <span>岗位方向</span>
+              <strong id="overviewDirection">-</strong>
+            </div>
+            <div class="overview-card">
+              <span>职责条目</span>
+              <strong id="overviewRespCount">0</strong>
+            </div>
+            <div class="overview-card">
+              <span>技能条目</span>
+              <strong id="overviewSkillCount">0</strong>
+            </div>
+            <div class="overview-card">
+              <span>加分项</span>
+              <strong id="overviewBonusCount">0</strong>
+            </div>
+          </div>
+
+          <section class="result-body active" id="structuredView"></section>
+          <pre class="result-body" id="rawView">{}</pre>
         </section>
       </section>
     </main>

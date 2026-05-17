@@ -23,6 +23,7 @@ const examples = {
 const state = {
   task: "jd_parse",
   activeView: "structured",
+  lastPayload: null,
 };
 
 const apiBase = document.querySelector("#apiBase");
@@ -32,6 +33,7 @@ const latency = document.querySelector("#latency");
 const parseButton = document.querySelector("#parseButton");
 const exampleButton = document.querySelector("#exampleButton");
 const warmupButton = document.querySelector("#warmupButton");
+const copyJsonButton = document.querySelector("#copyJsonButton");
 const jdMode = document.querySelector("#jdMode");
 const resumeMode = document.querySelector("#resumeMode");
 const structuredTab = document.querySelector("#structuredTab");
@@ -42,16 +44,32 @@ const modelPath = document.querySelector("#modelPath");
 const adapterPath = document.querySelector("#adapterPath");
 const gpuState = document.querySelector("#gpuState");
 const loadState = document.querySelector("#loadState");
+const backendName = document.querySelector("#backendName");
+const inputStats = document.querySelector("#inputStats");
+const taskHint = document.querySelector("#taskHint");
+const overviewDirection = document.querySelector("#overviewDirection");
+const overviewRespCount = document.querySelector("#overviewRespCount");
+const overviewSkillCount = document.querySelector("#overviewSkillCount");
+const overviewBonusCount = document.querySelector("#overviewBonusCount");
+
+function escapeHtml(text) {
+  return String(text)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
 
 function setStatus(text, mode = "") {
   status.textContent = text;
-  status.className = `status ${mode}`.trim();
+  status.className = `status-pill ${mode}`.trim();
 }
 
 function setMode(task) {
   state.task = task;
   jdMode.classList.toggle("active", task === "jd_parse");
   resumeMode.classList.toggle("active", task === "resume_parse");
+  taskHint.textContent = task === "jd_parse" ? "当前任务：JD 结构化" : "当前任务：简历结构化";
 }
 
 function setView(view) {
@@ -64,73 +82,103 @@ function setView(view) {
 
 function renderList(items) {
   if (!Array.isArray(items) || items.length === 0) {
-    return "<p>-</p>";
+    return '<div class="list-empty">-</div>';
   }
-  return `<ul>${items.map((item) => `<li>${escapeHtml(String(item))}</li>`).join("")}</ul>`;
+  return items.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
 }
 
-function escapeHtml(text) {
-  return text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
+function renderChipList(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return '<div class="list-empty">-</div>';
+  }
+  return `<div class="chip-list">${items
+    .map((item) => `<span class="chip">${escapeHtml(item)}</span>`)
+    .join("")}</div>`;
+}
+
+function resetOverview() {
+  overviewDirection.textContent = "-";
+  overviewRespCount.textContent = "0";
+  overviewSkillCount.textContent = "0";
+  overviewBonusCount.textContent = "0";
 }
 
 function renderStructured(data) {
   if (!data || typeof data !== "object") {
+    resetOverview();
     structuredView.innerHTML = '<div class="empty-state">等待结构化结果</div>';
     return;
   }
 
+  const responsibilities = data["核心职责"] || [];
+  const skills = data["必备技能"] || [];
+  const bonus = data["加分项"] || [];
+
+  overviewDirection.textContent = data["岗位方向"] || "-";
+  overviewRespCount.textContent = String(responsibilities.length);
+  overviewSkillCount.textContent = String(skills.length);
+  overviewBonusCount.textContent = String(bonus.length);
+
   structuredView.innerHTML = `
-    <div class="structured-view">
-      <div class="structured-grid">
-        <section class="result-card">
-          <h3>岗位方向</h3>
-          <p>${escapeHtml(data["岗位方向"] || "-")}</p>
-        </section>
-        <section class="result-card">
-          <h3>经验要求</h3>
-          <p>${escapeHtml(data["经验要求"] || "-")}</p>
-        </section>
-        <section class="result-card">
-          <h3>学历要求</h3>
-          <p>${escapeHtml(data["学历要求"] || "-")}</p>
-        </section>
-        <section class="result-card">
-          <h3>必备技能</h3>
-          ${renderList(data["必备技能"])}
-        </section>
-        <section class="result-card">
-          <h3>核心职责</h3>
-          ${renderList(data["核心职责"])}
-        </section>
-        <section class="result-card">
-          <h3>加分项</h3>
-          ${renderList(data["加分项"])}
-        </section>
-      </div>
+    <div class="result-grid">
+      <section class="result-card compact">
+        <span class="card-label">岗位方向</span>
+        <strong>${escapeHtml(data["岗位方向"] || "-")}</strong>
+      </section>
+      <section class="result-card compact">
+        <span class="card-label">经验要求</span>
+        <strong>${escapeHtml(data["经验要求"] || "-")}</strong>
+      </section>
+      <section class="result-card compact">
+        <span class="card-label">学历要求</span>
+        <strong>${escapeHtml(data["学历要求"] || "-")}</strong>
+      </section>
+      <section class="result-card">
+        <div class="card-head">
+          <span class="card-label">必备技能</span>
+        </div>
+        ${renderChipList(skills)}
+      </section>
+      <section class="result-card span-two">
+        <div class="card-head">
+          <span class="card-label">核心职责</span>
+        </div>
+        <ul class="bullet-list">${renderList(responsibilities)}</ul>
+      </section>
+      <section class="result-card span-two">
+        <div class="card-head">
+          <span class="card-label">加分项</span>
+        </div>
+        <ul class="bullet-list">${renderList(bonus)}</ul>
+      </section>
     </div>
   `;
 }
 
 function updateServiceMeta(data) {
+  backendName.textContent = data.backend || "-";
   modelPath.textContent = data.model_path || "-";
   adapterPath.textContent = data.adapter_path || "-";
   gpuState.textContent = data.cuda_available ? "CUDA 可用" : "CUDA 不可用";
   loadState.textContent = data.loaded ? "已加载" : "未加载";
 }
 
+function updateInputStats() {
+  inputStats.textContent = `${inputText.value.trim().length} 字`;
+}
+
 async function checkHealth() {
   try {
     const response = await fetch(`${apiBase.value}/api/status`);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
     const data = await response.json();
     updateServiceMeta(data);
     setStatus(data.loaded ? "模型已加载" : "服务可用", "ok");
-  } catch (error) {
+  } catch {
     setStatus("未连接", "error");
+    backendName.textContent = "-";
     modelPath.textContent = "-";
     adapterPath.textContent = "-";
     gpuState.textContent = "-";
@@ -144,13 +192,12 @@ async function warmupModel() {
   setStatus("加载模型", "ok");
   try {
     const response = await fetch(`${apiBase.value}/api/warmup`, { method: "POST" });
+    const data = await response.json();
     if (!response.ok) {
-      const data = await response.json();
       throw new Error(data.detail || `HTTP ${response.status}`);
     }
-    const data = await response.json();
     updateServiceMeta(data);
-    latency.textContent = data.latency_seconds ? `${data.latency_seconds}s` : "";
+    latency.textContent = data.latency_seconds ? `${data.latency_seconds}s` : "-";
     setStatus("模型已加载", "ok");
   } catch (error) {
     setStatus("预热失败", "error");
@@ -172,7 +219,7 @@ async function parseText() {
 
   parseButton.disabled = true;
   parseButton.textContent = "处理中";
-  latency.textContent = "";
+  latency.textContent = "-";
   setStatus("推理中", "ok");
 
   try {
@@ -189,21 +236,32 @@ async function parseText() {
     if (!response.ok) {
       throw new Error(data.detail || `HTTP ${response.status}`);
     }
-    latency.textContent = data.latency_seconds ? `${data.latency_seconds}s` : "";
+    state.lastPayload = data;
+    latency.textContent = data.latency_seconds ? `${data.latency_seconds}s` : "-";
     rawView.textContent = JSON.stringify(data, null, 2);
     renderStructured(data.data);
-    setStatus(data.ok ? "完成" : "解析失败", data.ok ? "ok" : "error");
+    setStatus(data.ok ? "解析完成" : "解析失败", data.ok ? "ok" : "error");
     setView("structured");
     await checkHealth();
   } catch (error) {
-    const errorPayload = { ok: false, error: error.message };
-    rawView.textContent = JSON.stringify(errorPayload, null, 2);
+    state.lastPayload = { ok: false, error: error.message };
+    rawView.textContent = JSON.stringify(state.lastPayload, null, 2);
     renderStructured(null);
     setStatus("请求失败", "error");
     setView("raw");
   } finally {
     parseButton.disabled = false;
-    parseButton.textContent = "结构化";
+    parseButton.textContent = "开始结构化";
+  }
+}
+
+async function copyJson() {
+  const content = rawView.textContent || "{}";
+  try {
+    await navigator.clipboard.writeText(content);
+    setStatus("JSON 已复制", "ok");
+  } catch {
+    setStatus("复制失败", "error");
   }
 }
 
@@ -213,16 +271,20 @@ structuredTab.addEventListener("click", () => setView("structured"));
 rawTab.addEventListener("click", () => setView("raw"));
 exampleButton.addEventListener("click", () => {
   inputText.value = examples[state.task];
+  updateInputStats();
 });
 parseButton.addEventListener("click", parseText);
 warmupButton.addEventListener("click", warmupModel);
+copyJsonButton.addEventListener("click", copyJson);
 apiBase.addEventListener("change", () => {
   localStorage.setItem("jobmatch_api_base", apiBase.value);
   checkHealth();
 });
+inputText.addEventListener("input", updateInputStats);
 
 apiBase.value = localStorage.getItem("jobmatch_api_base") || apiBase.value;
 inputText.value = examples.jd_parse;
+updateInputStats();
 renderStructured(null);
 setView("structured");
 checkHealth();

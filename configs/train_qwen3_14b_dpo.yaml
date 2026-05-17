@@ -1,0 +1,45 @@
+model_name_or_path: models/Qwen3-14B
+adapter_path: outputs/checkpoints/qwen3-14b-jobmatch-qlora
+output_dir: outputs/checkpoints/qwen3-14b-jobmatch-dpo
+
+train_file: data/preference/train.jsonl
+valid_file: data/preference/valid.jsonl
+
+max_length: 1024
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 16
+num_train_epochs: 1
+learning_rate: 5.0e-6
+warmup_ratio: 0.03
+weight_decay: 0.0
+lr_scheduler_type: cosine
+logging_steps: 10
+save_steps: 50
+eval_steps: 50
+bf16: true
+gradient_checkpointing: true
+seed: 42
+beta: 0.1
+
+lora:
+  r: 8
+  alpha: 16
+  dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+quantization:
+  use_4bit: true
+  bnb_4bit_compute_dtype: bfloat16
+  bnb_4bit_quant_type: nf4
+  bnb_4bit_use_double_quant: true
+
+performance:
+  use_liger_kernel: false
+  activation_offloading: false

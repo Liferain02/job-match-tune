@@ -9,8 +9,185 @@ from jobmatch_tune.dataset.templates import SYSTEM_PROMPT, jd_parse_prompt
 from jobmatch_tune.preprocess.jd_field_rules import (
     extract_education_requirement,
     extract_experience_requirement,
+    extract_skills_from_text,
 )
+from jobmatch_tune.preprocess.normalize_jd import split_sections
 from jobmatch_tune.utils.io import read_jsonl, write_jsonl
+
+
+WEAK_TECH_SOURCES = {
+    "hf_job_educational_train_2026_05_17",
+    "hf_job_educational_validation_2026_05_17",
+    "hf_job_educational_test_2026_05_17",
+    "github_jhcoco_bosszp",
+    "github_workaggregation_test",
+}
+
+HIGH_TRUST_SOURCES = {
+    "zhaopin.jd.com",
+    "careers.tencent.com",
+    "talent.baidu.com",
+    "moka_voyah",
+    "moka_se",
+    "moka_eastmoney",
+    "moka_supcon",
+    "moka_baai",
+    "moka_hq",
+    "moka_threatbook",
+    "moka_sina",
+    "moka_bosssoft",
+    "moka_ztgame",
+    "moka_transwarp",
+    "moka_shopee",
+    "moka_rastar",
+    "moka_qianli1",
+    "moka_cyou_inc",
+    "moka_reo",
+    "moka_jspdg",
+    "moka_step",
+    "moka_high_flyer",
+    "moka_whfhtx",
+    "moka_thfund",
+    "moka_huahong",
+    "moka_xmyanquhr",
+}
+
+TECH_TITLE_KEYWORDS = [
+    "工程师",
+    "开发",
+    "算法",
+    "测试",
+    "研发",
+    "数据",
+    "前端",
+    "后端",
+    "运维",
+    "架构",
+    "java",
+    "python",
+    "c++",
+    "go",
+    "嵌入式",
+    "客户端",
+    "android",
+    "ios",
+]
+
+STRONG_TITLE_INCLUDE_KEYWORDS = [
+    "工程师",
+    "软件",
+    "software",
+    "算法",
+    "开发",
+    "测试",
+    "数据",
+    "前端",
+    "后端",
+    "客户端",
+    "服务端",
+    "java",
+    "python",
+    "c++",
+    "golang",
+    "go",
+    "运维",
+    "sre",
+    "infra",
+    "平台",
+    "数据库",
+    "ai",
+    "agent",
+    "大模型",
+    "机器学习",
+    "产品经理",
+]
+
+STRONG_TITLE_EXCLUDE_KEYWORDS = [
+    "销售",
+    "实施",
+    "理财顾问",
+    "投资顾问",
+    "课程顾问",
+    "售前",
+    "售后",
+    "物流",
+    "采购",
+    "运营",
+    "市场",
+    "设计师",
+    "美术",
+    "策划",
+    "财务",
+    "法务",
+    "人力",
+    "hr",
+    "行政",
+    "助教",
+    "机械",
+    "结构工程师",
+    "电气",
+    "工艺",
+    "材料",
+    "飞机",
+    "土建",
+    "消防",
+]
+
+MINIMAL_SKILL_SCHEMA = {
+    "skill_alias": {
+        "Python": ["python"],
+        "Java": ["java"],
+        "C++": ["c++"],
+        "SQL": ["sql"],
+        "Linux": ["linux"],
+    }
+}
+
+WEAK_TITLE_INCLUDE_KEYWORDS = [
+    "java",
+    "python",
+    "后端",
+    "后台",
+    "前端",
+    "测试",
+    "qa",
+    "算法",
+    "数据",
+    "开发",
+    "软件",
+    "客户端",
+    "android",
+    "ios",
+    "嵌入式",
+    "运维",
+    "sre",
+    "infra",
+    "平台",
+]
+
+WEAK_TITLE_EXCLUDE_KEYWORDS = [
+    "销售",
+    "实施",
+    "技术支持",
+    "售前",
+    "售后",
+    "硬件",
+    "机械",
+    "电气",
+    "工艺",
+    "材料",
+    "质量",
+    "生产",
+    "结构",
+    "管道",
+    "飞机",
+    "电力",
+    "化工",
+    "暖通",
+    "土木",
+    "采购",
+    "运营",
+]
 
 
 def build_jd_parse_sample(row: dict[str, Any]) -> dict[str, Any]:
@@ -84,6 +261,119 @@ def split_samples(
     }
 
 
+def is_high_trust_strong_row(row: dict[str, Any]) -> bool:
+    if row.get("language") != "zh":
+        return False
+    if not row.get("sft_ready", True):
+        return False
+    if row.get("source") not in HIGH_TRUST_SOURCES:
+        return False
+    title = str(row.get("job_title") or "").strip()
+    lowered_title = title.lower()
+    clean_text = str(row.get("clean_text") or "").strip()
+    labels = row.get("labels") or {}
+    if not title or not clean_text or not labels.get("岗位方向"):
+        return False
+    if not any(keyword in lowered_title for keyword in STRONG_TITLE_INCLUDE_KEYWORDS):
+        return False
+    if any(keyword in lowered_title for keyword in STRONG_TITLE_EXCLUDE_KEYWORDS):
+        return False
+    sections = row.get("sections") or {}
+    has_responsibilities = bool(str(sections.get("responsibilities") or "").strip())
+    has_requirements = bool(str(sections.get("requirements") or "").strip())
+    has_skills = bool(labels.get("必备技能"))
+    has_education = bool(labels.get("学历要求") or extract_education_requirement(clean_text))
+    has_experience = bool(labels.get("经验要求") or extract_experience_requirement(clean_text))
+    return (
+        ((has_responsibilities and has_requirements) or (len(clean_text) >= 180 and (has_responsibilities or has_requirements)))
+        and (has_education or has_experience or has_skills)
+    )
+
+
+def is_high_confidence_weak_tech_row(row: dict[str, Any]) -> bool:
+    if row.get("language") != "zh":
+        return False
+    if row.get("source") not in WEAK_TECH_SOURCES:
+        return False
+
+    title = str(row.get("job_title") or "").strip().lower()
+    if not title or not any(keyword in title for keyword in TECH_TITLE_KEYWORDS):
+        return False
+    if not any(keyword in title for keyword in WEAK_TITLE_INCLUDE_KEYWORDS):
+        return False
+    if any(keyword in title for keyword in WEAK_TITLE_EXCLUDE_KEYWORDS):
+        return False
+
+    clean_text = str(row.get("clean_text") or "").strip()
+    if len(clean_text) < 180:
+        return False
+
+    sections = row.get("sections") or split_sections(clean_text)
+    responsibilities = str(sections.get("responsibilities") or "").strip()
+    requirements = str(sections.get("requirements") or "").strip()
+    has_structure_marker = any(
+        marker in clean_text
+        for marker in (
+            "岗位职责",
+            "工作职责",
+            "职位描述",
+            "工作内容",
+            "职责描述",
+            "任职要求",
+            "岗位要求",
+            "职位要求",
+            "任职资格",
+            "能力要求",
+            "技能要求",
+        )
+    )
+    if not responsibilities or not requirements or not has_structure_marker:
+        return False
+
+    labels = row.get("labels") or {}
+    education = str(labels.get("学历要求") or extract_education_requirement(clean_text)).strip()
+    experience = str(labels.get("经验要求") or extract_experience_requirement(clean_text)).strip()
+    skills = labels.get("必备技能") or extract_skills_from_text(clean_text, MINIMAL_SKILL_SCHEMA)
+
+    if not education:
+        return False
+    if not (experience or skills):
+        return False
+    if len(clean_text) < 260 and not skills:
+        return False
+    return True
+
+
+def collect_sft_rows(
+    rows: list[dict[str, Any]],
+    *,
+    include_weak_tech: bool,
+    target_total: int | None,
+    seed: int,
+    quality_profile: str,
+) -> list[dict[str, Any]]:
+    if quality_profile == "strict":
+        strong_rows = [row for row in rows if is_high_trust_strong_row(row)]
+    else:
+        strong_rows = [row for row in rows if row.get("sft_ready", True)]
+    if not include_weak_tech:
+        return strong_rows
+
+    chosen_ids = {str(row.get("id")) for row in strong_rows}
+    weak_rows = [
+        row
+        for row in rows
+        if str(row.get("id")) not in chosen_ids and is_high_confidence_weak_tech_row(row)
+    ]
+    if target_total is None or len(strong_rows) >= target_total:
+        return strong_rows + weak_rows
+
+    needed = max(0, target_total - len(strong_rows))
+    rng = random.Random(seed)
+    rng.shuffle(weak_rows)
+    return strong_rows + weak_rows[:needed]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--jd", default="data/interim/jd_clean.jsonl")
@@ -91,9 +381,20 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--train-ratio", type=float, default=0.8)
     parser.add_argument("--valid-ratio", type=float, default=0.1)
+    parser.add_argument("--include-weak-tech", action="store_true")
+    parser.add_argument("--target-total", type=int, default=None)
+    parser.add_argument("--quality-profile", choices=["strict", "expanded"], default="strict")
     args = parser.parse_args()
 
-    samples = [build_jd_parse_sample(row) for row in read_jsonl(args.jd) if row.get("sft_ready", True)]
+    rows = list(read_jsonl(args.jd))
+    selected_rows = collect_sft_rows(
+        rows,
+        include_weak_tech=args.include_weak_tech,
+        target_total=args.target_total,
+        seed=args.seed,
+        quality_profile=args.quality_profile,
+    )
+    samples = [build_jd_parse_sample(row) for row in selected_rows]
     splits = split_samples(samples, args.train_ratio, args.valid_ratio, args.seed)
     for split, rows in splits.items():
         write_jsonl(f"{args.out_dir}/{split}.jsonl", rows)
