@@ -1,0 +1,152 @@
+sources:
+  - org_id: eastmoney
+    company: 东方财富
+    source_name: moka_eastmoney
+    source_url: https://app.mokahr.com/social-recruitment/eastmoney/57970#/
+    modes: [social]
+    site_ids:
+      social: 57970
+  - org_id: high-flyer
+    company: 幻方量化
+    source_name: moka_high_flyer
+    source_url: https://app.mokahr.com/social-recruitment/high-flyer/140576#/
+    modes: [social]
+    site_ids:
+      social: 140576
+  - org_id: voyah
+    company: 岚图汽车
+    source_name: moka_voyah
+    source_url: https://app.mokahr.com/social-recruitment/voyah/146292#/
+    modes: [social]
+    site_ids:
+      social: 146292
+  - org_id: se
+    company: 施耐德电气
+    source_name: moka_se
+    source_url: https://app.mokahr.com/social-recruitment/se/98712#/
+    modes: [social]
+    site_ids:
+      social: 98712
+  - org_id: jspdg
+    company: 江苏省规划设计集团
+    source_name: moka_jspdg
+    source_url: https://app.mokahr.com/social-recruitment/jspdg#/
+    modes: [social, campus]
+  - org_id: supcon
+    company: 中控技术
+    source_name: moka_supcon
+    source_url: https://app.mokahr.com/campus-recruitment/supcon/68138
+    modes: [social, campus]
+    site_ids:
+      campus: 68138
+  - org_id: thfund
+    company: 天弘基金
+    source_name: moka_thfund
+    source_url: https://app.mokahr.com/campus-recruitment/thfund
+    modes: [social, campus]
+  - org_id: step
+    company: 阶跃星辰
+    source_name: moka_step
+    source_url: https://app.mokahr.com/campus-recruitment/step/94905#/
+    modes: [campus]
+    site_ids:
+      campus: 94905
+  - org_id: huahong
+    company: 华虹集团
+    source_name: moka_huahong
+    source_url: https://app.mokahr.com/campus-recruitment/huahong/70000#/
+    modes: [campus]
+    site_ids:
+      campus: 70000
+  - org_id: xmyanquhr
+    company: 友塔游戏
+    source_name: moka_xmyanquhr
+    source_url: https://app.mokahr.com/campus-recruitment/xmyanquhr/74333#/
+    modes: [campus]
+    site_ids:
+      campus: 74333
+  - org_id: baai
+    company: 北京智源人工智能研究院
+    source_name: moka_baai
+    source_url: https://app.mokahr.com/campus-recruitment/baai/42174#/
+    modes: [campus]
+    site_ids:
+      campus: 42174
+  - org_id: whfhtx
+    company: 烽火通信
+    source_name: moka_whfhtx
+    source_url: https://app.mokahr.com/campus-recruitment/whfhtx/73922#/
+    modes: [campus]
+    site_ids:
+      campus: 73922
+  - org_id: hq
+    company: 华勤技术
+    source_name: moka_hq
+    source_url: https://app.mokahr.com/campus-recruitment/hq/44757#/
+    modes: [campus]
+    site_ids:
+      campus: 44757
+  - org_id: threatbook
+    company: 微步在线
+    source_name: moka_threatbook
+    source_url: https://app.mokahr.com/campus-recruitment/threatbook/39679#/
+    modes: [campus]
+    site_ids:
+      campus: 39679
+  - org_id: sina
+    company: 新浪集团
+    source_name: moka_sina
+    source_url: https://app.mokahr.com/campus-recruitment/sina/43536#/
+    modes: [campus]
+    site_ids:
+      campus: 43536
+  - org_id: bosssoft
+    company: 博思软件
+    source_name: moka_bosssoft
+    source_url: https://app.mokahr.com/campus-recruitment/bosssoft/68370#/
+    modes: [campus]
+    site_ids:
+      campus: 68370
+  - org_id: ztgame
+    company: 巨人网络
+    source_name: moka_ztgame
+    source_url: https://app.mokahr.com/campus-recruitment/ztgame/92438#/
+    modes: [campus]
+    site_ids:
+      campus: 92438
+  - org_id: transwarp
+    company: 星环科技
+    source_name: moka_transwarp
+    source_url: https://app.mokahr.com/campus_apply/transwarp
+    modes: [campus]
+  - org_id: shopee
+    company: Shopee 虾皮
+    source_name: moka_shopee
+    source_url: https://app.mokahr.com/campus_apply/shopee/2962#/jobs
+    modes: [campus]
+    site_ids:
+      campus: 2962
+  - org_id: rastar
+    company: 星辉游戏
+    source_name: moka_rastar
+    source_url: https://app.mokahr.com/social-recruitment/rastar
+    modes: [social]
+  - org_id: qianli1
+    company: 千里智驾
+    source_name: moka_qianli1
+    source_url: https://app.mokahr.com/campus_apply/qianli1/147197#/jobs
+    modes: [campus]
+    site_ids:
+      campus: 147197
+  - org_id: cyou-inc
+    company: 畅游
+    source_name: moka_cyou_inc
+    source_url: https://app.mokahr.com/campus-recruitment/cyou-inc/42233#/
+    modes: [campus]
+    site_ids:
+      campus: 42233
+  - org_id: reo
+    company: 睿联技术
+    source_name: moka_reo
+    source_url: https://app.mokahr.com/m/candidate/applications/deliver-query/reo
+    modes: [campus]

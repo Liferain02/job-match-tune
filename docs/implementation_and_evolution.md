@@ -246,7 +246,7 @@ python -m jobmatch_tune.crawler.baidu_talent \
 导入公开职位导出文件：
 
 ```bash
-bash scripts/import_public_job_exports.sh
+bash scripts/data/import_public_job_exports.sh
 ```
 
 这一步当前会导入：
@@ -257,7 +257,59 @@ bash scripts/import_public_job_exports.sh
 4. Hugging Face `open-apply-jobs` Ashby parquet 分片
 5. Hugging Face `open-apply-jobs` Lever parquet 分片
 
-这样当前 `jd_raw / jd_clean` 已经扩到 5 万级以上，不再只依赖腾讯官网公开职位。
+这样当前 `jd_raw / jd_clean` 先扩到了 5 万级，不再只依赖腾讯官网公开职位。
+
+随后我又补上了百度招聘公开职位抓取：
+
+1. 入口：`jobmatch_tune.crawler.baidu_talent`
+2. 原理：直接解析 `https://talent.baidu.com/jobs/social-list` SSR 页面中的 `window.__INITIAL_DATA__`
+3. 特点：
+   - 不依赖登录态
+   - 不需要执行浏览器脚本
+   - 服务端 `search` 参数可用，适合批量关键词扩量
+4. 当前结果：
+   - `data/raw/baidu_jd_raw.jsonl`：577 条
+   - 默认中文 SFT 提升到 `1194 / 149 / 150`
+
+接着我把京东公开招聘匿名接口也接进来了：
+
+1. 入口：`jobmatch_tune.crawler.jd_careers`
+2. 确认到的匿名接口：
+   - `/web/job/job_allparams`
+   - `/web/job/job_count`
+   - `/web/job/job_list`
+3. 特点：
+   - 不依赖登录态
+   - 可直接分页获取公开职位正文、任职要求和发布时间
+4. 当前结果：
+   - `data/raw/jd_careers_raw.jsonl`：3054 条
+
+然后又补了一条真正的大体量中文源：
+
+1. 数据集：`wangzihaogithub/job-educational-parser-dataset-08-0-0805`
+2. 导入入口：
+   - `configs/public_job_sources_zh_large.yaml`
+   - `scripts/data/import_chinese_job_exports.sh`
+3. 规模：
+   - train：`187606`
+   - validation：`43744`
+   - test：`714`
+   - 合计导入：`232064`
+4. 这个数据集的标签口径是“从岗位中提取学历”，所以我没有整批直接塞进当前主结构化 SFT，而是：
+   - 先作为中文招聘原始语料扩量
+   - 再从中筛选高置信中文技术岗补到默认主结构化 SFT
+   - 继续保留为后续学历字段专项监督源
+
+在这批新增中文源接入后，当前整体规模变成：
+
+1. `data/interim/jd_clean.jsonl`：`292167`
+2. `data/interim/jd_clean_dedup.jsonl`：`273963`
+3. 去重后语言分布：
+   - 中文：`221402`
+   - 英文：`51330`
+   - 其他 / 未知：`927`
+4. 默认高质量中文 SFT：`1408 / 176 / 177`
+5. 扩展实验版 SFT：`4800 / 600 / 601`
 
 清洗：
 
@@ -273,47 +325,87 @@ python -m jobmatch_tune.preprocess.normalize_jd \
 ```bash
 python -m jobmatch_tune.dataset.build_sft_dataset \
   --jd data/interim/jd_clean.jsonl \
-  --out-dir data/sft
+  --out-dir data/sft \
+  --quality-profile strict
+
+python -m jobmatch_tune.dataset.build_sft_dataset \
+  --jd data/interim/jd_clean.jsonl \
+  --out-dir data/sft_expanded \
+  --include-weak-tech \
+  --quality-profile expanded \
+  --target-total 20000
 ```
 
 这里有一个关键设计：
 
 1. 项目现在明确区分“原始职位语料规模”和“默认可训练 SFT 样本质量”。
-2. 新增公开导出语料会进入 `jd_raw / jd_clean`，但不默认进入 `data/sft/`。
+2. 新增公开导出语料会先进入 `jd_raw / jd_clean`，再经过高置信筛选后，少量中文技术岗只会进入 `data/sft_expanded/`。
 3. 原因是这批新语料里混有：
    - 只有浅字段的职位导出 CSV
    - 大量英文 ATS JD
-4. 当前默认规则标注链路主要针对中文 JD，因此新增语料先作为扩量语料保留，后续再做多语种规则或蒸馏，而不是直接污染现有训练集。
+4. 当前默认规则标注链路主要针对中文 JD，因此默认训练集只保留高信任官网中文样本；新增语料只有在满足技术岗、结构完整、教育/经验字段可抽取等条件时才会补入扩展实验集，其余样本继续作为扩量语料保留。
+5. `20000` 只代表扩展实验集的目标上限，不代表默认高质量训练集的真实可用规模。
+
+### 6.2.2 英文语料怎么用
+
+英文语料不是不能用，而是不能直接沿用当前中文规则标签。
+
+我实际抽样后确认了两个事实：
+
+1. 英文原始职位里有大量真实技术岗，数量足够把训练集拉到万级。
+2. 但如果直接沿用当前中文规则，英文职位会出现明显误标，例如：
+   - `Android Developer -> 后端开发`
+   - `Lead Video -> 后端开发`
+
+所以这条线最终采用的是“分层使用”：
+
+1. `data/sft/`
+   - 继续保留为默认高质量中文集
+   - 用于当前主模型和 demo
+2. `data/sft_multilingual_weak/`
+   - 新增中英混合弱标注集
+   - 对英文职位只保留高置信标题/上下文规则能单一判定方向的样本
+   - 作为第二阶段扩量训练集，不直接替换默认高质量集
+
+当前这条新链路的结果是：
+
+1. `train`: `14188`
+2. `valid`: `1773`
+3. `test`: `1774`
+
+也就是说，规模优先的数据链路已经达到万级。
 
 ### 6.2.1 这轮为什么没有直接接入更多中文官网 API
 
-这轮我验证了三个候选：
+这轮我验证了四个候选：
 
 1. 网易招聘候选路径  
    当前直接请求返回对象存储 `NoSuchKey / 404`，还没拿到稳定职位列表接口。
 2. 字节招聘候选路径  
-   公开招聘页可访问，但试探到的接口路径返回 404 或非职位 JSON 页面，暂时还不能稳定复用。
+   公开招聘页可访问，前端 bundle 里的职位接口和 `_signature` 逻辑也已经还原；但实际列表接口仍被网关改写到猎头平台页面，说明还卡在额外的上下文 / 浏览器态校验，暂时还不能稳定复用。
 3. 百度招聘候选路径  
    `https://talent.baidu.com/jobs/social-list` 会直接返回 SSR 的 `window.__INITIAL_DATA__`。虽然分页 API 还没有完全抠出来，但服务端 `search` 参数已经可用，因此先落地了关键词批量抓取器。
+4. 京东招聘候选路径  
+   这条已经从候选转成正式接入，匿名接口稳定可用，当前抓取 `3054` 条。
 
 所以这轮的取舍是：
 
 1. 先把公开职位仓和 ATS 公开分片做成稳定扩量通道。
 2. 把腾讯和百度这两条稳定的公开中文官网链路接进主链路。
-3. 字节、网易、JD、阿里继续单独验证，不为了赶数据量把不稳定路径接进主链路。
+3. 字节、网易、阿里继续单独验证，不为了赶数据量把不稳定路径接进主链路。
 
 ### 6.3 训练
 
 Smoke：
 
 ```bash
-bash scripts/train_qwen3_14b_smoke.sh
+bash scripts/train/train_qwen3_14b_smoke.sh
 ```
 
 正式训练：
 
 ```bash
-bash scripts/train_qwen3_14b_full.sh
+bash scripts/train/train_qwen3_14b_full.sh
 ```
 
 ### 6.4 推理
@@ -344,7 +436,7 @@ PYTHONPATH=src python -m jobmatch_tune.eval.run_manual_eval \
 #### FastAPI 本地推理后端
 
 ```bash
-bash scripts/start_api.sh
+bash scripts/serve/start_api.sh
 ```
 
 #### vLLM 服务化后端
@@ -352,7 +444,7 @@ bash scripts/start_api.sh
 先启动 vLLM：
 
 ```bash
-bash scripts/start_vllm_server.sh
+bash scripts/serve/start_vllm_server.sh
 ```
 
 再让 API 走 vLLM：
@@ -361,7 +453,7 @@ bash scripts/start_vllm_server.sh
 export JOBMATCH_INFERENCE_BACKEND=vllm
 export JOBMATCH_VLLM_BASE_URL=http://127.0.0.1:8010/v1
 export JOBMATCH_VLLM_MODEL=jobmatch-lora
-bash scripts/start_api.sh
+bash scripts/serve/start_api.sh
 ```
 
 ### 6.7 偏好优化
@@ -369,13 +461,13 @@ bash scripts/start_api.sh
 先从人工评估预测结果构造 preference dataset：
 
 ```bash
-bash scripts/build_preference_dataset.sh
+bash scripts/data/build_preference_dataset.sh
 ```
 
 再执行 14B DPO：
 
 ```bash
-bash scripts/train_qwen3_14b_dpo.sh
+bash scripts/train/train_qwen3_14b_dpo.sh
 ```
 
 ## 7. 关键实现细节

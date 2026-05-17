@@ -1,0 +1,19 @@
+sources:
+  - name: hf_job_educational_train_2026_05_17
+    type: job_educational_parquet
+    enabled: true
+    local_path: data/external/public_job_exports/job_educational_train_2026-05-17.parquet
+    source_url: https://huggingface.co/datasets/wangzihaogithub/job-educational-parser-dataset-08-0-0805/resolve/refs%2Fconvert%2Fparquet/default/train/0000.parquet
+    min_description_chars: 40
+  - name: hf_job_educational_validation_2026_05_17
+    type: job_educational_parquet
+    enabled: true
+    local_path: data/external/public_job_exports/job_educational_validation_2026-05-17.parquet
+    source_url: https://huggingface.co/datasets/wangzihaogithub/job-educational-parser-dataset-08-0-0805/resolve/refs%2Fconvert%2Fparquet/default/validation/0000.parquet
+    min_description_chars: 40
+  - name: hf_job_educational_test_2026_05_17
+    type: job_educational_parquet
+    enabled: true
+    local_path: data/external/public_job_exports/job_educational_test_2026-05-17.parquet
+    source_url: https://huggingface.co/datasets/wangzihaogithub/job-educational-parser-dataset-08-0-0805/resolve/refs%2Fconvert%2Fparquet/default/test/0000.parquet
+    min_description_chars: 40

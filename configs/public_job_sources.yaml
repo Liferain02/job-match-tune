@@ -1,0 +1,32 @@
+sources:
+  - name: github_jhcoco_bosszp
+    type: bosszp_csv
+    enabled: true
+    local_path: data/external/public_job_exports/jhcoco_bosszp.csv
+    source_url: https://raw.githubusercontent.com/jhcoco/bosszp/master/%E5%85%A8%E5%9B%BD-%E7%83%AD%E9%97%A8%E5%9F%8E%E5%B8%82%E5%B2%97%E4%BD%8D%E6%95%B0%E6%8D%AE.csv
+  - name: github_workaggregation_test
+    type: workaggregation_csv
+    enabled: true
+    local_path: data/external/public_job_exports/workaggregation_test.csv
+    source_url: https://raw.githubusercontent.com/xming521/WorkAggregation/master/data/test.csv
+  - name: hf_open_apply_greenhouse_tech_2026_05_15
+    type: open_apply_jobs_parquet
+    enabled: true
+    local_path: data/external/public_job_exports/open_apply_greenhouse_2026-05-15.parquet
+    source_url: https://huggingface.co/datasets/edwarddgao/open-apply-jobs/resolve/main/data/date=2026-05-15/source=greenhouse/52db4a0a5e67446bb34dceaf6c9f6c43-0.parquet
+    min_description_chars: 800
+    max_rows: 20000
+  - name: hf_open_apply_ashby_tech_2026_05_15
+    type: open_apply_jobs_parquet
+    enabled: true
+    local_path: data/external/public_job_exports/open_apply_ashby_2026-05-15.parquet
+    source_url: https://huggingface.co/datasets/edwarddgao/open-apply-jobs/resolve/main/data/date=2026-05-15/source=ashby/52db4a0a5e67446bb34dceaf6c9f6c43-0.parquet
+    min_description_chars: 800
+    max_rows: 20000
+  - name: hf_open_apply_lever_tech_2026_05_15
+    type: open_apply_jobs_parquet
+    enabled: true
+    local_path: data/external/public_job_exports/open_apply_lever_2026-05-15.parquet
+    source_url: https://huggingface.co/datasets/edwarddgao/open-apply-jobs/resolve/main/data/date=2026-05-15/source=lever/52db4a0a5e67446bb34dceaf6c9f6c43-0.parquet
+    min_description_chars: 800
+    max_rows: 20000
