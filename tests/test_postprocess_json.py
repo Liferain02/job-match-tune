@@ -29,6 +29,42 @@ def test_parse_json_output_canonicalizes_free_form_job_direction():
     assert result["data"]["岗位方向"] == "测试开发"
 
 
+def test_parse_json_output_recognizes_client_direction_from_context():
+    result = parse_json_output(
+        '{"岗位方向":"后端开发","核心职责":["负责客户端功能实现与性能优化"]}',
+        context_text="岗位名称：Unity 客户端开发工程师",
+    )
+    assert result["ok"] is True
+    assert result["data"]["岗位方向"] == "客户端开发"
+
+
+def test_parse_json_output_recognizes_embedded_direction_from_context():
+    result = parse_json_output(
+        '{"岗位方向":"后端开发","核心职责":["负责固件开发与驱动调试"]}',
+        context_text="岗位名称：嵌入式固件开发工程师",
+    )
+    assert result["ok"] is True
+    assert result["data"]["岗位方向"] == "嵌入式开发"
+
+
+def test_parse_json_output_recognizes_sre_direction_from_context():
+    result = parse_json_output(
+        '{"岗位方向":"后端开发","核心职责":["建设运维平台并保障系统稳定性"]}',
+        context_text="岗位名称：SRE工程师",
+    )
+    assert result["ok"] is True
+    assert result["data"]["岗位方向"] == "运维开发"
+
+
+def test_parse_json_output_recognizes_security_direction_from_context():
+    result = parse_json_output(
+        '{"岗位方向":"后端开发","核心职责":["负责漏洞研究与安全攻防"]}',
+        context_text="岗位名称：安全工程师",
+    )
+    assert result["ok"] is True
+    assert result["data"]["岗位方向"] == "安全工程"
+
+
 def test_parse_json_output_overrides_ai_application_to_algorithm_when_context_is_inference():
     result = parse_json_output('{"岗位方向":"AI应用开发","核心职责":["优化大模型推理性能，提升吞吐并控制成本"]}')
     assert result["ok"] is True

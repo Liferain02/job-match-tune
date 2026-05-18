@@ -117,3 +117,45 @@ def test_is_high_trust_strong_row_accepts_product_manager() -> None:
         "sft_ready": True,
     }
     assert is_high_trust_strong_row(row) is True
+
+
+def test_is_high_trust_strong_row_accepts_security_engineer() -> None:
+    row = {
+        "id": "trusted_sec",
+        "source": "moka_threatbook",
+        "language": "zh",
+        "job_title": "安全工程师",
+        "clean_text": "岗位职责：负责漏洞分析与安全攻防\n任职要求：本科及以上，具备安全研发经验",
+        "sections": {"responsibilities": "负责漏洞分析与安全攻防", "requirements": "本科及以上，具备安全研发经验"},
+        "labels": {"岗位方向": "安全工程", "学历要求": "本科"},
+        "sft_ready": True,
+    }
+    assert is_high_trust_strong_row(row) is True
+
+
+def test_is_high_trust_strong_row_accepts_rd_title_without_engineer_keyword() -> None:
+    row = {
+        "id": "trusted_rd",
+        "source": "talent.baidu.com",
+        "language": "zh",
+        "job_title": "OLAP引擎研发",
+        "clean_text": "岗位职责：负责 OLAP 引擎研发与性能优化\n任职要求：本科及以上，熟悉数据库与分布式系统",
+        "sections": {"responsibilities": "负责 OLAP 引擎研发与性能优化", "requirements": "本科及以上，熟悉数据库与分布式系统"},
+        "labels": {"岗位方向": "后端开发", "学历要求": "本科"},
+        "sft_ready": True,
+    }
+    assert is_high_trust_strong_row(row) is True
+
+
+def test_is_high_trust_strong_row_rejects_pr_role_even_if_model_predicted_tech() -> None:
+    row = {
+        "id": "trusted_pr",
+        "source": "talent.baidu.com",
+        "language": "zh",
+        "job_title": "百度集团公关（支持智能驾驶事业群）",
+        "clean_text": "岗位职责：负责公关传播与品牌合作\n任职要求：本科及以上，具备传播经验",
+        "sections": {"responsibilities": "负责公关传播与品牌合作", "requirements": "本科及以上，具备传播经验"},
+        "labels": {"岗位方向": "AI应用开发", "学历要求": "本科"},
+        "sft_ready": True,
+    }
+    assert is_high_trust_strong_row(row) is False
