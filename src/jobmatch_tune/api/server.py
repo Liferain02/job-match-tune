@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 import time
+from pathlib import Path
 from threading import Lock
 from typing import Any, Literal
 
 import torch
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -15,6 +17,8 @@ from jobmatch_tune.inference.predict import build_prompt, load_model
 from jobmatch_tune.inference.postprocess_json import parse_json_output
 from jobmatch_tune.inference.structured_output import build_response_format
 from jobmatch_tune.match.rule_engine import compute_match_rule_result
+from jobmatch_tune.resume.ingest import ingest_resume
+from jobmatch_tune.resume.normalize import normalize_ingest_row
 
 
 DEFAULT_MODEL_PATH = "models/Qwen3-14B"
@@ -285,6 +289,61 @@ app.add_middleware(
 )
 
 
+def parse_uploaded_resume_bytes(
+    service: ModelService,
+    *,
+    file_name: str,
+    content: bytes,
+    ocr_text: str = "",
+    max_new_tokens: int = 1024,
+) -> dict[str, Any]:
+    suffix = Path(file_name).suffix or ".txt"
+    with tempfile.TemporaryDirectory(prefix="jobmatch_resume_") as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        resume_path = tmpdir_path / f"resume{suffix}"
+        resume_path.write_bytes(content)
+        if ocr_text.strip():
+            (tmpdir_path / "resume.ocr.txt").write_text(ocr_text.strip(), encoding="utf-8")
+
+        ingest_row = ingest_resume(resume_path, ocr_dir=tmpdir_path)
+        if not ingest_row.get("parse_ok"):
+            return {
+                "ok": False,
+                "file_name": file_name,
+                "ingest": ingest_row,
+                "needs_ocr": ingest_row.get("needs_ocr", False),
+                "error": ingest_row.get("parse_error", "resume_ingest_failed"),
+            }
+
+        normalized = normalize_ingest_row(ingest_row)
+        parse_result = service.parse(
+            ParseRequest(
+                task="resume_parse",
+                text=normalized["normalized_text"],
+                max_new_tokens=max_new_tokens,
+            )
+        )
+        return {
+            "ok": parse_result.get("ok", False),
+            "file_name": file_name,
+            "ingest": {
+                "source_type": ingest_row.get("source_type", ""),
+                "pdf_kind": ingest_row.get("pdf_kind", ""),
+                "ocr_used": ingest_row.get("ocr_used", False),
+                "ocr_source": ingest_row.get("ocr_source", ""),
+                "extraction_method": ingest_row.get("extraction_method", ""),
+                "page_count": ingest_row.get("page_count", 1),
+                "text_char_count": ingest_row.get("text_char_count", 0),
+                "needs_ocr": ingest_row.get("needs_ocr", False),
+            },
+            "normalized_text": normalized["normalized_text"],
+            "sections": normalized["sections"],
+            "data": parse_result.get("data"),
+            "raw_output": parse_result.get("raw_output", ""),
+            "latency_seconds": parse_result.get("latency_seconds", 0.0),
+        }
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     return {"ok": True, **service.status()}
@@ -335,6 +394,27 @@ def batch_parse(request: BatchParseRequest) -> dict[str, Any]:
 def batch_match(request: BatchMatchRequest) -> dict[str, Any]:
     try:
         return service.batch_match(request)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/resume_file_parse")
+async def resume_file_parse(
+    file: UploadFile = File(...),
+    max_new_tokens: int = Form(default=1024),
+    ocr_text: str = Form(default=""),
+) -> dict[str, Any]:
+    try:
+        content = await file.read()
+        if not content:
+            raise ValueError("Uploaded file is empty")
+        return parse_uploaded_resume_bytes(
+            service,
+            file_name=file.filename or "resume.txt",
+            content=content,
+            ocr_text=ocr_text,
+            max_new_tokens=max_new_tokens,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

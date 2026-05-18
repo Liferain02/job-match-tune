@@ -491,6 +491,11 @@ ssh -L 5173:localhost:5173 -L 8000:localhost:8000 gpu03
 - `POST /api/batch_match`
   - 输入 `items[{jd_text,resume_text}]`
   - 返回批量匹配结果和逐条状态
+- `POST /api/resume_file_parse`
+  - 输入 `multipart/form-data`
+  - 支持 `txt / docx / pdf / png / jpg`
+  - 对 `text_pdf` 直接解析
+  - 对 `weak_text_pdf / scanned_pdf / image`，可额外传 `ocr_text` 作为 OCR sidecar 文本
 
 如需切回 1.7B：
 
