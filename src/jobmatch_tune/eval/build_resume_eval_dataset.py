@@ -546,6 +546,7 @@ def main() -> None:
     write_jsonl("data/eval/resume_manual_eval_augmented.jsonl", augmented_rows)
     ocr_rows = build_ocr_like_rows(BASE_ROWS)
     write_jsonl("data/eval/resume_manual_eval_ocr_seed.jsonl", ocr_rows)
+    write_jsonl("data/eval/resume_manual_train_pool.jsonl", augmented_rows + ocr_rows)
     print(
         f"wrote {len(BASE_ROWS)} text rows, {len(augmented_rows)} augmented text rows and {len(ocr_rows)} ocr-like rows"
     )

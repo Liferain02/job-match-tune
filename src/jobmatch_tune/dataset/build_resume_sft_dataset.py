@@ -158,6 +158,72 @@ def _variant_ocr_like(label: dict[str, Any]) -> str:
     return text
 
 
+def _variant_education_first(label: dict[str, Any]) -> str:
+    parts = [
+        f"教育背景：{'；'.join(label.get('教育背景', []))}",
+        f"目标岗位：{label.get('目标岗位', '')}",
+        f"核心技能：{'、'.join(label.get('核心技能', []))}",
+        f"项目经历：{'；'.join(label.get('项目经历', []))}",
+        f"实习经历：{'；'.join(label.get('实习经历', []))}",
+        f"优势标签：{'、'.join(label.get('优势标签', []))}",
+    ]
+    return "\n".join(part for part in parts if part.strip())
+
+
+def _variant_internship_first(label: dict[str, Any]) -> str:
+    parts = [
+        f"目标岗位：{label.get('目标岗位', '')}",
+        "实习优先：",
+        _render_lines(label.get("实习经历", []), prefix="- "),
+        "项目补充：",
+        _render_lines(label.get("项目经历", []), prefix="- "),
+        f"技能：{' / '.join(label.get('核心技能', []))}",
+        f"教育：{'；'.join(label.get('教育背景', []))}",
+        f"优势：{'、'.join(label.get('优势标签', []))}",
+    ]
+    return "\n".join(part for part in parts if part and part.strip())
+
+
+def _variant_markdown_sections(label: dict[str, Any]) -> str:
+    blocks = [
+        f"## 目标岗位\n{label.get('目标岗位', '')}",
+        "## 教育背景\n" + "\n".join(f"- {item}" for item in label.get("教育背景", [])),
+        "## 核心技能\n" + "\n".join(f"- {item}" for item in label.get("核心技能", [])),
+        "## 实习经历\n" + "\n".join(f"- {item}" for item in label.get("实习经历", [])),
+        "## 项目经历\n" + "\n".join(f"- {item}" for item in label.get("项目经历", [])),
+        "## 优势标签\n" + "\n".join(f"- {item}" for item in label.get("优势标签", [])),
+    ]
+    return "\n\n".join(block for block in blocks if block.strip())
+
+
+def _variant_semicolon(label: dict[str, Any]) -> str:
+    return "\n".join(
+        [
+            f"岗位={label.get('目标岗位', '')}",
+            f"教育={'；'.join(label.get('教育背景', []))}",
+            f"技能={'；'.join(label.get('核心技能', []))}",
+            f"实习={'；'.join(label.get('实习经历', []))}",
+            f"项目={'；'.join(label.get('项目经历', []))}",
+            f"优势={'；'.join(label.get('优势标签', []))}",
+        ]
+    )
+
+
+def _variant_mixed_cn_en(label: dict[str, Any]) -> str:
+    return "\n".join(
+        part
+        for part in [
+            f"Target Role: {label.get('目标岗位', '')}",
+            f"Education: {'; '.join(label.get('教育背景', []))}",
+            f"Skills: {', '.join(label.get('核心技能', []))}",
+            "Projects:\n" + "\n".join(f"* {item}" for item in label.get("项目经历", [])),
+            "Internships:\n" + "\n".join(f"* {item}" for item in label.get("实习经历", [])),
+            f"Strengths: {', '.join(label.get('优势标签', []))}",
+        ]
+        if part.strip()
+    )
+
+
 VARIANT_BUILDERS = [
     ("original", _variant_original),
     ("profile_card", lambda row: _variant_profile_card(row["label"])),
@@ -169,6 +235,11 @@ VARIANT_BUILDERS = [
     ("project_first", lambda row: _variant_project_first(row["label"])),
     ("plain_sections", lambda row: _variant_plain_sections(row["label"])),
     ("ocr_like", lambda row: _variant_ocr_like(row["label"])),
+    ("education_first", lambda row: _variant_education_first(row["label"])),
+    ("internship_first", lambda row: _variant_internship_first(row["label"])),
+    ("markdown_sections", lambda row: _variant_markdown_sections(row["label"])),
+    ("semicolon", lambda row: _variant_semicolon(row["label"])),
+    ("mixed_cn_en", lambda row: _variant_mixed_cn_en(row["label"])),
 ]
 
 
@@ -215,7 +286,7 @@ def split_grouped_samples(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", default="data/eval/resume_manual_eval_augmented.jsonl")
+    parser.add_argument("--input", default="data/eval/resume_manual_train_pool.jsonl")
     parser.add_argument("--out-dir", default="data/sft_resume")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--train-ratio", type=float, default=0.8)
