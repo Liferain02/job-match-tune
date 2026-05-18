@@ -197,6 +197,24 @@ bash scripts/data/build_resume_train_pool_combined.sh
 bash scripts/data/build_match_train_pool_combined.sh
 ```
 
+一键跑公开 `resume` 导入、审计和合并建池：
+
+```bash
+bash scripts/data/prepare_public_resume_pipeline.sh
+```
+
+一键跑公开 `match` 导入、审计和合并建池：
+
+```bash
+bash scripts/data/prepare_public_match_pipeline.sh
+```
+
+一键跑公开 `JD` 审计和候选池构造：
+
+```bash
+bash scripts/data/prepare_public_jd_pipeline.sh
+```
+
 当前这条链路会导入三类补充源：
 
 - GitHub `jhcoco/bosszp` CSV
