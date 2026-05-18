@@ -227,6 +227,18 @@ bash scripts/data/prepare_public_jd_pipeline.sh
 bash scripts/data/report_data_readiness.sh
 ```
 
+输出外部数据落盘状态报告：
+
+```bash
+bash scripts/data/report_external_data_status.sh
+```
+
+一键跑当前所有公共数据流水线：
+
+```bash
+bash scripts/data/prepare_all_public_pipelines.sh
+```
+
 当前这条链路会导入三类补充源：
 
 - GitHub `jhcoco/bosszp` CSV

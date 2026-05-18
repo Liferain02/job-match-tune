@@ -71,7 +71,9 @@
     - `prepare_public_resume_pipeline.sh`
     - `prepare_public_match_pipeline.sh`
     - `prepare_public_jd_pipeline.sh`
+    - `prepare_all_public_pipelines.sh`
     - `report_data_readiness.sh`
+    - `report_external_data_status.sh`
     - `rebuild_data_pipeline.sh`
     - `build_preference_dataset.sh`
     - `build_multilingual_weak_sft.sh`
