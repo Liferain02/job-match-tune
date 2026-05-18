@@ -43,9 +43,12 @@ const examples = {
 
 const state = {
   task: "jd_parse",
+  requestMode: "single",
   activeView: "structured",
   lastPayload: null,
 };
+
+const BATCH_DELIMITER = "\n---\n";
 
 const apiBase = document.querySelector("#apiBase");
 const inputText = document.querySelector("#inputText");
@@ -63,6 +66,8 @@ const copyJsonButton = document.querySelector("#copyJsonButton");
 const jdMode = document.querySelector("#jdMode");
 const resumeMode = document.querySelector("#resumeMode");
 const matchMode = document.querySelector("#matchMode");
+const singleRequestMode = document.querySelector("#singleRequestMode");
+const batchRequestMode = document.querySelector("#batchRequestMode");
 const structuredTab = document.querySelector("#structuredTab");
 const rawTab = document.querySelector("#rawTab");
 const structuredView = document.querySelector("#structuredView");
@@ -82,6 +87,7 @@ const overviewValue1 = document.querySelector("#overviewValue1");
 const overviewValue2 = document.querySelector("#overviewValue2");
 const overviewValue3 = document.querySelector("#overviewValue3");
 const overviewValue4 = document.querySelector("#overviewValue4");
+const batchTip = document.querySelector("#batchTip");
 
 function escapeHtml(text) {
   return String(text)
@@ -113,6 +119,17 @@ function renderChipList(items) {
 }
 
 function resetOverview() {
+  if (state.requestMode === "batch") {
+    overviewLabel1.textContent = "总样本";
+    overviewLabel2.textContent = "成功数";
+    overviewLabel3.textContent = "失败数";
+    overviewLabel4.textContent = "任务类型";
+    overviewValue1.textContent = "0";
+    overviewValue2.textContent = "0";
+    overviewValue3.textContent = "0";
+    overviewValue4.textContent = state.task === "match" ? "批量匹配" : "批量解析";
+    return;
+  }
   const defaultLabels =
     state.task === "match"
       ? ["匹配等级", "匹配分数", "命中技能", "缺失技能"]
@@ -147,6 +164,16 @@ function setMode(task) {
     taskHint.textContent = "当前任务：人岗匹配分析";
   }
 
+  resetOverview();
+  renderStructured(null);
+  updateInputStats();
+}
+
+function setRequestMode(mode) {
+  state.requestMode = mode;
+  singleRequestMode.classList.toggle("active", mode === "single");
+  batchRequestMode.classList.toggle("active", mode === "batch");
+  batchTip.classList.toggle("hidden", mode !== "batch");
   resetOverview();
   renderStructured(null);
   updateInputStats();
@@ -282,6 +309,11 @@ function renderMatchStructured(data) {
     return;
   }
 
+  if (state.requestMode === "batch") {
+    renderBatchMatchStructured(data);
+    return;
+  }
+
   const jdParse = data.jd_parse || {};
   const resumeParse = data.resume_parse || {};
   const ruleResult = data.rule_result || {};
@@ -389,10 +421,111 @@ function renderMatchStructured(data) {
   `;
 }
 
+function renderBatchParseStructured(data) {
+  const items = Array.isArray(data?.items) ? data.items : [];
+  overviewLabel1.textContent = "总样本";
+  overviewLabel2.textContent = "成功数";
+  overviewLabel3.textContent = "失败数";
+  overviewLabel4.textContent = "任务类型";
+  overviewValue1.textContent = String(data?.total ?? items.length);
+  overviewValue2.textContent = String(data?.success_count ?? 0);
+  overviewValue3.textContent = String((data?.total ?? items.length) - (data?.success_count ?? 0));
+  overviewValue4.textContent = data?.task === "resume_parse" ? "批量简历解析" : "批量 JD 解析";
+
+  structuredView.innerHTML = `
+    <div class="batch-result-list">
+      ${items
+        .map((item) => {
+          const parsed = item.data || {};
+          const primary =
+            data?.task === "resume_parse"
+              ? parsed["目标岗位"] || "-"
+              : parsed["岗位方向"] || "-";
+          const secondary =
+            data?.task === "resume_parse"
+              ? String((parsed["核心技能"] || []).length)
+              : String((parsed["必备技能"] || []).length);
+          return `
+            <section class="batch-result-card">
+              <div class="batch-result-head">
+                <strong>样本 ${item.index + 1}</strong>
+                <span class="status-pill ${item.ok ? "ok" : "error"}">${item.ok ? "成功" : "失败"}</span>
+              </div>
+              <div class="batch-result-meta">
+                <span>${data?.task === "resume_parse" ? "目标岗位" : "岗位方向"}：${escapeHtml(primary)}</span>
+                <span>${data?.task === "resume_parse" ? "技能数" : "必备技能数"}：${escapeHtml(secondary)}</span>
+              </div>
+            </section>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
+function renderBatchMatchStructured(data) {
+  const items = Array.isArray(data?.items) ? data.items : [];
+  overviewLabel1.textContent = "总样本";
+  overviewLabel2.textContent = "成功数";
+  overviewLabel3.textContent = "失败数";
+  overviewLabel4.textContent = "批量任务";
+  overviewValue1.textContent = String(data?.total ?? items.length);
+  overviewValue2.textContent = String(data?.success_count ?? 0);
+  overviewValue3.textContent = String((data?.total ?? items.length) - (data?.success_count ?? 0));
+  overviewValue4.textContent = "批量匹配";
+
+  structuredView.innerHTML = `
+    <div class="batch-result-list">
+      ${items
+        .map((item) => {
+          const rule = item.rule_result || {};
+          const analysis = item.analysis || {};
+          return `
+            <section class="batch-result-card">
+              <div class="batch-result-head">
+                <strong>匹配样本 ${item.index + 1}</strong>
+                <span class="status-pill ${item.ok ? "ok" : "error"}">${item.ok ? "成功" : "失败"}</span>
+              </div>
+              <div class="batch-result-meta">
+                <span>匹配等级：${escapeHtml(rule["匹配等级"] || "-")}</span>
+                <span>匹配分数：${escapeHtml(String(rule["匹配分数"] ?? "-"))}</span>
+                <span>命中技能：${escapeHtml(String((rule["命中技能"] || []).length))}</span>
+                <span>缺失技能：${escapeHtml(String((rule["缺失技能"] || []).length))}</span>
+              </div>
+              <div class="batch-mini-grid">
+                <div class="batch-mini-item">
+                  <span>岗位方向</span>
+                  <strong>${escapeHtml(item.jd_parse?.["岗位方向"] || "-")}</strong>
+                </div>
+                <div class="batch-mini-item">
+                  <span>简历目标岗位</span>
+                  <strong>${escapeHtml(item.resume_parse?.["目标岗位"] || "-")}</strong>
+                </div>
+                <div class="batch-mini-item">
+                  <span>匹配结论</span>
+                  <strong>${escapeHtml(analysis["匹配结论"] || "-")}</strong>
+                </div>
+                <div class="batch-mini-item">
+                  <span>推荐方向数</span>
+                  <strong>${escapeHtml(String((analysis["推荐投递岗位方向"] || []).length))}</strong>
+                </div>
+              </div>
+            </section>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
 function renderStructured(payload) {
   if (state.task === "match") {
     renderMatchStructured(payload);
   } else {
+    if (state.requestMode === "batch") {
+      renderBatchParseStructured(payload);
+      return;
+    }
     renderParseStructured(payload, state.task);
   }
 }
@@ -407,12 +540,30 @@ function updateServiceMeta(data) {
 
 function updateInputStats() {
   if (state.task === "match") {
-    const jdLen = jdInputText.value.trim().length;
-    const resumeLen = resumeInputText.value.trim().length;
-    inputStats.textContent = `JD ${jdLen} 字 / 简历 ${resumeLen} 字`;
+    const jdText = jdInputText.value.trim();
+    const resumeText = resumeInputText.value.trim();
+    if (state.requestMode === "batch") {
+      const jdCount = splitBatchText(jdText).length;
+      const resumeCount = splitBatchText(resumeText).length;
+      inputStats.textContent = `JD ${jdCount} 条 / 简历 ${resumeCount} 条`;
+      return;
+    }
+    inputStats.textContent = `JD ${jdText.length} 字 / 简历 ${resumeText.length} 字`;
     return;
   }
-  inputStats.textContent = `${inputText.value.trim().length} 字`;
+  const text = inputText.value.trim();
+  if (state.requestMode === "batch") {
+    inputStats.textContent = `${splitBatchText(text).length} 条`;
+    return;
+  }
+  inputStats.textContent = `${text.length} 字`;
+}
+
+function splitBatchText(text) {
+  return text
+    .split(/\n-{3,}\n/g)
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 async function checkHealth() {
@@ -458,23 +609,22 @@ async function warmupModel() {
 }
 
 async function parseText() {
-  const url = state.task === "match" ? `${apiBase.value}/api/match` : `${apiBase.value}/api/parse`;
-  const payload =
+  const isBatch = state.requestMode === "batch";
+  const url =
     state.task === "match"
-      ? {
-          jd_text: jdInputText.value.trim(),
-          resume_text: resumeInputText.value.trim(),
-          max_new_tokens: 1024,
-        }
-      : {
-          task: state.task,
-          text: inputText.value.trim(),
-          max_new_tokens: 1024,
-        };
-
-  const hasText = state.task === "match" ? payload.jd_text && payload.resume_text : payload.text;
+      ? `${apiBase.value}/${isBatch ? "api/batch_match" : "api/match"}`
+      : `${apiBase.value}/${isBatch ? "api/batch_parse" : "api/parse"}`;
+  const payload = buildPayload();
+  const hasText = hasValidPayload(payload);
   if (!hasText) {
-    rawView.textContent = state.task === "match" ? "请输入 JD 和简历文本" : "请输入文本";
+    rawView.textContent =
+      state.task === "match"
+        ? isBatch
+          ? "请输入批量 JD 和简历文本"
+          : "请输入 JD 和简历文本"
+        : isBatch
+          ? "请输入批量文本"
+          : "请输入文本";
     setView("raw");
     return;
   }
@@ -497,7 +647,7 @@ async function parseText() {
     state.lastPayload = data;
     latency.textContent = data.latency_seconds ? `${data.latency_seconds}s` : "-";
     rawView.textContent = JSON.stringify(data, null, 2);
-    renderStructured(state.task === "match" ? data : data.data);
+    renderStructured(isBatch || state.task === "match" ? data : data.data);
     setStatus(data.ok ? "处理完成" : "处理失败", data.ok ? "ok" : "error");
     setView("structured");
     await checkHealth();
@@ -513,6 +663,55 @@ async function parseText() {
   }
 }
 
+function buildPayload() {
+  if (state.task === "match") {
+    if (state.requestMode === "batch") {
+      const jdItems = splitBatchText(jdInputText.value.trim());
+      const resumeItems = splitBatchText(resumeInputText.value.trim());
+      const size = Math.min(jdItems.length, resumeItems.length);
+      return {
+        items: Array.from({ length: size }, (_, index) => ({
+          jd_text: jdItems[index],
+          resume_text: resumeItems[index],
+        })),
+        max_new_tokens: 1024,
+      };
+    }
+    return {
+      jd_text: jdInputText.value.trim(),
+      resume_text: resumeInputText.value.trim(),
+      max_new_tokens: 1024,
+    };
+  }
+
+  if (state.requestMode === "batch") {
+    return {
+      task: state.task,
+      texts: splitBatchText(inputText.value.trim()),
+      max_new_tokens: 1024,
+    };
+  }
+
+  return {
+    task: state.task,
+    text: inputText.value.trim(),
+    max_new_tokens: 1024,
+  };
+}
+
+function hasValidPayload(payload) {
+  if (state.task === "match") {
+    if (state.requestMode === "batch") {
+      return Array.isArray(payload.items) && payload.items.length > 0;
+    }
+    return payload.jd_text && payload.resume_text;
+  }
+  if (state.requestMode === "batch") {
+    return Array.isArray(payload.texts) && payload.texts.length > 0;
+  }
+  return payload.text;
+}
+
 async function copyJson() {
   const content = rawView.textContent || "{}";
   try {
@@ -525,10 +724,18 @@ async function copyJson() {
 
 function fillExample() {
   if (state.task === "match") {
-    jdInputText.value = examples.match.jd;
-    resumeInputText.value = examples.match.resume;
+    if (state.requestMode === "batch") {
+      jdInputText.value = [examples.match.jd, examples.jd_parse].join(BATCH_DELIMITER);
+      resumeInputText.value = [examples.match.resume, examples.resume_parse].join(BATCH_DELIMITER);
+    } else {
+      jdInputText.value = examples.match.jd;
+      resumeInputText.value = examples.match.resume;
+    }
   } else {
-    inputText.value = examples[state.task];
+    inputText.value =
+      state.requestMode === "batch"
+        ? [examples[state.task], examples[state.task]].join(BATCH_DELIMITER)
+        : examples[state.task];
   }
   updateInputStats();
 }
@@ -536,6 +743,8 @@ function fillExample() {
 jdMode.addEventListener("click", () => setMode("jd_parse"));
 resumeMode.addEventListener("click", () => setMode("resume_parse"));
 matchMode.addEventListener("click", () => setMode("match"));
+singleRequestMode.addEventListener("click", () => setRequestMode("single"));
+batchRequestMode.addEventListener("click", () => setRequestMode("batch"));
 structuredTab.addEventListener("click", () => setView("structured"));
 rawTab.addEventListener("click", () => setView("raw"));
 exampleButton.addEventListener("click", fillExample);

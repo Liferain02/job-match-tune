@@ -256,6 +256,17 @@ textarea {
   padding: 18px 24px 0;
 }
 
+.batch-tip {
+  margin: 14px 24px 0;
+  padding: 10px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: #fbfcfe;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .segmented {
   display: inline-flex;
   min-height: 46px;
@@ -463,6 +474,66 @@ textarea {
   white-space: pre-wrap;
 }
 
+.batch-result-list {
+  display: grid;
+  gap: 14px;
+}
+
+.batch-result-card {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-alt);
+}
+
+.batch-result-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.batch-result-head strong {
+  font-size: 15px;
+}
+
+.batch-result-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.batch-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.batch-mini-item {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+}
+
+.batch-mini-item span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.batch-mini-item strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
 .bullet-list {
   margin: 0;
   padding-left: 18px;
@@ -508,7 +579,8 @@ pre {
   .summary-grid,
   .result-overview,
   .service-meta,
-  .dual-input-grid {
+  .dual-input-grid,
+  .batch-mini-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -543,7 +615,8 @@ pre {
   .result-overview,
   .service-meta,
   .result-grid,
-  .dual-input-grid {
+  .dual-input-grid,
+  .batch-mini-grid {
     grid-template-columns: 1fr;
   }
 

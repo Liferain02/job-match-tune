@@ -65,6 +65,13 @@
             <button class="button secondary compact" id="exampleButton" type="button">填入示例</button>
           </div>
 
+          <div class="mode-row">
+            <div class="segmented" role="tablist" aria-label="request-mode">
+              <button class="segment active" id="singleRequestMode" type="button">单条</button>
+              <button class="segment" id="batchRequestMode" type="button">批量</button>
+            </div>
+          </div>
+
           <div class="service-meta">
             <div class="meta-item">
               <span>模型路径</span>
@@ -91,6 +98,10 @@
               <textarea id="resumeInputText" class="compact-textarea" spellcheck="false"></textarea>
             </label>
           </section>
+
+          <div class="batch-tip hidden" id="batchTip">
+            批量模式使用 `---` 分隔每条样本。匹配模式下，JD 与简历按顺序一一对应。
+          </div>
 
           <div class="editor-footer">
             <span id="inputStats">0 字</span>

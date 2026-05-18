@@ -470,6 +470,13 @@ ssh -L 5173:localhost:5173 -L 8000:localhost:8000 gpu03
   - 双输入：`JD 文本 + 简历文本`
   - 输出：`规则匹配结果 + 模型分析结论`
 
+前端同时支持两种请求方式：
+
+- `单条`
+- `批量`
+  - 使用 `---` 分隔多条样本
+  - 可直接调用 `/api/batch_parse` 和 `/api/batch_match`
+
 当前后端接口：
 
 - `POST /api/parse`
