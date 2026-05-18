@@ -149,6 +149,18 @@ bash scripts/data/import_public_job_exports.sh
 bash scripts/data/import_chinese_job_exports.sh
 ```
 
+导入公开 resume 数据：
+
+```bash
+bash scripts/data/import_public_resume_exports.sh
+```
+
+导入公开 match 数据：
+
+```bash
+bash scripts/data/import_public_match_exports.sh
+```
+
 当前这条链路会导入三类补充源：
 
 - GitHub `jhcoco/bosszp` CSV

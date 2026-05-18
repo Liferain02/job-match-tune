@@ -1,0 +1,21 @@
+sources:
+  - name: resume_job_fit_en
+    schema: match_pair_rows
+    language: en
+    source_type: public_pair
+    path: data/external/public_match_exports/resume_job_fit_merged_v1.jsonl
+    mapping:
+      jd_text: job_description
+      resume_text: resume
+      label: label
+      score: score
+
+  - name: resume_jd_fit_en
+    schema: match_pair_rows
+    language: en
+    source_type: public_pair
+    path: data/external/public_match_exports/resume_job_description_fit.jsonl
+    mapping:
+      jd_text: job_description
+      resume_text: resume
+      label: label

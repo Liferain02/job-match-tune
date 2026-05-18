@@ -1,0 +1,24 @@
+sources:
+  - name: faircv_resume_parse
+    schema: resume_parse_rows
+    language: zh
+    source_type: public_text
+    path: data/external/public_resume_exports/faircv_resume_parse.jsonl
+    mapping:
+      text: text
+      target_job: label.目标岗位
+      education: label.教育背景
+      skills: label.核心技能
+      internships: label.实习经历
+      projects: label.项目经历
+      strengths: label.优势标签
+
+  - name: resume_ner_zh
+    schema: resume_ner_rows
+    language: zh
+    source_type: public_text
+    tag_scheme: BIO
+    path: data/external/public_resume_exports/resume_ner_train.jsonl
+    mapping:
+      tokens: tokens
+      tags: ner_tags
