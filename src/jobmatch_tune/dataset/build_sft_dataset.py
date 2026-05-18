@@ -77,6 +77,7 @@ STRONG_TITLE_INCLUDE_KEYWORDS = [
     "工程师",
     "软件",
     "software",
+    "研发",
     "算法",
     "开发",
     "测试",
@@ -100,6 +101,13 @@ STRONG_TITLE_INCLUDE_KEYWORDS = [
     "大模型",
     "机器学习",
     "产品经理",
+    "架构师",
+    "安全",
+    "ios",
+    "android",
+    "嵌入式",
+    "固件",
+    "dba",
 ]
 
 STRONG_TITLE_EXCLUDE_KEYWORDS = [
@@ -125,13 +133,50 @@ STRONG_TITLE_EXCLUDE_KEYWORDS = [
     "助教",
     "机械",
     "结构工程师",
+    "解决方案架构师",
+    "售前解决方案",
     "电气",
     "工艺",
     "材料",
     "飞机",
     "土建",
     "消防",
+    "公关",
+    "客服",
+    "采销",
+    "渠道经理",
+    "商品经理",
+    "招商",
+    "店长",
+    "陈列",
+    "merchandising",
+    "account manager",
+    "客户经理",
+    "品牌经理",
+    "投放",
 ]
+
+STRICT_DIRECTION_TITLE_HINTS = {
+    "产品经理": ["产品", "产品负责人", "策略产品", "商业策略产品"],
+    "算法工程": [
+        "专家",
+        "研究员",
+        "科学家",
+        "推理",
+        "训练",
+        "分布式通信库",
+        "多模态",
+        "推荐策略",
+        "深度学习",
+        "机器学习",
+        "nlp",
+    ],
+    "后端开发": ["olap", "控制面", "中间件", "引擎", "数据库", "dba", "分布式存储"],
+    "运维开发": ["gpu资源", "指挥中心", "可靠性", "devops", "sre", "infra"],
+    "客户端开发": ["app", "ios", "android", "unity", "ue", "u3d"],
+    "嵌入式开发": ["固件", "驱动", "bsp", "rtos", "单片机", "嵌入式"],
+    "安全工程": ["渗透", "攻防", "漏洞", "安全", "威胁"],
+}
 
 MINIMAL_SKILL_SCHEMA = {
     "skill_alias": {
@@ -261,6 +306,17 @@ def split_samples(
     }
 
 
+def title_has_excluded_signal(title: str) -> bool:
+    return any(keyword in title for keyword in STRONG_TITLE_EXCLUDE_KEYWORDS)
+
+
+def title_has_strong_tech_signal(title: str, direction: str) -> bool:
+    if any(keyword in title for keyword in STRONG_TITLE_INCLUDE_KEYWORDS):
+        return True
+    hints = STRICT_DIRECTION_TITLE_HINTS.get(direction, [])
+    return any(keyword in title for keyword in hints)
+
+
 def is_high_trust_strong_row(row: dict[str, Any]) -> bool:
     if row.get("language") != "zh":
         return False
@@ -272,11 +328,12 @@ def is_high_trust_strong_row(row: dict[str, Any]) -> bool:
     lowered_title = title.lower()
     clean_text = str(row.get("clean_text") or "").strip()
     labels = row.get("labels") or {}
-    if not title or not clean_text or not labels.get("岗位方向"):
+    direction = str(labels.get("岗位方向") or "").strip()
+    if not title or not clean_text or not direction:
         return False
-    if not any(keyword in lowered_title for keyword in STRONG_TITLE_INCLUDE_KEYWORDS):
+    if title_has_excluded_signal(lowered_title):
         return False
-    if any(keyword in lowered_title for keyword in STRONG_TITLE_EXCLUDE_KEYWORDS):
+    if not title_has_strong_tech_signal(lowered_title, direction):
         return False
     sections = row.get("sections") or {}
     has_responsibilities = bool(str(sections.get("responsibilities") or "").strip())
