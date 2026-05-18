@@ -149,6 +149,18 @@ bash scripts/data/import_public_job_exports.sh
 bash scripts/data/import_chinese_job_exports.sh
 ```
 
+审计公开 JD 数据：
+
+```bash
+bash scripts/data/audit_public_jd_data.sh --input data/raw/public_job_datasets_raw.jsonl
+```
+
+从公开 JD 导入语料中筛高质量候选池：
+
+```bash
+bash scripts/data/build_public_jd_candidate_pool.sh
+```
+
 导入公开 resume 数据：
 
 ```bash

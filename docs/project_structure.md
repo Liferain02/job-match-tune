@@ -59,6 +59,8 @@
     - `refresh_tencent_data.sh`
     - `import_public_job_exports.sh`
     - `import_chinese_job_exports.sh`
+    - `audit_public_jd_data.sh`
+    - `build_public_jd_candidate_pool.sh`
     - `import_public_resume_exports.sh`
     - `import_public_match_exports.sh`
     - `audit_public_resume_data.sh`
