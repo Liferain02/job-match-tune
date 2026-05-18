@@ -221,6 +221,12 @@ bash scripts/data/prepare_public_match_pipeline.sh
 bash scripts/data/prepare_public_jd_pipeline.sh
 ```
 
+输出统一的数据就绪报告：
+
+```bash
+bash scripts/data/report_data_readiness.sh
+```
+
 当前这条链路会导入三类补充源：
 
 - GitHub `jhcoco/bosszp` CSV
