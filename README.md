@@ -159,13 +159,13 @@ bash scripts/data/import_chinese_job_exports.sh
 
 注意：
 
-- 这一步配合腾讯、百度、京东、Moka 官网抓取后，当前 `jd_clean / jd_clean_dedup` 已经达到 `292167 / 273963`。
+- 这一步配合腾讯、百度、京东、Moka 官网抓取后，当前 `jd_clean / jd_clean_dedup` 已经达到 `292167 / 267949`。
 - 当前去重后语言分布约为：
   - 中文：`221402`
   - 英文：`51330`
   - 其他 / 未知：`927`
-- 默认 `data/sft/` 现在是严格质量版：`1408 / 176 / 177`。
-- `data/sft_expanded/` 是扩展实验版：`4800 / 600 / 601`。
+- 默认 `data/sft/` 现在是严格质量版：`1421 / 177 / 179`。
+- `data/sft_expanded/` 是扩展实验版：`4524 / 565 / 566`。
 - 默认训练不再追求先凑满 2 万，而是优先保留高信任官网中文技术岗；弱标注样本只进入扩展实验集，不再直接混入默认集。当前 `20000` 目标只属于扩展实验链路，不代表默认高质量集规模。
 
 清洗与构造训练集：
@@ -275,6 +275,19 @@ python -m jobmatch_tune.inference.predict \
   --load-4bit
 ```
 
+匹配分析推理：
+
+```bash
+python -m jobmatch_tune.inference.predict \
+  --model models/Qwen3-14B \
+  --adapter outputs/checkpoints/qwen3-14b-jobmatch-qlora \
+  --task match \
+  --input examples/jd_ai_app.txt \
+  --resume-input examples/resume_llm_app.txt \
+  --rule-result '{"匹配分数":82,"匹配等级":"较匹配","岗位方向匹配":true,"学历匹配":true,"经验匹配":true,"命中技能":["Python","FastAPI"],"缺失技能":["RAG"],"命中项目":["负责企业知识库问答系统开发"]}' \
+  --load-4bit
+```
+
 50 条人工评估：
 
 ```bash
@@ -286,6 +299,117 @@ PYTHONPATH=src python -m jobmatch_tune.eval.run_manual_eval \
   --predictions-out outputs/eval_reports/manual_eval_50_qwen3_14b_v3_predictions.jsonl \
   --load-4bit
 ```
+
+简历解析人工评估集构造与评估：
+
+```bash
+bash scripts/data/build_resume_eval_dataset.sh
+
+PYTHONPATH=src python -m jobmatch_tune.eval.run_manual_eval \
+  --dataset data/eval/resume_manual_eval_seed.jsonl \
+  --model models/Qwen3-14B \
+  --adapter outputs/checkpoints/qwen3-14b-jobmatch-qlora \
+  --out outputs/eval_reports/resume_manual_eval_seed_report.json \
+  --predictions-out outputs/eval_reports/resume_manual_eval_seed_predictions.jsonl \
+  --load-4bit
+```
+
+当前已分层生成：
+
+- `data/eval/resume_manual_eval_text_seed.jsonl`
+- `data/eval/resume_manual_eval_ocr_seed.jsonl`
+
+`text_seed` 用于文本简历评估，`ocr_seed` 用于 OCR-like 噪声文本评估。
+
+简历解析 SFT 数据构造：
+
+```bash
+bash scripts/data/build_resume_sft_dataset.sh
+```
+
+当前输出：
+
+- `data/sft_resume/train.jsonl`: `95`
+- `data/sft_resume/valid.jsonl`: `10`
+- `data/sft_resume/test.jsonl`: `15`
+
+这是从人工简历种子集出发，生成多种简历写法后的高质量 bootstrap 集，适合先打通 `resume_parse` 训练链路，不适合被误认为最终规模数据集。
+
+Resume 专项增量训练：
+
+```bash
+bash scripts/train/train_qwen3_14b_resume_sft.sh
+```
+
+简历原始文件接入：
+
+```bash
+bash scripts/data/resume_ingest.sh <resume-file-or-dir>
+```
+
+如果图片或扫描件已经有人先做了 OCR，可传 sidecar 目录：
+
+```bash
+bash scripts/data/resume_ingest.sh <resume-file-or-dir> data/resume_raw/resume_ingest.jsonl <ocr-dir>
+```
+
+sidecar 约定文件名支持：
+
+- `<原文件名>.ocr.txt`
+- `<文件 stem>.ocr.txt`
+
+自动生成 OCR sidecar：
+
+```bash
+bash scripts/data/resume_ocr_sidecar.sh <image-or-pdf-file-or-dir>
+```
+
+默认输出到：
+
+- `data/resume_ocr_text/`
+
+简历中间层规范化：
+
+```bash
+bash scripts/data/resume_normalize.sh \
+  --input data/resume_raw/resume_ingest.jsonl \
+  --out data/resume_interim/resume_clean.jsonl \
+  --only-parse-ok
+```
+
+这一步会把 `resume_raw` 统一整理为可直接喂给 `resume_parse` 的 `normalized_text`。
+
+批量 resume pipeline 评估：
+
+```bash
+bash scripts/data/run_resume_pipeline_eval.sh \
+  --dataset data/eval/resume_manual_eval_text_seed.jsonl \
+  --model models/Qwen3-14B \
+  --adapter outputs/checkpoints/qwen3-14b-jobmatch-qlora \
+  --out outputs/eval_reports/resume_pipeline_text_report.json \
+  --predictions-out outputs/eval_reports/resume_pipeline_text_predictions.jsonl \
+  --load-4bit
+```
+
+OCR-like 对照评估：
+
+```bash
+bash scripts/data/run_resume_pipeline_eval.sh \
+  --dataset data/eval/resume_manual_eval_ocr_seed.jsonl \
+  --model models/Qwen3-14B \
+  --adapter outputs/checkpoints/qwen3-14b-jobmatch-qlora \
+  --out outputs/eval_reports/resume_pipeline_ocr_report.json \
+  --predictions-out outputs/eval_reports/resume_pipeline_ocr_predictions.jsonl \
+  --load-4bit
+```
+
+PDF 接入时会进一步区分：
+
+- `text_pdf`
+- `weak_text_pdf`
+- `scanned_pdf`
+
+其中 `weak_text_pdf / scanned_pdf` 在没有 sidecar OCR 时会被标记为 `needs_ocr=true`，不会直接假装可用于结构化抽取。
 
 ## 前后端分离应用
 
@@ -324,6 +448,23 @@ ssh -L 5173:localhost:5173 -L 8000:localhost:8000 gpu03
 
 浏览器打开 `http://localhost:5173`。
 
+前端当前支持三个工作模式：
+
+- `JD 解析`
+- `简历解析`
+- `人岗匹配`
+  - 双输入：`JD 文本 + 简历文本`
+  - 输出：`规则匹配结果 + 模型分析结论`
+
+当前后端接口：
+
+- `POST /api/parse`
+  - 支持 `jd_parse`
+  - 支持 `resume_parse`
+- `POST /api/match`
+  - 输入 `jd_text + resume_text`
+  - 返回 `jd_parse + resume_parse + rule_result + analysis`
+
 如需切回 1.7B：
 
 ```bash
@@ -335,8 +476,10 @@ bash scripts/serve/start_api.sh
 ## 文档索引
 
 - 技术方案原文：[微调方案.md](/share/home/lifr/workspace/code/job-match-tune/%E5%BE%AE%E8%B0%83%E6%96%B9%E6%A1%88.md)
+- 项目阶段路线图：[docs/project_roadmap.md](/share/home/lifr/workspace/code/job-match-tune/docs/project_roadmap.md)
 - 项目实现与迭代总览：[docs/implementation_and_evolution.md](/share/home/lifr/workspace/code/job-match-tune/docs/implementation_and_evolution.md)
 - 数据处理全流程：[docs/data_pipeline_full.md](/share/home/lifr/workspace/code/job-match-tune/docs/data_pipeline_full.md)
+- 简历处理链路：[docs/resume_pipeline.md](/share/home/lifr/workspace/code/job-match-tune/docs/resume_pipeline.md)
 - 简历写法与项目亮点：[docs/resume_project_highlights.md](/share/home/lifr/workspace/code/job-match-tune/docs/resume_project_highlights.md)
 - 数据来源：[docs/data_sources.md](/share/home/lifr/workspace/code/job-match-tune/docs/data_sources.md)
 - 字节招聘 API 研究记录：[docs/bytedance_api_research.md](/share/home/lifr/workspace/code/job-match-tune/docs/bytedance_api_research.md)

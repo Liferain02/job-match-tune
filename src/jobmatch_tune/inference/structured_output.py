@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from jobmatch_tune.schemas import JDParseResult, ResumeParseResult
+from jobmatch_tune.schemas import JDParseResult, MatchAnalysisResult, ResumeParseResult
 
 
 TASK_SCHEMA_MODELS = {
     "jd_parse": JDParseResult,
     "resume_parse": ResumeParseResult,
+    "match": MatchAnalysisResult,
 }
 
 

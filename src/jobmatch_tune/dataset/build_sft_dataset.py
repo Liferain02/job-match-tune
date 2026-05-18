@@ -172,10 +172,25 @@ STRICT_DIRECTION_TITLE_HINTS = {
         "nlp",
     ],
     "后端开发": ["olap", "控制面", "中间件", "引擎", "数据库", "dba", "分布式存储"],
+    "网络与基础设施": ["网络规划", "网络开发", "网络工程师", "网络交付", "基础架构", "基础设施"],
+    "AI Infra": ["ai infra", "机器学习平台", "训练平台", "推理平台", "训推平台", "算力平台", "rl infra"],
+    "高性能计算": ["高性能计算", "hpc", "gpu集群", "gpu 集群", "计算集群"],
+    "汽车软件/智驾研发": ["智驾系统", "驾驶辅助", "智能行车系统", "泊车功能开发", "底盘集成控制系统开发", "底盘电控功能开发工程师", "感知质量开发工程师", "智驾软件集成"],
     "运维开发": ["gpu资源", "指挥中心", "可靠性", "devops", "sre", "infra"],
     "客户端开发": ["app", "ios", "android", "unity", "ue", "u3d"],
     "嵌入式开发": ["固件", "驱动", "bsp", "rtos", "单片机", "嵌入式"],
+    "硬件研发": ["硬件开发", "硬件工程师", "功率硬件", "电力电子", "结构设计工程师", "系统集成工程师", "音响开发", "npi工程师", "电子电器"],
     "安全工程": ["渗透", "攻防", "漏洞", "安全", "威胁"],
+}
+
+STRICT_TITLE_EXCLUSION_EXCEPTIONS = {
+    "安全工程": ["安全运营", "大模型安全运营"],
+    "后端开发": ["研发岗"],
+    "运维开发": ["sre", "devops"],
+    "网络与基础设施": ["网络规划", "网络开发", "网络工程师", "网络交付"],
+    "AI Infra": ["ai infra", "机器学习平台", "训练平台", "推理平台", "训推平台", "算力平台", "rl infra"],
+    "高性能计算": ["高性能计算", "hpc"],
+    "汽车软件/智驾研发": ["智驾系统", "驾驶辅助", "智能行车系统", "泊车功能开发", "底盘集成控制系统开发", "底盘电控功能开发工程师", "感知质量开发工程师", "智驾软件集成"],
 }
 
 MINIMAL_SKILL_SCHEMA = {
@@ -317,6 +332,11 @@ def title_has_strong_tech_signal(title: str, direction: str) -> bool:
     return any(keyword in title for keyword in hints)
 
 
+def title_has_exclusion_exception(title: str, direction: str) -> bool:
+    exceptions = STRICT_TITLE_EXCLUSION_EXCEPTIONS.get(direction, [])
+    return any(keyword in title for keyword in exceptions)
+
+
 def is_high_trust_strong_row(row: dict[str, Any]) -> bool:
     if row.get("language") != "zh":
         return False
@@ -331,7 +351,7 @@ def is_high_trust_strong_row(row: dict[str, Any]) -> bool:
     direction = str(labels.get("岗位方向") or "").strip()
     if not title or not clean_text or not direction:
         return False
-    if title_has_excluded_signal(lowered_title):
+    if title_has_excluded_signal(lowered_title) and not title_has_exclusion_exception(lowered_title, direction):
         return False
     if not title_has_strong_tech_signal(lowered_title, direction):
         return False

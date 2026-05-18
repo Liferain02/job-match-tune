@@ -133,6 +133,118 @@ def test_is_high_trust_strong_row_accepts_security_engineer() -> None:
     assert is_high_trust_strong_row(row) is True
 
 
+def test_is_high_trust_strong_row_accepts_security_ops_exception() -> None:
+    row = {
+        "id": "trusted_sec_ops",
+        "source": "zhaopin.jd.com",
+        "language": "zh",
+        "job_title": "大模型安全运营",
+        "clean_text": "岗位职责：负责大模型安全治理与告警处置\n任职要求：本科及以上，具备安全运营经验",
+        "sections": {"responsibilities": "负责大模型安全治理与告警处置", "requirements": "本科及以上，具备安全运营经验"},
+        "labels": {"岗位方向": "安全工程", "学历要求": "本科"},
+        "sft_ready": True,
+    }
+    assert is_high_trust_strong_row(row) is True
+
+
+def test_is_high_trust_strong_row_accepts_backend_rd_exception() -> None:
+    row = {
+        "id": "trusted_rd_post",
+        "source": "zhaopin.jd.com",
+        "language": "zh",
+        "job_title": "B端招商入驻研发岗",
+        "clean_text": "岗位职责：负责平台招商系统研发与接口开发\n任职要求：本科及以上，熟悉 Java 与数据库",
+        "sections": {"responsibilities": "负责平台招商系统研发与接口开发", "requirements": "本科及以上，熟悉 Java 与数据库"},
+        "labels": {"岗位方向": "后端开发", "学历要求": "本科"},
+        "sft_ready": True,
+    }
+    assert is_high_trust_strong_row(row) is True
+
+
+def test_is_high_trust_strong_row_accepts_hardware_rd() -> None:
+    row = {
+        "id": "trusted_hw",
+        "source": "moka_se",
+        "language": "zh",
+        "job_title": "功率硬件工程师",
+        "clean_text": "岗位职责：负责功率硬件设计、板级调试和硬件验证\n任职要求：本科及以上，具备硬件开发经验",
+        "sections": {"responsibilities": "负责功率硬件设计、板级调试和硬件验证", "requirements": "本科及以上，具备硬件开发经验"},
+        "labels": {"岗位方向": "硬件研发", "学历要求": "本科"},
+        "sft_ready": True,
+    }
+    assert is_high_trust_strong_row(row) is True
+
+
+def test_is_high_trust_strong_row_accepts_network_and_infra() -> None:
+    row = {
+        "id": "trusted_netinfra",
+        "source": "zhaopin.jd.com",
+        "language": "zh",
+        "job_title": "网络规划专家",
+        "clean_text": "岗位职责：负责网络规划、基础架构设计和容量评估\n任职要求：本科及以上，具备网络架构经验",
+        "sections": {"responsibilities": "负责网络规划、基础架构设计和容量评估", "requirements": "本科及以上，具备网络架构经验"},
+        "labels": {"岗位方向": "网络与基础设施", "学历要求": "本科"},
+        "sft_ready": True,
+    }
+    assert is_high_trust_strong_row(row) is True
+
+
+def test_is_high_trust_strong_row_accepts_ai_infra() -> None:
+    row = {
+        "id": "trusted_aiinfra",
+        "source": "careers.tencent.com",
+        "language": "zh",
+        "job_title": "AI Infra研发工程师",
+        "clean_text": "岗位职责：负责机器学习平台、训练平台和推理平台建设\n任职要求：本科及以上，具备平台研发经验",
+        "sections": {"responsibilities": "负责机器学习平台、训练平台和推理平台建设", "requirements": "本科及以上，具备平台研发经验"},
+        "labels": {"岗位方向": "AI Infra", "学历要求": "本科"},
+        "sft_ready": True,
+    }
+    assert is_high_trust_strong_row(row) is True
+
+
+def test_is_high_trust_strong_row_accepts_hpc() -> None:
+    row = {
+        "id": "trusted_hpc",
+        "source": "talent.baidu.com",
+        "language": "zh",
+        "job_title": "高性能计算研发工程师",
+        "clean_text": "岗位职责：负责高性能计算集群研发与 GPU 资源调优\n任职要求：本科及以上，具备分布式计算经验",
+        "sections": {"responsibilities": "负责高性能计算集群研发与 GPU 资源调优", "requirements": "本科及以上，具备分布式计算经验"},
+        "labels": {"岗位方向": "高性能计算", "学历要求": "本科"},
+        "sft_ready": True,
+    }
+    assert is_high_trust_strong_row(row) is True
+
+
+def test_is_high_trust_strong_row_accepts_autonomous_driving_software() -> None:
+    row = {
+        "id": "trusted_autodrive",
+        "source": "moka_voyah",
+        "language": "zh",
+        "job_title": "智驾系统架构工程师",
+        "clean_text": "岗位职责：负责智驾系统架构设计、软件模块集成和功能开发\n任职要求：本科及以上，具备自动驾驶软件开发经验",
+        "sections": {"responsibilities": "负责智驾系统架构设计、软件模块集成和功能开发", "requirements": "本科及以上，具备自动驾驶软件开发经验"},
+        "labels": {"岗位方向": "汽车软件/智驾研发", "学历要求": "本科"},
+        "sft_ready": True,
+    }
+    assert is_high_trust_strong_row(row) is True
+
+
+def test_is_high_trust_strong_row_accepts_sre_with_logistics_keyword() -> None:
+    row = {
+        "id": "trusted_sre_logistics",
+        "source": "zhaopin.jd.com",
+        "language": "zh",
+        "job_title": "秒送物流SRE",
+        "clean_text": "岗位职责：负责系统稳定性、监控告警和容量规划\n任职要求：本科及以上，具备 SRE 或运维开发经验",
+        "sections": {"responsibilities": "负责系统稳定性、监控告警和容量规划", "requirements": "本科及以上，具备 SRE 或运维开发经验"},
+        "labels": {"岗位方向": "运维开发", "学历要求": "本科"},
+        "sft_ready": True,
+    }
+    assert is_high_trust_strong_row(row) is True
+
+
 def test_is_high_trust_strong_row_accepts_rd_title_without_engineer_keyword() -> None:
     row = {
         "id": "trusted_rd",

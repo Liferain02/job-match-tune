@@ -8,15 +8,19 @@ import torch
 from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
-from jobmatch_tune.dataset.templates import SYSTEM_PROMPT, jd_parse_prompt, resume_parse_prompt
+from jobmatch_tune.dataset.templates import SYSTEM_PROMPT, jd_parse_prompt, match_prompt, resume_parse_prompt
 from jobmatch_tune.inference.postprocess_json import parse_json_output
 
 
-def build_prompt(task: str, text: str) -> list[dict[str, str]]:
+def build_prompt(task: str, text: str, *, resume_text: str = "", rule_result: str = "") -> list[dict[str, str]]:
     if task == "jd_parse":
         user = jd_parse_prompt(text)
     elif task == "resume_parse":
         user = resume_parse_prompt(text)
+    elif task == "match":
+        if not resume_text:
+            raise ValueError("resume_text is required for match task")
+        user = match_prompt(text, resume_text, rule_result)
     else:
         raise ValueError(f"Unsupported task: {task}")
     return [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": user}]
@@ -48,12 +52,15 @@ def predict(
     model_name: str,
     task: str,
     text: str,
+    *,
+    resume_text: str = "",
+    rule_result: str = "",
     adapter: str | None = None,
     load_4bit: bool = False,
     max_new_tokens: int = 1024,
 ) -> dict:
     tokenizer, model = load_model(model_name, adapter, load_4bit)
-    messages = build_prompt(task, text)
+    messages = build_prompt(task, text, resume_text=resume_text, rule_result=rule_result)
     prompt = tokenizer.apply_chat_template(
         messages,
         tokenize=False,
@@ -78,13 +85,29 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default="models/Qwen3-14B")
     parser.add_argument("--adapter", default=None)
-    parser.add_argument("--task", choices=["jd_parse", "resume_parse"], required=True)
-    parser.add_argument("--input", required=True)
+    parser.add_argument("--task", choices=["jd_parse", "resume_parse", "match"], required=True)
+    parser.add_argument("--input", required=True, help="JD text file for jd_parse or match; resume text file for resume_parse")
+    parser.add_argument("--resume-input", default=None, help="Resume text file for match task")
+    parser.add_argument("--rule-result", default="", help="JSON string rule result for match task")
     parser.add_argument("--load-4bit", action="store_true")
     parser.add_argument("--max-new-tokens", type=int, default=1024)
     args = parser.parse_args()
     text = Path(args.input).read_text(encoding="utf-8")
-    result = predict(args.model, args.task, text, args.adapter, args.load_4bit, args.max_new_tokens)
+    resume_text = ""
+    if args.task == "match":
+        if not args.resume_input:
+            raise ValueError("--resume-input is required for match task")
+        resume_text = Path(args.resume_input).read_text(encoding="utf-8")
+    result = predict(
+        args.model,
+        args.task,
+        text,
+        resume_text=resume_text,
+        rule_result=args.rule_result,
+        adapter=args.adapter,
+        load_4bit=args.load_4bit,
+        max_new_tokens=args.max_new_tokens,
+    )
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
