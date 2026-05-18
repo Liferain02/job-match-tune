@@ -16,7 +16,12 @@
 - `examples/`
   - JD / 简历示例文本
 - `frontend/`
-  - 静态前端页面
+  - Vue 3 ESM 前端
+  - `src/components/`：页面组件
+  - `src/services/`：API 调用
+  - `src/config/`：示例与常量
+  - `src/utils/`：文本与格式工具
+  - `src/styles/`：基础 / 布局 / 组件样式
 - `models/`
   - 本地模型目录，默认不纳入版本控制
 - `outputs/`

@@ -1,0 +1,61 @@
+export async function fetchJson(url, init = {}) {
+  const response = await fetch(url, init);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `HTTP ${response.status}`);
+  }
+  return data;
+}
+
+export function getStatus(baseUrl) {
+  return fetchJson(`${baseUrl}/api/status`);
+}
+
+export function warmup(baseUrl) {
+  return fetchJson(`${baseUrl}/api/warmup`, { method: "POST" });
+}
+
+export function parseSingle(baseUrl, task, text, maxNewTokens = 1024) {
+  return fetchJson(`${baseUrl}/api/parse`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ task, text, max_new_tokens: maxNewTokens }),
+  });
+}
+
+export function parseBatch(baseUrl, task, texts, maxNewTokens = 1024) {
+  return fetchJson(`${baseUrl}/api/batch_parse`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ task, texts, max_new_tokens: maxNewTokens }),
+  });
+}
+
+export function parseResumeFile(baseUrl, file, ocrText = "", maxNewTokens = 1024) {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("max_new_tokens", String(maxNewTokens));
+  if (ocrText.trim()) {
+    formData.append("ocr_text", ocrText.trim());
+  }
+  return fetchJson(`${baseUrl}/api/resume_file_parse`, {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export function matchSingle(baseUrl, jdText, resumeText, maxNewTokens = 1024) {
+  return fetchJson(`${baseUrl}/api/match`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jd_text: jdText, resume_text: resumeText, max_new_tokens: maxNewTokens }),
+  });
+}
+
+export function matchBatch(baseUrl, items, maxNewTokens = 1024) {
+  return fetchJson(`${baseUrl}/api/batch_match`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items, max_new_tokens: maxNewTokens }),
+  });
+}

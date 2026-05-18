@@ -34,7 +34,7 @@
 - `scripts/research/`：研究辅助脚本
 - `scripts/legacy/`：历史 1.7B 实验脚本归档
 - `configs/`：训练、爬取、标签 schema
-- `frontend/`：静态前端
+- `frontend/`：Vue 3 ESM 前端（无构建步骤）
 - `docs/`：实验记录与口径文档
 
 ## 环境
@@ -559,6 +559,29 @@ bash scripts/serve/start_api.sh
 cd /share/home/lifr/workspace/code/job-match-tune
 bash scripts/serve/start_frontend.sh
 ```
+
+说明：
+
+- 默认从 `5173` 开始找端口
+- 如果端口已占用，会自动顺延到下一个可用端口
+- 启动时会打印实际访问地址
+
+前端当前结构：
+
+- `frontend/index.html`
+- `frontend/src/main.js`
+- `frontend/src/App.js`
+- `frontend/src/components/`
+- `frontend/src/services/`
+- `frontend/src/config/`
+- `frontend/src/utils/`
+- `frontend/src/styles/`
+
+说明：
+
+- 当前前端使用 Vue 3 ESM 浏览器构建版本
+- 不依赖 Vite / webpack，本地直接通过静态文件服务启动
+- 目录已经按组件、服务、配置、工具和样式拆分，不再是单一 `html/js/css` 三文件结构
 
 端口转发：
 

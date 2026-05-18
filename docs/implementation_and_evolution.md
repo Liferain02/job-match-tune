@@ -100,7 +100,7 @@
 - `data/`：数据与人工评估集
 - `docs/`：文档和实验记录
 - `examples/`：推理样例
-- `frontend/`：静态前端
+- `frontend/`：Vue 3 ESM 前端
 - `models/`：本地模型
 - `outputs/`：训练和评估产物
 - `scripts/`：运行入口
@@ -632,7 +632,7 @@ bash scripts/train/train_qwen3_14b_dpo.sh
 训练做完之后，项目还补了部署和展示层：
 
 - `FastAPI` 服务
-- 静态前端
+- Vue 组件化前端
 - 模型预热与状态接口
 - `vLLM` 双后端支持
 - `JSON Schema structured outputs`
