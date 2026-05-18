@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+from pathlib import Path
 from typing import Any
 
 from jobmatch_tune.utils.io import read_jsonl, write_jsonl
@@ -71,7 +72,7 @@ def main() -> None:
     args = parser.parse_args()
 
     manual_rows = list(read_jsonl(args.manual_input))
-    public_rows = list(read_jsonl(args.public_input))
+    public_rows = list(read_jsonl(args.public_input)) if Path(args.public_input).exists() else []
     combined = build_combined_rows(manual_rows, public_rows)
     write_jsonl(args.out, combined)
     print(f"manual={len(manual_rows)} public={len(public_rows)} combined={len(combined)}")

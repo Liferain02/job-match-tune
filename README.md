@@ -239,6 +239,27 @@ bash scripts/data/report_external_data_status.sh
 bash scripts/data/prepare_all_public_pipelines.sh
 ```
 
+如果外部公开文件还没落盘，但想先基于当前已有数据把三条池子生成出来：
+
+```bash
+bash scripts/data/build_current_data_pools.sh
+```
+
+当前基于仓库已有数据实际生成出的池子规模：
+
+- `data/eval/public_jd_candidate_pool.jsonl`: `679`
+- `data/eval/jd_train_pool_combined.jsonl`: `2457`
+- `data/eval/resume_train_pool_combined.jsonl`: `160`
+- `data/eval/match_train_pool_combined.jsonl`: `96`
+
+当前统一就绪报告结论：
+
+- `JD`: 还没到训练门槛
+- `resume`: 还没到训练门槛
+- `match`: 还没到训练门槛
+
+也就是说，当前仍然不应该开 SFT。
+
 当前这条链路会导入三类补充源：
 
 - GitHub `jhcoco/bosszp` CSV
