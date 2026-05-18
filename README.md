@@ -343,11 +343,27 @@ bash scripts/data/build_resume_sft_dataset.sh
 
 当前输出：
 
-- `data/sft_resume/train.jsonl`: `95`
-- `data/sft_resume/valid.jsonl`: `10`
-- `data/sft_resume/test.jsonl`: `15`
+- `data/sft_resume/train.jsonl`: `1920`
+- `data/sft_resume/valid.jsonl`: `240`
+- `data/sft_resume/test.jsonl`: `240`
 
 这是从人工简历种子集出发，生成多种简历写法后的高质量 bootstrap 集，适合先打通 `resume_parse` 训练链路，不适合被误认为最终规模数据集。
+
+匹配评估与训练数据构造：
+
+```bash
+bash scripts/data/build_match_sft_dataset.sh
+```
+
+当前输出：
+
+- `data/eval/match_manual_eval_seed.jsonl`: `64`
+- `data/eval/match_manual_train_pool.jsonl`: `128`
+- `data/sft_match/train.jsonl`: `97`
+- `data/sft_match/valid.jsonl`: `12`
+- `data/sft_match/test.jsonl`: `19`
+
+这批 `match` 数据目前仍然是高质量人工种子扩写后的 bootstrap 集，适合先打通 `match` 训练和评估链路，不适合被误认为正式规模数据。
 
 Resume 专项增量训练：
 

@@ -688,6 +688,7 @@ bash scripts/train/train_qwen3_14b_dpo.sh
 - 跑通并验证 `DPO` 的真实收益
 - 等训练栈升级后再评估 `ORPO / OnlineDPO / GRPO`
 - 增加真实简历评估集
+- 增加 `resume` 与 `match` 的 bootstrap 训练池并继续扩到更可训练的规模
 - 扩展 API：
   - 批量解析
   - 异步任务

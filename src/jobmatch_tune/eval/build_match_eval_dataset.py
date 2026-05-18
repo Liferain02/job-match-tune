@@ -300,10 +300,27 @@ def build_variant_rows(rows: list[dict]) -> list[dict]:
     return variants
 
 
+def build_train_pool_rows(rows: list[dict]) -> list[dict]:
+    base = rows + build_variant_rows(rows)
+    extra: list[dict] = []
+    for row in base:
+        copied = deepcopy(row)
+        copied["id"] = f"{row['id']}_reason"
+        copied["jd_text"] = copied["jd_text"].replace("岗位名称：", "招聘岗位：")
+        copied["resume_text"] = copied["resume_text"].replace("目标岗位：", "候选人目标：")
+        extra.append(copied)
+    return base + extra
+
+
 def main() -> None:
     all_rows = ROWS + build_variant_rows(ROWS)
+    train_pool = build_train_pool_rows(ROWS)
     write_jsonl("data/eval/match_manual_eval_seed.jsonl", all_rows)
-    print(f"wrote {len(all_rows)} rows to data/eval/match_manual_eval_seed.jsonl")
+    write_jsonl("data/eval/match_manual_train_pool.jsonl", train_pool)
+    print(
+        f"wrote {len(all_rows)} eval rows to data/eval/match_manual_eval_seed.jsonl "
+        f"and {len(train_pool)} train-pool rows to data/eval/match_manual_train_pool.jsonl"
+    )
 
 
 if __name__ == "__main__":

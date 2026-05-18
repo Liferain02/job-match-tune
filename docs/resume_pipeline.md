@@ -272,7 +272,13 @@ bash scripts/data/resume_normalize.sh \
   [data/sft_resume/valid.jsonl](/share/home/lifr/workspace/code/job-match-tune/data/sft_resume/valid.jsonl)  
   [data/sft_resume/test.jsonl](/share/home/lifr/workspace/code/job-match-tune/data/sft_resume/test.jsonl)
 
-但这批 SFT 数据仍然是基于人工种子扩写得到的高质量小集，作用是打通训练链路，不是最终规模数据。
+当前规模为：
+
+- `train = 1920`
+- `valid = 240`
+- `test = 240`
+
+但这批 SFT 数据仍然是基于人工种子扩写得到的高质量 bootstrap 集，作用是打通训练链路，不是最终规模数据。
 
 ---
 
