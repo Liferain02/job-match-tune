@@ -314,6 +314,20 @@ PYTHONPATH=src python -m jobmatch_tune.eval.run_manual_eval \
   --load-4bit
 ```
 
+人岗匹配人工评估集构造与评估：
+
+```bash
+bash scripts/data/build_match_eval_dataset.sh
+
+bash scripts/data/run_match_eval.sh \
+  --dataset data/eval/match_manual_eval_seed.jsonl \
+  --model models/Qwen3-14B \
+  --adapter outputs/checkpoints/qwen3-14b-jobmatch-qlora \
+  --out outputs/eval_reports/match_eval_report.json \
+  --predictions-out outputs/eval_reports/match_eval_predictions.jsonl \
+  --load-4bit
+```
+
 当前已分层生成：
 
 - `data/eval/resume_manual_eval_text_seed.jsonl`

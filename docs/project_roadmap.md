@@ -91,12 +91,13 @@
 - rule-based 匹配引擎
 - `POST /api/match`
 - 前端匹配工作台
+- `match` 人工评估入口
 
 ### 未成型
 
-- 匹配数据集
-- 匹配评估
 - `resume_parse` 专用训练集
+- 更大规模的 `match` 评估集
+- `match` 偏好训练数据
 
 ---
 
