@@ -478,6 +478,12 @@ ssh -L 5173:localhost:5173 -L 8000:localhost:8000 gpu03
 - `POST /api/match`
   - 输入 `jd_text + resume_text`
   - 返回 `jd_parse + resume_parse + rule_result + analysis`
+- `POST /api/batch_parse`
+  - 输入 `task + texts[]`
+  - 返回批量结构化结果和逐条状态
+- `POST /api/batch_match`
+  - 输入 `items[{jd_text,resume_text}]`
+  - 返回批量匹配结果和逐条状态
 
 如需切回 1.7B：
 

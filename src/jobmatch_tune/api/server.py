@@ -35,6 +35,22 @@ class MatchRequest(BaseModel):
     max_new_tokens: int = Field(default=1024, ge=64, le=4096)
 
 
+class BatchParseRequest(BaseModel):
+    task: Literal["jd_parse", "resume_parse"] = "jd_parse"
+    texts: list[str] = Field(min_length=1, max_length=64)
+    max_new_tokens: int = Field(default=1024, ge=64, le=4096)
+
+
+class BatchMatchItem(BaseModel):
+    jd_text: str = Field(min_length=1, max_length=20000)
+    resume_text: str = Field(min_length=1, max_length=20000)
+
+
+class BatchMatchRequest(BaseModel):
+    items: list[BatchMatchItem] = Field(min_length=1, max_length=32)
+    max_new_tokens: int = Field(default=1024, ge=64, le=4096)
+
+
 class ModelService:
     def __init__(self) -> None:
         self.backend = os.getenv("JOBMATCH_INFERENCE_BACKEND", "transformers")
@@ -190,6 +206,61 @@ class ModelService:
             "latency_seconds": round(time.perf_counter() - started, 3),
         }
 
+    def batch_parse(self, request: BatchParseRequest) -> dict[str, Any]:
+        self.load()
+        started = time.perf_counter()
+        items: list[dict[str, Any]] = []
+
+        for index, text in enumerate(request.texts):
+            try:
+                result = self.parse(
+                    ParseRequest(
+                        task=request.task,
+                        text=text,
+                        max_new_tokens=request.max_new_tokens,
+                    )
+                )
+                items.append({"index": index, **result})
+            except ValueError as exc:
+                items.append({"index": index, "ok": False, "error": str(exc)})
+
+        success_count = sum(1 for item in items if item.get("ok"))
+        return {
+            "ok": success_count == len(items),
+            "task": request.task,
+            "total": len(items),
+            "success_count": success_count,
+            "items": items,
+            "latency_seconds": round(time.perf_counter() - started, 3),
+        }
+
+    def batch_match(self, request: BatchMatchRequest) -> dict[str, Any]:
+        self.load()
+        started = time.perf_counter()
+        items: list[dict[str, Any]] = []
+
+        for index, item in enumerate(request.items):
+            try:
+                result = self.match(
+                    MatchRequest(
+                        jd_text=item.jd_text,
+                        resume_text=item.resume_text,
+                        max_new_tokens=request.max_new_tokens,
+                    )
+                )
+                items.append({"index": index, **result})
+            except ValueError as exc:
+                items.append({"index": index, "ok": False, "error": str(exc)})
+
+        success_count = sum(1 for item in items if item.get("ok"))
+        return {
+            "ok": success_count == len(items),
+            "total": len(items),
+            "success_count": success_count,
+            "items": items,
+            "latency_seconds": round(time.perf_counter() - started, 3),
+        }
+
     def status(self) -> dict[str, Any]:
         return {
             "backend": self.backend,
@@ -248,6 +319,22 @@ def parse(request: ParseRequest) -> dict[str, Any]:
 def match(request: MatchRequest) -> dict[str, Any]:
     try:
         return service.match(request)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/batch_parse")
+def batch_parse(request: BatchParseRequest) -> dict[str, Any]:
+    try:
+        return service.batch_parse(request)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/batch_match")
+def batch_match(request: BatchMatchRequest) -> dict[str, Any]:
+    try:
+        return service.batch_match(request)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
