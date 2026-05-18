@@ -227,6 +227,12 @@ bash scripts/data/prepare_public_jd_pipeline.sh
 bash scripts/data/report_data_readiness.sh
 ```
 
+输出当前三个数据池的分布画像：
+
+```bash
+bash scripts/data/report_pool_profiles.sh
+```
+
 输出外部数据落盘状态报告：
 
 ```bash
@@ -259,6 +265,18 @@ bash scripts/data/build_current_data_pools.sh
 - `match`: 还没到训练门槛
 
 也就是说，当前仍然不应该开 SFT。
+
+如果要看三个池子现在的来源和分布，不只看总数：
+
+- `JD`：来源 / 标题 / 公司分布
+- `resume`：目标岗位 / 核心技能分布
+- `match`：匹配等级和原始标签覆盖
+
+直接执行：
+
+```bash
+bash scripts/data/report_pool_profiles.sh
+```
 
 当前这条链路会导入三类补充源：
 
