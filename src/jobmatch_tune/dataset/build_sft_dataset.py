@@ -358,13 +358,39 @@ def is_high_trust_strong_row(row: dict[str, Any]) -> bool:
     sections = row.get("sections") or {}
     has_responsibilities = bool(str(sections.get("responsibilities") or "").strip())
     has_requirements = bool(str(sections.get("requirements") or "").strip())
+    has_bonus = bool(str(sections.get("bonus") or "").strip())
     has_skills = bool(labels.get("必备技能"))
     has_education = bool(labels.get("学历要求") or extract_education_requirement(clean_text))
     has_experience = bool(labels.get("经验要求") or extract_experience_requirement(clean_text))
-    return (
+    has_structure_marker = any(
+        marker in clean_text
+        for marker in (
+            "岗位职责",
+            "工作职责",
+            "职位描述",
+            "工作内容",
+            "职责描述",
+            "任职要求",
+            "岗位要求",
+            "职位要求",
+            "任职资格",
+            "能力要求",
+            "技能要求",
+            "加分项",
+        )
+    )
+    base_ok = (
         ((has_responsibilities and has_requirements) or (len(clean_text) >= 180 and (has_responsibilities or has_requirements)))
         and (has_education or has_experience or has_skills)
     )
+    if base_ok:
+        return True
+
+    # 部分高信任官网职位文本很完整，但 section 切分不稳定。对这类样本做保守回收。
+    fallback_signals = sum(bool(flag) for flag in [has_skills, has_education, has_experience, has_bonus])
+    if has_structure_marker and len(clean_text) >= 180 and fallback_signals >= 2:
+        return True
+    return False
 
 
 def is_high_confidence_weak_tech_row(row: dict[str, Any]) -> bool:

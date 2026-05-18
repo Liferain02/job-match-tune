@@ -259,6 +259,29 @@ def test_is_high_trust_strong_row_accepts_rd_title_without_engineer_keyword() ->
     assert is_high_trust_strong_row(row) is True
 
 
+def test_is_high_trust_strong_row_accepts_fallback_structure_from_high_trust_source() -> None:
+    row = {
+        "id": "trusted_fallback",
+        "source": "careers.tencent.com",
+        "language": "zh",
+        "job_title": "数据开发工程师",
+        "clean_text": (
+            "岗位名称：数据开发工程师\n"
+            "工作内容：负责离线数仓建设、ETL 任务开发、指标看板支持、任务调度治理和数据质量巡检，推动核心数据链路稳定运行并持续优化性能。\n"
+            "职位要求：本科及以上学历，熟悉 SQL、Spark、Hive、Airflow，具备数据平台开发经验，能够独立完成批处理任务开发、问题排查、口径梳理和跨团队协作。\n"
+            "加分项：有实时数仓和 Flink 开发经验。"
+        ),
+        "sections": {},
+        "labels": {
+            "岗位方向": "数据开发",
+            "必备技能": ["SQL", "Spark", "Hive", "Airflow"],
+            "学历要求": "本科及以上",
+        },
+        "sft_ready": True,
+    }
+    assert is_high_trust_strong_row(row) is True
+
+
 def test_is_high_trust_strong_row_rejects_pr_role_even_if_model_predicted_tech() -> None:
     row = {
         "id": "trusted_pr",

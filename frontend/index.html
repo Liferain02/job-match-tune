@@ -88,6 +88,22 @@
             <textarea id="inputText" spellcheck="false"></textarea>
           </label>
 
+          <section class="file-upload-panel hidden" id="resumeFilePanel">
+            <label class="field field-compact">
+              <span>简历文件</span>
+              <input id="resumeFileInput" type="file" accept=".txt,.md,.docx,.pdf,.png,.jpg,.jpeg,.webp,.bmp" />
+            </label>
+            <label class="field field-compact">
+              <span>OCR 文本（可选）</span>
+              <textarea
+                id="resumeOcrText"
+                class="compact-textarea small-textarea"
+                spellcheck="false"
+                placeholder="图片简历或扫描版 PDF 如果已经有 OCR 文本，可以直接粘贴到这里。"
+              ></textarea>
+            </label>
+          </section>
+
           <section class="dual-input-grid hidden" id="matchInputGrid">
             <label class="field field-compact">
               <span>JD 文本</span>

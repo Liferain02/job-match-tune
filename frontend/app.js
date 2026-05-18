@@ -57,6 +57,9 @@ const resumeInputText = document.querySelector("#resumeInputText");
 const inputLabel = document.querySelector("#inputLabel");
 const singleInputField = document.querySelector("#singleInputField");
 const matchInputGrid = document.querySelector("#matchInputGrid");
+const resumeFilePanel = document.querySelector("#resumeFilePanel");
+const resumeFileInput = document.querySelector("#resumeFileInput");
+const resumeOcrText = document.querySelector("#resumeOcrText");
 const status = document.querySelector("#status");
 const latency = document.querySelector("#latency");
 const parseButton = document.querySelector("#parseButton");
@@ -153,6 +156,7 @@ function setMode(task) {
   const isMatch = task === "match";
   singleInputField.classList.toggle("hidden", isMatch);
   matchInputGrid.classList.toggle("hidden", !isMatch);
+  resumeFilePanel.classList.toggle("hidden", !(task === "resume_parse" && state.requestMode === "single"));
 
   if (task === "jd_parse") {
     inputLabel.textContent = "输入文本";
@@ -174,6 +178,7 @@ function setRequestMode(mode) {
   singleRequestMode.classList.toggle("active", mode === "single");
   batchRequestMode.classList.toggle("active", mode === "batch");
   batchTip.classList.toggle("hidden", mode !== "batch");
+  resumeFilePanel.classList.toggle("hidden", !(state.task === "resume_parse" && mode === "single"));
   resetOverview();
   renderStructured(null);
   updateInputStats();
@@ -551,6 +556,10 @@ function updateInputStats() {
     inputStats.textContent = `JD ${jdText.length} 字 / 简历 ${resumeText.length} 字`;
     return;
   }
+  if (state.task === "resume_parse" && state.requestMode === "single" && resumeFileInput.files?.length) {
+    inputStats.textContent = `文件：${resumeFileInput.files[0].name}`;
+    return;
+  }
   const text = inputText.value.trim();
   if (state.requestMode === "batch") {
     inputStats.textContent = `${splitBatchText(text).length} 条`;
@@ -610,8 +619,11 @@ async function warmupModel() {
 
 async function parseText() {
   const isBatch = state.requestMode === "batch";
+  const isResumeFileMode = state.task === "resume_parse" && state.requestMode === "single" && resumeFileInput.files?.length;
   const url =
-    state.task === "match"
+    isResumeFileMode
+      ? `${apiBase.value}/api/resume_file_parse`
+      : state.task === "match"
       ? `${apiBase.value}/${isBatch ? "api/batch_match" : "api/match"}`
       : `${apiBase.value}/${isBatch ? "api/batch_parse" : "api/parse"}`;
   const payload = buildPayload();
@@ -635,11 +647,19 @@ async function parseText() {
   setStatus(state.task === "match" ? "匹配分析中" : "推理中", "ok");
 
   try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    let response;
+    if (isResumeFileMode) {
+      response = await fetch(url, {
+        method: "POST",
+        body: payload,
+      });
+    } else {
+      response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    }
     const data = await response.json();
     if (!response.ok) {
       throw new Error(data.detail || `HTTP ${response.status}`);
@@ -664,6 +684,15 @@ async function parseText() {
 }
 
 function buildPayload() {
+  if (state.task === "resume_parse" && state.requestMode === "single" && resumeFileInput.files?.length) {
+    const formData = new FormData();
+    formData.append("file", resumeFileInput.files[0]);
+    formData.append("max_new_tokens", "1024");
+    if (resumeOcrText.value.trim()) {
+      formData.append("ocr_text", resumeOcrText.value.trim());
+    }
+    return formData;
+  }
   if (state.task === "match") {
     if (state.requestMode === "batch") {
       const jdItems = splitBatchText(jdInputText.value.trim());
@@ -700,6 +729,9 @@ function buildPayload() {
 }
 
 function hasValidPayload(payload) {
+  if (payload instanceof FormData) {
+    return payload.get("file") instanceof File;
+  }
   if (state.task === "match") {
     if (state.requestMode === "batch") {
       return Array.isArray(payload.items) && payload.items.length > 0;
@@ -723,6 +755,10 @@ async function copyJson() {
 }
 
 function fillExample() {
+  if (resumeFileInput.files?.length) {
+    resumeFileInput.value = "";
+  }
+  resumeOcrText.value = "";
   if (state.task === "match") {
     if (state.requestMode === "batch") {
       jdInputText.value = [examples.match.jd, examples.jd_parse].join(BATCH_DELIMITER);
@@ -758,6 +794,8 @@ apiBase.addEventListener("change", () => {
 inputText.addEventListener("input", updateInputStats);
 jdInputText.addEventListener("input", updateInputStats);
 resumeInputText.addEventListener("input", updateInputStats);
+resumeFileInput.addEventListener("change", updateInputStats);
+resumeOcrText.addEventListener("input", updateInputStats);
 
 apiBase.value = localStorage.getItem("jobmatch_api_base") || apiBase.value;
 inputText.value = examples.jd_parse;

@@ -248,6 +248,10 @@ textarea {
   min-height: 256px;
 }
 
+.small-textarea {
+  min-height: 140px;
+}
+
 .mode-row {
   display: flex;
   gap: 12px;
@@ -331,6 +335,12 @@ textarea {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+  padding: 18px 24px 0;
+}
+
+.file-upload-panel {
+  display: grid;
+  gap: 14px;
   padding: 18px 24px 0;
 }
 

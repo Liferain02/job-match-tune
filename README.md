@@ -477,6 +477,8 @@ ssh -L 5173:localhost:5173 -L 8000:localhost:8000 gpu03
   - 使用 `---` 分隔多条样本
   - 可直接调用 `/api/batch_parse` 和 `/api/batch_match`
 
+在 `简历解析 -> 单条` 模式下，前端支持直接上传 `txt / docx / pdf / 图片` 简历文件，并调用 `/api/resume_file_parse`。
+
 当前后端接口：
 
 - `POST /api/parse`
