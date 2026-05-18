@@ -61,6 +61,7 @@
     - `import_chinese_job_exports.sh`
     - `audit_public_jd_data.sh`
     - `build_public_jd_candidate_pool.sh`
+    - `build_jd_train_pool_combined.sh`
     - `import_public_resume_exports.sh`
     - `import_public_match_exports.sh`
     - `audit_public_resume_data.sh`

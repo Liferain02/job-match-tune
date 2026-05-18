@@ -161,6 +161,12 @@ bash scripts/data/audit_public_jd_data.sh --input data/raw/public_job_datasets_r
 bash scripts/data/build_public_jd_candidate_pool.sh
 ```
 
+把默认严格 JD 与公开 JD 候选池合并成统一训练池：
+
+```bash
+bash scripts/data/build_jd_train_pool_combined.sh
+```
+
 导入公开 resume 数据：
 
 ```bash
