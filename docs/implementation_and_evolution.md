@@ -155,6 +155,21 @@
 - `build_preference_dataset.py`
   - 从人工评估预测结果生成 `prompt / chosen / rejected` 偏好数据
 
+#### `resume/`
+
+- `ingest.py`
+  - 简历原始文档接入层
+  - 支持 `txt / docx / pdf`
+  - 图片简历当前标记为 `needs_ocr`
+  - 输出 `raw_text / clean_text / sections`
+- `normalize.py`
+  - 简历中间层规范化
+  - 统一输出 `normalized_text`
+  - 让多来源简历在同一文本层汇合
+- `ocr.py`
+  - OCR sidecar 生成器
+  - 支持图片和 PDF 的 OCR 文本落盘
+
 #### `train/`
 
 - `train_lora.py`
@@ -189,15 +204,21 @@
     - `GET /api/status`
     - `POST /api/warmup`
     - `POST /api/parse`
+    - `POST /api/match`
 
 #### `eval/`
 
 - `run_manual_eval.py`
   - 对人工 gold 集做字段级评估
+  - 已支持 `jd_parse` 和 `resume_parse`
 - `metrics.py`
   - 精确匹配、P/R/F1
 - `build_manual_eval_dataset.py`
   - 构造人工评估集
+- `build_resume_eval_dataset.py`
+  - 构造简历解析人工评估种子集
+- `build_resume_sft_dataset.py`
+  - 基于人工简历种子集生成多写法 bootstrap SFT 数据
 - `build_direction_hardcases.py`
   - 构造岗位方向边界样本
 
@@ -303,13 +324,13 @@ bash scripts/data/import_public_job_exports.sh
 在这批新增中文源接入后，当前整体规模变成：
 
 1. `data/interim/jd_clean.jsonl`：`292167`
-2. `data/interim/jd_clean_dedup.jsonl`：`273963`
+2. `data/interim/jd_clean_dedup.jsonl`：`267949`
 3. 去重后语言分布：
    - 中文：`221402`
    - 英文：`51330`
    - 其他 / 未知：`927`
-4. 默认高质量中文 SFT：`1408 / 176 / 177`
-5. 扩展实验版 SFT：`4800 / 600 / 601`
+4. 默认高质量中文 SFT：`1421 / 177 / 179`
+5. 扩展实验版 SFT：`4524 / 565 / 566`
 
 清洗：
 

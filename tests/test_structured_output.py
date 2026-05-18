@@ -16,3 +16,11 @@ def test_build_response_format_for_resume_parse():
     properties = response_format["json_schema"]["schema"]["properties"]
     assert "目标岗位" in properties
     assert "项目经历" in properties
+
+
+def test_build_response_format_for_match():
+    response_format = build_response_format("match")
+    assert response_format["json_schema"]["name"] == "MatchAnalysisResult"
+    properties = response_format["json_schema"]["schema"]["properties"]
+    assert "匹配结论" in properties
+    assert "简历优化建议" in properties

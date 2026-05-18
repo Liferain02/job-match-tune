@@ -208,9 +208,9 @@ bash scripts/data/refresh_moka_data.sh
 5. `data/raw/public_job_datasets_raw.jsonl`：284637 条。
 6. SQLite `jd_raw` 总量：292167 条。
 7. `data/interim/jd_clean.jsonl`：292167 条。
-8. `data/interim/jd_clean_dedup.jsonl`：273963 条。
-9. 默认高质量 SFT `train/valid/test`：`1408 / 176 / 177`。
-10. 扩展实验版 SFT `train/valid/test`：`4800 / 600 / 601`。
+8. `data/interim/jd_clean_dedup.jsonl`：267949 条。
+9. 默认高质量 SFT `train/valid/test`：`1421 / 177 / 179`。
+10. 扩展实验版 SFT `train/valid/test`：`4524 / 565 / 566`。
 11. 去重后语言分布：
    - 中文：`221402`
    - 英文：`51330`

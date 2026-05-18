@@ -12,8 +12,16 @@ from jobmatch_tune.inference.postprocess_json import parse_json_output
 from jobmatch_tune.utils.io import read_jsonl, write_text
 
 
-LIST_FIELDS = ["核心职责", "必备技能", "加分项"]
-TEXT_FIELDS = ["岗位方向", "经验要求", "学历要求"]
+TASK_FIELD_SPECS = {
+    "jd_parse": {
+        "list_fields": ["核心职责", "必备技能", "加分项"],
+        "text_fields": ["岗位方向", "经验要求", "学历要求"],
+    },
+    "resume_parse": {
+        "list_fields": ["教育背景", "核心技能", "实习经历", "项目经历", "优势标签"],
+        "text_fields": ["目标岗位"],
+    },
+}
 
 
 def _average_metric_dicts(scores: list[dict[str, float]]) -> dict[str, float]:
@@ -69,19 +77,27 @@ def run_predictions(
 
 def evaluate_predictions(rows: list[dict[str, Any]]) -> dict[str, Any]:
     valid_rows = [row for row in rows if row["ok"]]
-    list_scores = {field: [] for field in LIST_FIELDS}
-    text_scores = {field: [] for field in TEXT_FIELDS}
+    task_names = {row.get("task", "jd_parse") for row in rows}
+    if len(task_names) != 1:
+        raise ValueError(f"Expected a single task dataset, got: {sorted(task_names)}")
+    task_name = task_names.pop()
+    if task_name not in TASK_FIELD_SPECS:
+        raise ValueError(f"Unsupported task for manual eval: {task_name}")
+
+    field_spec = TASK_FIELD_SPECS[task_name]
+    list_scores = {field: [] for field in field_spec["list_fields"]}
+    text_scores = {field: [] for field in field_spec["text_fields"]}
     mismatches = []
     for row in valid_rows:
         pred = row["parsed"] or {}
         gold = row["label"] or {}
         row_mismatches = {}
-        for field in LIST_FIELDS:
+        for field in field_spec["list_fields"]:
             score = precision_recall_f1(pred.get(field, []), gold.get(field, []))
             list_scores[field].append(score)
             if score["f1"] < 0.999:
                 row_mismatches[field] = {"pred": pred.get(field, []), "gold": gold.get(field, [])}
-        for field in TEXT_FIELDS:
+        for field in field_spec["text_fields"]:
             score = text_exact_match(pred.get(field, ""), gold.get(field, ""))
             text_scores[field].append(score)
             if score < 0.999:
@@ -90,6 +106,7 @@ def evaluate_predictions(rows: list[dict[str, Any]]) -> dict[str, Any]:
             mismatches.append({"id": row["id"], "fields": row_mismatches})
 
     return {
+        "task": task_name,
         "num_samples": len(rows),
         "json_valid_rate": len(valid_rows) / len(rows) if rows else 0.0,
         "field_metrics": {

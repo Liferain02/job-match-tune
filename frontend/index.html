@@ -60,6 +60,7 @@
             <div class="segmented" role="tablist" aria-label="task">
               <button class="segment active" id="jdMode" type="button">JD 解析</button>
               <button class="segment" id="resumeMode" type="button">简历解析</button>
+              <button class="segment" id="matchMode" type="button">人岗匹配</button>
             </div>
             <button class="button secondary compact" id="exampleButton" type="button">填入示例</button>
           </div>
@@ -75,10 +76,21 @@
             </div>
           </div>
 
-          <label class="field">
-            <span>输入文本</span>
+          <label class="field" id="singleInputField">
+            <span id="inputLabel">输入文本</span>
             <textarea id="inputText" spellcheck="false"></textarea>
           </label>
+
+          <section class="dual-input-grid hidden" id="matchInputGrid">
+            <label class="field field-compact">
+              <span>JD 文本</span>
+              <textarea id="jdInputText" class="compact-textarea" spellcheck="false"></textarea>
+            </label>
+            <label class="field field-compact">
+              <span>简历文本</span>
+              <textarea id="resumeInputText" class="compact-textarea" spellcheck="false"></textarea>
+            </label>
+          </section>
 
           <div class="editor-footer">
             <span id="inputStats">0 字</span>
@@ -103,20 +115,20 @@
 
           <div class="result-overview" id="resultOverview">
             <div class="overview-card">
-              <span>岗位方向</span>
-              <strong id="overviewDirection">-</strong>
+              <span id="overviewLabel1">岗位方向</span>
+              <strong id="overviewValue1">-</strong>
             </div>
             <div class="overview-card">
-              <span>职责条目</span>
-              <strong id="overviewRespCount">0</strong>
+              <span id="overviewLabel2">职责条目</span>
+              <strong id="overviewValue2">0</strong>
             </div>
             <div class="overview-card">
-              <span>技能条目</span>
-              <strong id="overviewSkillCount">0</strong>
+              <span id="overviewLabel3">技能条目</span>
+              <strong id="overviewValue3">0</strong>
             </div>
             <div class="overview-card">
-              <span>加分项</span>
-              <strong id="overviewBonusCount">0</strong>
+              <span id="overviewLabel4">加分项</span>
+              <strong id="overviewValue4">0</strong>
             </div>
           </div>
 

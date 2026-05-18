@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import time
 from threading import Lock
@@ -13,6 +14,7 @@ from pydantic import BaseModel, Field
 from jobmatch_tune.inference.predict import build_prompt, load_model
 from jobmatch_tune.inference.postprocess_json import parse_json_output
 from jobmatch_tune.inference.structured_output import build_response_format
+from jobmatch_tune.match.rule_engine import compute_match_rule_result
 
 
 DEFAULT_MODEL_PATH = "models/Qwen3-14B"
@@ -24,6 +26,12 @@ DEFAULT_VLLM_MODEL = "jobmatch-lora"
 class ParseRequest(BaseModel):
     task: Literal["jd_parse", "resume_parse"] = "jd_parse"
     text: str = Field(min_length=1, max_length=20000)
+    max_new_tokens: int = Field(default=1024, ge=64, le=4096)
+
+
+class MatchRequest(BaseModel):
+    jd_text: str = Field(min_length=1, max_length=20000)
+    resume_text: str = Field(min_length=1, max_length=20000)
     max_new_tokens: int = Field(default=1024, ge=64, le=4096)
 
 
@@ -70,10 +78,15 @@ class ModelService:
                 self._load_transformers()
 
     def _parse_with_transformers(self, request: ParseRequest) -> dict[str, Any]:
+        messages = build_prompt(request.task, request.text)
+        raw_output = self._complete_with_transformers(messages, request.max_new_tokens)
+        result = parse_json_output(raw_output, context_text=request.text)
+        result["raw_output"] = raw_output
+        return result
+
+    def _complete_with_transformers(self, messages: list[dict[str, str]], max_new_tokens: int) -> str:
         assert self._tokenizer is not None
         assert self._model is not None
-
-        messages = build_prompt(request.task, request.text)
         prompt = self._tokenizer.apply_chat_template(
             messages,
             tokenize=False,
@@ -84,31 +97,32 @@ class ModelService:
         with self._lock, torch.no_grad():
             output_ids = self._model.generate(
                 **inputs,
-                max_new_tokens=request.max_new_tokens,
+                max_new_tokens=max_new_tokens,
                 do_sample=False,
                 temperature=None,
                 top_p=None,
             )
         generated = output_ids[0][inputs["input_ids"].shape[-1] :]
-        raw_output = self._tokenizer.decode(generated, skip_special_tokens=True)
-        result = parse_json_output(raw_output, context_text=request.text)
-        result["raw_output"] = raw_output
-        return result
+        return self._tokenizer.decode(generated, skip_special_tokens=True)
 
     def _parse_with_vllm(self, request: ParseRequest) -> dict[str, Any]:
         assert self._client is not None
         messages = build_prompt(request.task, request.text)
+        raw_output = self._complete_with_vllm(messages, request.max_new_tokens, request.task)
+        result = parse_json_output(raw_output, context_text=request.text)
+        result["raw_output"] = raw_output
+        return result
+
+    def _complete_with_vllm(self, messages: list[dict[str, str]], max_new_tokens: int, task: str) -> str:
+        assert self._client is not None
         completion = self._client.chat.completions.create(
             model=self.vllm_model,
             messages=messages,
             temperature=0,
-            max_tokens=request.max_new_tokens,
-            response_format=build_response_format(request.task),
+            max_tokens=max_new_tokens,
+            response_format=build_response_format(task),
         )
-        raw_output = completion.choices[0].message.content or ""
-        result = parse_json_output(raw_output, context_text=request.text)
-        result["raw_output"] = raw_output
-        return result
+        return completion.choices[0].message.content or ""
 
     def parse(self, request: ParseRequest) -> dict[str, Any]:
         self.load()
@@ -120,6 +134,61 @@ class ModelService:
             result = self._parse_with_transformers(request)
         result["latency_seconds"] = round(time.perf_counter() - started, 3)
         return result
+
+    def _match_with_transformers(self, request: MatchRequest, rule_result: dict[str, Any]) -> dict[str, Any]:
+        messages = build_prompt(
+            "match",
+            request.jd_text,
+            resume_text=request.resume_text,
+            rule_result=jsonable(rule_result),
+        )
+        raw_output = self._complete_with_transformers(messages, request.max_new_tokens)
+        result = parse_json_output(raw_output)
+        result["raw_output"] = raw_output
+        return result
+
+    def _match_with_vllm(self, request: MatchRequest, rule_result: dict[str, Any]) -> dict[str, Any]:
+        messages = build_prompt(
+            "match",
+            request.jd_text,
+            resume_text=request.resume_text,
+            rule_result=jsonable(rule_result),
+        )
+        raw_output = self._complete_with_vllm(messages, request.max_new_tokens, "match")
+        result = parse_json_output(raw_output)
+        result["raw_output"] = raw_output
+        return result
+
+    def match(self, request: MatchRequest) -> dict[str, Any]:
+        self.load()
+        started = time.perf_counter()
+
+        jd_result = self.parse(ParseRequest(task="jd_parse", text=request.jd_text, max_new_tokens=request.max_new_tokens))
+        resume_result = self.parse(ParseRequest(task="resume_parse", text=request.resume_text, max_new_tokens=request.max_new_tokens))
+        if not jd_result.get("ok") or not resume_result.get("ok"):
+            raise ValueError("Failed to parse JD or resume before matching")
+
+        rule_result = compute_match_rule_result(
+            jd_result["data"],
+            resume_result["data"],
+            jd_text=request.jd_text,
+            resume_text=request.resume_text,
+        )
+
+        if self.backend == "vllm":
+            analysis_result = self._match_with_vllm(request, rule_result)
+        else:
+            analysis_result = self._match_with_transformers(request, rule_result)
+
+        return {
+            "ok": analysis_result.get("ok", False),
+            "jd_parse": jd_result["data"],
+            "resume_parse": resume_result["data"],
+            "rule_result": rule_result,
+            "analysis": analysis_result.get("data"),
+            "analysis_raw_output": analysis_result.get("raw_output", ""),
+            "latency_seconds": round(time.perf_counter() - started, 3),
+        }
 
     def status(self) -> dict[str, Any]:
         return {
@@ -173,3 +242,15 @@ def parse(request: ParseRequest) -> dict[str, Any]:
         return service.parse(request)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/match")
+def match(request: MatchRequest) -> dict[str, Any]:
+    try:
+        return service.match(request)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+def jsonable(data: dict[str, Any]) -> str:
+    return json.dumps(data, ensure_ascii=False)
