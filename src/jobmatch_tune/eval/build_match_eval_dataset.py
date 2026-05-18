@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from copy import deepcopy
+
 from jobmatch_tune.utils.io import write_jsonl
 
 
@@ -247,9 +249,61 @@ ROWS = [
 ]
 
 
+def to_ocr_like(text: str) -> str:
+    text = text.replace("：", ":")
+    text = text.replace("，", ",")
+    text = text.replace("；", ";")
+    text = text.replace("。", "")
+    text = text.replace("、", " ")
+    text = text.replace("MySQL", "My SOL")
+    text = text.replace("Pytest", "Py test")
+    text = text.replace("Kubernetes", "Kubernet es")
+    text = text.replace("C++", "C + +")
+    return text
+
+
+def build_variant_rows(rows: list[dict]) -> list[dict]:
+    variants = []
+    for row in rows:
+        copied = deepcopy(row)
+        copied["id"] = f"{row['id']}_alt"
+        copied["jd_text"] = (
+            copied["jd_text"]
+            .replace("岗位职责：", "工作内容：")
+            .replace("任职要求：", "职位要求：")
+        )
+        copied["resume_text"] = to_ocr_like(copied["resume_text"]) if row.get("source_type") == "ocr_like" else copied["resume_text"].replace("目标岗位：", "求职方向：")
+        variants.append(copied)
+        copied2 = deepcopy(row)
+        copied2["id"] = f"{row['id']}_ocr"
+        copied2["source_type"] = "ocr_like"
+        copied2["jd_text"] = to_ocr_like(copied2["jd_text"])
+        copied2["resume_text"] = to_ocr_like(copied2["resume_text"])
+        variants.append(copied2)
+        copied3 = deepcopy(row)
+        copied3["id"] = f"{row['id']}_compact"
+        copied3["jd_text"] = (
+            copied3["jd_text"]
+            .replace("岗位名称：", "职位：")
+            .replace("岗位职责：", "职责：")
+            .replace("任职要求：", "要求：")
+        )
+        copied3["resume_text"] = (
+            copied3["resume_text"]
+            .replace("目标岗位：", "求职岗位：")
+            .replace("教育背景：", "教育：")
+            .replace("核心技能：", "技能：")
+            .replace("项目经历：", "项目：")
+            .replace("实习经历：", "实习：")
+        )
+        variants.append(copied3)
+    return variants
+
+
 def main() -> None:
-    write_jsonl("data/eval/match_manual_eval_seed.jsonl", ROWS)
-    print(f"wrote {len(ROWS)} rows to data/eval/match_manual_eval_seed.jsonl")
+    all_rows = ROWS + build_variant_rows(ROWS)
+    write_jsonl("data/eval/match_manual_eval_seed.jsonl", all_rows)
+    print(f"wrote {len(all_rows)} rows to data/eval/match_manual_eval_seed.jsonl")
 
 
 if __name__ == "__main__":

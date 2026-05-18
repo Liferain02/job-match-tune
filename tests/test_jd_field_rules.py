@@ -128,3 +128,33 @@ def test_infer_job_direction_accepts_autonomous_driving_software_title() -> None
         schema,
     )
     assert direction == "汽车软件/智驾研发"
+
+
+def test_infer_job_direction_accepts_logistics_sre_title() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "秒送物流SRE",
+        "岗位职责：负责系统稳定性、发布巡检、监控告警和自动化运维平台建设。",
+        schema,
+    )
+    assert direction == "运维开发"
+
+
+def test_infer_job_direction_accepts_software_quality_title() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "开发质量工程师（软件）",
+        "岗位职责：负责软件质量保障、测试流程建设和自动化验证。",
+        schema,
+    )
+    assert direction == "测试开发"
+
+
+def test_infer_job_direction_accepts_architect_post_title() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "资深架构师岗（电商业务）",
+        "岗位职责：负责电商服务端架构设计、数据库治理和系统演进。",
+        schema,
+    )
+    assert direction == "后端开发"

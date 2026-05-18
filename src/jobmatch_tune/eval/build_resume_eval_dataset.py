@@ -487,12 +487,68 @@ def build_ocr_like_rows(rows: list[dict]) -> list[dict]:
     return output
 
 
+def build_text_variant_rows(rows: list[dict]) -> list[dict]:
+    output = []
+    for row in rows:
+        label = row["label"]
+        copied = deepcopy(row)
+        copied["id"] = f"{row['id']}_alt"
+        copied["text"] = "\n".join(
+            part
+            for part in [
+                "候选人简历",
+                f"目标岗位：{label.get('目标岗位', '')}",
+                f"教育背景：{'；'.join(label.get('教育背景', []))}",
+                f"核心技能：{'、'.join(label.get('核心技能', []))}",
+                "实习经历：\n" + "\n".join(f"- {item}" for item in label.get("实习经历", [])),
+                "项目经历：\n" + "\n".join(f"- {item}" for item in label.get("项目经历", [])),
+                f"优势标签：{'、'.join(label.get('优势标签', []))}",
+            ]
+            if part.strip()
+        )
+        output.append(copied)
+        copied2 = deepcopy(row)
+        copied2["id"] = f"{row['id']}_compact"
+        copied2["text"] = "\n".join(
+            part
+            for part in [
+                f"求职方向：{label.get('目标岗位', '')}",
+                f"教育：{'；'.join(label.get('教育背景', []))}",
+                f"技能：{'、'.join(label.get('核心技能', []))}",
+                f"实习：{'；'.join(label.get('实习经历', []))}",
+                f"项目：{'；'.join(label.get('项目经历', []))}",
+                f"优势：{'、'.join(label.get('优势标签', []))}",
+            ]
+            if part.strip()
+        )
+        output.append(copied2)
+        copied3 = deepcopy(row)
+        copied3["id"] = f"{row['id']}_brief"
+        copied3["text"] = "\n".join(
+            part
+            for part in [
+                f"应聘岗位：{label.get('目标岗位', '')}",
+                "教育经历：" + "；".join(label.get("教育背景", [])),
+                "技能标签：" + " / ".join(label.get("核心技能", [])),
+                "项目亮点：" + "；".join(label.get("项目经历", [])),
+                "个人优势：" + "、".join(label.get("优势标签", [])),
+            ]
+            if part.strip()
+        )
+        output.append(copied3)
+    return output
+
+
 def main() -> None:
     write_jsonl("data/eval/resume_manual_eval_seed.jsonl", BASE_ROWS)
     write_jsonl("data/eval/resume_manual_eval_text_seed.jsonl", BASE_ROWS)
+    augmented_rows = BASE_ROWS + build_text_variant_rows(BASE_ROWS)
+    write_jsonl("data/eval/resume_manual_eval_augmented.jsonl", augmented_rows)
     ocr_rows = build_ocr_like_rows(BASE_ROWS)
     write_jsonl("data/eval/resume_manual_eval_ocr_seed.jsonl", ocr_rows)
-    print(f"wrote {len(BASE_ROWS)} text rows and {len(ocr_rows)} ocr-like rows")
+    print(
+        f"wrote {len(BASE_ROWS)} text rows, {len(augmented_rows)} augmented text rows and {len(ocr_rows)} ocr-like rows"
+    )
 
 
 if __name__ == "__main__":
