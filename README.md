@@ -179,6 +179,12 @@ bash scripts/data/audit_public_match_data.sh --input data/external/public_match_
 bash scripts/data/build_resume_train_pool_combined.sh
 ```
 
+把人工 `match` 训练池与可用公开匹配样本合并：
+
+```bash
+bash scripts/data/build_match_train_pool_combined.sh
+```
+
 当前这条链路会导入三类补充源：
 
 - GitHub `jhcoco/bosszp` CSV

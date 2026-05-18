@@ -64,6 +64,7 @@
     - `audit_public_resume_data.sh`
     - `audit_public_match_data.sh`
     - `build_resume_train_pool_combined.sh`
+    - `build_match_train_pool_combined.sh`
     - `rebuild_data_pipeline.sh`
     - `build_preference_dataset.sh`
     - `build_multilingual_weak_sft.sh`
