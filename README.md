@@ -607,6 +607,7 @@ bash scripts/serve/start_api.sh
 - 项目阶段路线图：[docs/project_roadmap.md](/share/home/lifr/workspace/code/job-match-tune/docs/project_roadmap.md)
 - 项目实现与迭代总览：[docs/implementation_and_evolution.md](/share/home/lifr/workspace/code/job-match-tune/docs/implementation_and_evolution.md)
 - 数据处理全流程：[docs/data_pipeline_full.md](/share/home/lifr/workspace/code/job-match-tune/docs/data_pipeline_full.md)
+- 三条数据链路说明：[docs/data_tracks_explained.md](/share/home/lifr/workspace/code/job-match-tune/docs/data_tracks_explained.md)
 - 简历处理链路：[docs/resume_pipeline.md](/share/home/lifr/workspace/code/job-match-tune/docs/resume_pipeline.md)
 - 公开招聘/简历/匹配数据源清单：[docs/public_dataset_inventory.md](/share/home/lifr/workspace/code/job-match-tune/docs/public_dataset_inventory.md)
 - 简历写法与项目亮点：[docs/resume_project_highlights.md](/share/home/lifr/workspace/code/job-match-tune/docs/resume_project_highlights.md)
