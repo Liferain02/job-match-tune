@@ -323,6 +323,12 @@ bash scripts/data/report_pool_profiles.sh
 bash scripts/data/build_jd_bootstrap_sft_dataset.sh
 ```
 
+如果要直接比较 `JD strict` 和 `JD bootstrap` 的质量指标：
+
+```bash
+bash scripts/data/compare_jd_sft_tracks.sh
+```
+
 清洗与构造训练集：
 
 ```bash
