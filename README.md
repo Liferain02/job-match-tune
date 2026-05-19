@@ -329,10 +329,29 @@ bash scripts/data/build_jd_bootstrap_sft_dataset.sh
 bash scripts/data/build_jd_strict_plus_sft_dataset.sh
 ```
 
+如果要单独抽出“原文信息足够、但当前还能修”的 `JD repairable pool`：
+
+```bash
+bash scripts/data/build_jd_train_pool_repairable.sh
+```
+
+如果要基于这条修复池再生成实验性的 `JD strict_plus_v2`：
+
+```bash
+bash scripts/data/build_jd_strict_plus_v2_sft_dataset.sh
+```
+
 当前 `strict_plus` 规模为：
 
 - `train / valid / test = 1188 / 148 / 149`
 - 总计 `1485`
+
+当前 `repairable pool` 和 `strict_plus_v2` 的规模为：
+
+- `data/eval/jd_train_pool_repairable.jsonl = 310`
+- `data/sft_jd_strict_plus_v2/train|valid|test = 2 / 1 / 1`
+
+结论：真正“原文足够、但可通过小修复救回”的高信任 JD 确实存在，但数量远小于几十万 raw 的直觉规模。这条链路适合作为精修候选池，不适合作为主训练数据来源。
 
 如果要直接比较 `JD strict` 和 `JD bootstrap` 的质量指标：
 
