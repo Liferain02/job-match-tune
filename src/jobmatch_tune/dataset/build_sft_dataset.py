@@ -379,6 +379,34 @@ def get_effective_direction(row: dict[str, Any]) -> str:
     return infer_job_direction(title, clean_text, MINIMAL_DIRECTION_SCHEMA)
 
 
+def is_tencent_short_tech_row(row: dict[str, Any], direction: str | None = None) -> bool:
+    source = str(row.get("source") or "")
+    if source != "careers.tencent.com":
+        return False
+    meta = row.get("meta") or {}
+    if str(meta.get("category") or "").strip() != "技术":
+        return False
+    clean_text = str(row.get("clean_text") or "").strip()
+    if not (120 <= len(clean_text) < 180):
+        return False
+    effective_direction = direction or get_effective_direction(row)
+    if not effective_direction:
+        return False
+    sections = row.get("sections") or {}
+    labels = row.get("labels") or {}
+    responsibilities = str(sections.get("responsibilities") or "").strip()
+    responsibility_lines = [line for line in responsibilities.splitlines() if line.strip()]
+    has_requirements = bool(str(sections.get("requirements") or "").strip())
+    has_skills = bool(labels.get("必备技能"))
+    has_education = bool(labels.get("学历要求") or extract_education_requirement(clean_text))
+    has_experience = bool(labels.get("经验要求") or extract_experience_requirement(clean_text))
+    return bool(
+        len(responsibility_lines) >= 2
+        and (has_experience or has_skills or has_education)
+        and (has_requirements or responsibilities)
+    )
+
+
 def is_high_trust_strong_row(row: dict[str, Any]) -> bool:
     language = str(row.get("language") or "").strip().lower()
     source = row.get("source")
@@ -434,6 +462,8 @@ def is_high_trust_strong_row(row: dict[str, Any]) -> bool:
     # 部分高信任官网职位文本很完整，但 section 切分不稳定。对这类样本做保守回收。
     fallback_signals = sum(bool(flag) for flag in [has_skills, has_education, has_experience, has_bonus])
     if has_structure_marker and len(clean_text) >= 180 and fallback_signals >= 2:
+        return True
+    if is_tencent_short_tech_row(row, direction):
         return True
     return False
 

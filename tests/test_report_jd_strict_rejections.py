@@ -51,3 +51,30 @@ def test_classify_rejection_accepts_backfilled_direction():
         "sft_ready": True,
     }
     assert classify_rejection(row) == "accepted"
+
+
+def test_classify_rejection_accepts_short_tencent_tech_row():
+    row = {
+        "id": "row_short_tencent",
+        "source": "careers.tencent.com",
+        "language": "",
+        "job_title": "腾讯会议-Android研发工程师",
+        "clean_text": (
+            "岗位职责：负责腾讯会议Android客户端研发，难点攻坚以及新技术预研；\n"
+            "2.负责Android端基础设施和技术方案设计，完成高质量交付和版本发布；\n"
+            "3.负责腾讯会议C++跨平台逻辑开发与维护，持续推进端侧稳定性治理与工程效率优化。\n"
+            "经验要求：三年以上工作经验"
+        ),
+        "sections": {
+            "responsibilities": (
+                "1.负责腾讯会议Android客户端研发，难点攻坚以及新技术预研；\n"
+                "2.负责Android端基础设施和技术方案设计，完成高质量交付和版本发布；\n"
+                "3.负责腾讯会议C++跨平台逻辑开发与维护，持续推进端侧稳定性治理与工程效率优化。"
+            ),
+            "requirements": "",
+        },
+        "labels": {"岗位方向": "", "学历要求": "", "经验要求": "三年以上工作经验", "必备技能": ["Android", "C++"]},
+        "meta": {"category": "技术"},
+        "sft_ready": True,
+    }
+    assert classify_rejection(row) == "accepted"

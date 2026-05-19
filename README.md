@@ -285,9 +285,9 @@ bash scripts/data/report_pool_profiles.sh
 
 当前训练集规模：
 
-- `data/sft/train.jsonl`: `1940`
-- `data/sft/valid.jsonl`: `242`
-- `data/sft/test.jsonl`: `244`
+- `data/sft/train.jsonl`: `2111`
+- `data/sft/valid.jsonl`: `263`
+- `data/sft/test.jsonl`: `265`
 - `data/sft_jd_bootstrap/train.jsonl`: `1371`
 - `data/sft_jd_bootstrap/valid.jsonl`: `171`
 - `data/sft_jd_bootstrap/test.jsonl`: `172`
@@ -313,7 +313,7 @@ bash scripts/data/report_pool_profiles.sh
   - 中文：`221402`
   - 英文：`51330`
   - 其他 / 未知：`927`
-- 默认 `data/sft/` 现在是严格质量版：`1940 / 242 / 244`。
+- 默认 `data/sft/` 现在是严格质量版：`2111 / 263 / 265`。
 - `data/sft_expanded/` 是扩展实验版：`4524 / 565 / 566`。
 - 默认训练不再追求先凑满 2 万，而是优先保留高信任官网中文技术岗；弱标注样本只进入扩展实验集，不再直接混入默认集。当前 `20000` 目标只属于扩展实验链路，不代表默认高质量集规模。
 
@@ -394,7 +394,7 @@ bash scripts/data/report_jd_strict_tech_candidates.sh
 
 当前 `JD strict` 拒绝审计的主要结论：
 
-- `total_rejected = 4668`
+- `total_rejected = 4455`
 - Top 3 原因：
   - `missing_direction = 2420`
   - `sft_not_ready = 1094`
@@ -406,11 +406,15 @@ bash scripts/data/report_jd_strict_tech_candidates.sh
 进一步过滤掉明显业务岗后，真正值得继续回收的技术候选拒绝样本约为：
 
 - `total_tech_like_rejected = 680`
+- `total_tech_like_rejected = 453`
 - Top reasons:
-  - `clean_text_too_short = 230`
   - `missing_direction = 180`
   - `missing_edu_exp_skill = 82`
   - `sft_not_ready = 75`
+  - `excluded_title = 67`
+  - `clean_text_too_short = 21`
+
+补了一条 `careers.tencent.com` 技术短 JD 例外后，腾讯高信任技术岗里的 `clean_text_too_short` 已经从 `238` 压到 `25`，`strict` 主集也从 `2426` 提升到了 `2639`。
 
 清洗与构造训练集：
 

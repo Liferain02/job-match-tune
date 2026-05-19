@@ -10,6 +10,7 @@ from typing import Any
 from jobmatch_tune.dataset.build_sft_dataset import (
     HIGH_TRUST_SOURCES,
     get_effective_direction,
+    is_tencent_short_tech_row,
     is_high_trust_strong_row,
     title_has_excluded_signal,
     title_has_exclusion_exception,
@@ -87,6 +88,8 @@ def classify_rejection(row: dict[str, Any]) -> str:
 
     fallback_signals = sum(bool(flag) for flag in [has_skills, has_education, has_experience, has_bonus])
     if has_structure_marker and len(clean_text) >= 180 and fallback_signals >= 2:
+        return "accepted"
+    if is_tencent_short_tech_row(row, direction):
         return "accepted"
 
     if not (has_responsibilities or has_requirements):

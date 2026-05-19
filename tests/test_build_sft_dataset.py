@@ -6,6 +6,7 @@ from jobmatch_tune.dataset.build_sft_dataset import (
     get_effective_direction,
     is_high_trust_strong_row,
     is_high_confidence_weak_tech_row,
+    is_tencent_short_tech_row,
 )
 
 
@@ -330,6 +331,34 @@ def test_build_jd_parse_sample_uses_backfilled_direction() -> None:
     sample = build_jd_parse_sample(row)
     assistant = sample["messages"][2]["content"]
     assert "网络与基础设施" in assistant
+
+
+def test_is_tencent_short_tech_row_accepts_short_high_value_tencent_jd() -> None:
+    row = {
+        "id": "trusted_tencent_short",
+        "source": "careers.tencent.com",
+        "language": "",
+        "job_title": "腾讯会议-Android研发工程师",
+        "clean_text": (
+            "岗位职责：负责腾讯会议Android客户端研发，难点攻坚以及新技术预研；\n"
+            "2.负责Android端基础设施和技术方案设计，完成高质量交付和版本发布；\n"
+            "3.负责腾讯会议C++跨平台逻辑开发与维护，持续推进端侧稳定性治理与工程效率优化。\n"
+            "经验要求：三年以上工作经验"
+        ),
+        "sections": {
+            "responsibilities": (
+                "1.负责腾讯会议Android客户端研发，难点攻坚以及新技术预研；\n"
+                "2.负责Android端基础设施和技术方案设计，完成高质量交付和版本发布；\n"
+                "3.负责腾讯会议C++跨平台逻辑开发与维护，持续推进端侧稳定性治理与工程效率优化。"
+            ),
+            "requirements": "",
+        },
+        "labels": {"岗位方向": "", "学历要求": "", "经验要求": "三年以上工作经验", "必备技能": ["Android", "C++"]},
+        "meta": {"category": "技术"},
+        "sft_ready": True,
+    }
+    assert is_tencent_short_tech_row(row) is True
+    assert is_high_trust_strong_row(row) is True
 
 
 def test_is_high_trust_strong_row_accepts_fallback_structure_from_high_trust_source() -> None:
