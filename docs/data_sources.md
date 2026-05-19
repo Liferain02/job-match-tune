@@ -319,10 +319,10 @@ https://job.toutiao.com/api/v1/config/job/filters/2
 
 基于这一轮结果，中文官网数据源优先级建议更新为：
 
-1. **已打通并稳定**：腾讯、百度、京东、小米
+1. **已打通并稳定**：腾讯、百度、京东、小米、美团
 2. **高价值但仍需继续攻**：字节跳动
 3. **有前端线索但还没打通**：华为、阿里
-4. **暂未继续**：网易、美团
+4. **暂未继续**：网易
 
 一键入口：
 
@@ -330,6 +330,7 @@ https://job.toutiao.com/api/v1/config/job/filters/2
 bash scripts/data/refresh_baidu_data.sh
 bash scripts/data/refresh_jd_data.sh
 bash scripts/data/refresh_xiaomi_data.sh
+bash scripts/data/refresh_meituan_data.sh
 bash scripts/data/import_chinese_job_exports.sh
 bash scripts/data/import_public_job_exports.sh
 bash scripts/data/rebuild_data_pipeline.sh
@@ -350,6 +351,21 @@ bash scripts/data/rebuild_data_pipeline.sh
 1. 后续单独实现 ByteDance crawler。
 2. 只使用公开招聘站允许路径。
 3. 不访问 referral、登录态、内推、猎头或候选人相关接口。
+
+## 美团招聘
+
+结论：已打通公开职位 API，可作为稳定官网源，但本轮对 `strict` 的拉升不大。
+
+已确认接口：
+
+1. `POST /api/official/job/getJobList`
+2. `POST /api/official/job/getJobDetail`
+
+本轮结果：
+
+1. 新增 `18` 条 tech-like raw
+2. 最终进入 `JD strict` 主集 `5` 条
+3. 说明美团源可用，但当前对 `strict` 的提升弱于腾讯短 JD 和小米研发页
 
 ## 其他公司官网
 

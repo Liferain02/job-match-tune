@@ -125,6 +125,17 @@ bash scripts/data/refresh_jd_data.sh
 bash scripts/data/refresh_xiaomi_data.sh
 ```
 
+如需一键刷新美团数据：
+
+```bash
+bash scripts/data/refresh_meituan_data.sh
+```
+
+当前美团公开招聘 API 已验证可用：
+- 列表：`/api/official/job/getJobList`
+- 详情：`/api/official/job/getJobDetail`
+- 本轮接入后新增 `18` 条 tech-like raw，进入 `JD strict` 主集 `5` 条
+
 如需一键刷新 Moka 招聘官网数据：
 
 ```bash

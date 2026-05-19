@@ -233,6 +233,20 @@ def test_is_high_trust_strong_row_accepts_xiaomi_source() -> None:
     assert is_high_trust_strong_row(row) is True
 
 
+def test_is_high_trust_strong_row_accepts_meituan_source() -> None:
+    row = {
+        "id": "trusted_meituan_agent",
+        "source": "zhaopin.meituan.com",
+        "language": "zh",
+        "job_title": "AI Agent研发工程师",
+        "clean_text": "岗位职责：负责 AI Agent pipeline 研发与后端工程建设\n任职要求：本科及以上，3年以上后端开发经验，熟悉 Java",
+        "sections": {"responsibilities": "负责 AI Agent pipeline 研发与后端工程建设", "requirements": "本科及以上，3年以上后端开发经验，熟悉 Java"},
+        "labels": {"岗位方向": "后端开发", "学历要求": "本科", "经验要求": "3年以上后端开发经验", "必备技能": ["Java"]},
+        "sft_ready": True,
+    }
+    assert is_high_trust_strong_row(row) is True
+
+
 def test_is_high_trust_strong_row_accepts_hpc() -> None:
     row = {
         "id": "trusted_hpc",
