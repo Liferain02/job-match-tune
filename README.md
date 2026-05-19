@@ -288,9 +288,9 @@ bash scripts/data/report_pool_profiles.sh
 - `data/sft/train.jsonl`: `1422`
 - `data/sft/valid.jsonl`: `177`
 - `data/sft/test.jsonl`: `179`
-- `data/sft_jd_bootstrap/train.jsonl`: 由 `bash scripts/data/build_jd_bootstrap_sft_dataset.sh` 生成
-- `data/sft_jd_bootstrap/valid.jsonl`: 由 `bash scripts/data/build_jd_bootstrap_sft_dataset.sh` 生成
-- `data/sft_jd_bootstrap/test.jsonl`: 由 `bash scripts/data/build_jd_bootstrap_sft_dataset.sh` 生成
+- `data/sft_jd_bootstrap/train.jsonl`: `3233`
+- `data/sft_jd_bootstrap/valid.jsonl`: `404`
+- `data/sft_jd_bootstrap/test.jsonl`: `405`
 - `data/sft_resume/train.jsonl`: `2560`
 - `data/sft_resume/valid.jsonl`: `320`
 - `data/sft_resume/test.jsonl`: `320`
@@ -328,6 +328,17 @@ bash scripts/data/build_jd_bootstrap_sft_dataset.sh
 ```bash
 bash scripts/data/compare_jd_sft_tracks.sh
 ```
+
+当前 `JD bootstrap` 相对 `strict` 的主要差异：
+
+- 样本量：`1778 -> 4042`
+- `json_valid_rate`：都为 `1.0`
+- `avg_responsibility_count`：`4.51 -> 2.70`
+- `avg_skill_count`：`1.32 -> 2.06`
+- `education_coverage`：`0.79 -> 1.00`
+- `experience_coverage`：`0.50 -> 0.26`
+
+结论：`bootstrap` 已经比早期版本干净很多，但经验字段仍然弱于 `strict`，因此当前更适合做第二阶段增强训练，而不是直接替代 `strict`。
 
 清洗与构造训练集：
 
