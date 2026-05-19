@@ -81,5 +81,17 @@ def test_build_combined_rows_merges_and_deduplicates():
             "meta": {"language": "zh"},
         }
     ]
-    combined = build_combined_rows(manual_rows, public_rows)
-    assert len(combined) == 1
+    supplemental_rows = [
+        {
+            "id": "supp_1",
+            "source": "github_workaggregation_test",
+            "job_title": "数据开发工程师",
+            "company": "C",
+            "location": "深圳",
+            "salary": "20-30K",
+            "raw_text": "岗位名称：数据开发工程师\n岗位职责：负责 ETL 和数仓开发。\n任职要求：熟悉 SQL、Spark、Hive、Airflow。",
+            "meta": {"language": "zh", "pool_origin": "supplemental_weak_high_conf"},
+        }
+    ]
+    combined = build_combined_rows(manual_rows, public_rows, supplemental_rows)
+    assert len(combined) == 2

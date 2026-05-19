@@ -254,8 +254,8 @@ bash scripts/data/build_current_data_pools.sh
 当前基于仓库已有数据实际生成出的池子规模：
 
 - `data/eval/public_jd_candidate_pool.jsonl`: `679`
-- `data/eval/jd_train_pool_combined.jsonl`: `2457`
-- `data/eval/resume_train_pool_combined.jsonl`: `160`
+- `data/eval/jd_train_pool_combined.jsonl`: `2459`
+- `data/eval/resume_train_pool_combined.jsonl`: `768`
 - `data/eval/match_train_pool_combined.jsonl`: `1176`
 
 当前统一就绪报告结论：

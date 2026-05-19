@@ -72,5 +72,14 @@ def test_build_combined_rows_merges_and_deduplicates():
             "meta": {"language": "zh"},
         },
     ]
-    combined = build_combined_rows(manual_rows, public_rows)
-    assert len(combined) == 2
+    synthetic_rows = [
+        {
+            "id": "synthetic_1",
+            "task": "resume_parse",
+            "source_type": "synthetic_text",
+            "text": "目标岗位：后端开发\n教育背景：本科，计算机科学与技术\n核心技能：Java、MySQL",
+            "label": {"目标岗位": "后端开发"},
+        }
+    ]
+    combined = build_combined_rows(manual_rows, public_rows, synthetic_rows)
+    assert len(combined) == 3

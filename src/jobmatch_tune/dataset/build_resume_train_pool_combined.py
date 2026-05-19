@@ -54,8 +54,11 @@ def deduplicate_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def build_combined_rows(
     manual_rows: list[dict[str, Any]],
     public_rows: list[dict[str, Any]],
+    synthetic_rows: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     combined = list(manual_rows)
+    for row in synthetic_rows or []:
+        combined.append(row)
     for row in public_rows:
         if is_usable_public_resume_row(row):
             combined.append(
@@ -74,14 +77,18 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--manual-input", default="data/eval/resume_manual_train_pool.jsonl")
     parser.add_argument("--public-input", default="data/external/public_resume_imports.jsonl")
+    parser.add_argument("--synthetic-input", default="data/eval/resume_train_pool_synthetic.jsonl")
     parser.add_argument("--out", default="data/eval/resume_train_pool_combined.jsonl")
     args = parser.parse_args()
 
     manual_rows = list(read_jsonl(args.manual_input))
     public_rows = list(read_jsonl(args.public_input)) if Path(args.public_input).exists() else []
-    combined = build_combined_rows(manual_rows, public_rows)
+    synthetic_rows = list(read_jsonl(args.synthetic_input)) if Path(args.synthetic_input).exists() else []
+    combined = build_combined_rows(manual_rows, public_rows, synthetic_rows)
     write_jsonl(args.out, combined)
-    print(f"manual={len(manual_rows)} public={len(public_rows)} combined={len(combined)}")
+    print(
+        f"manual={len(manual_rows)} public={len(public_rows)} synthetic={len(synthetic_rows)} combined={len(combined)}"
+    )
 
 
 if __name__ == "__main__":
