@@ -32,3 +32,14 @@ def test_is_usable_bootstrap_row_filters_low_signal_weak_rows():
         "sections": {"responsibilities": "协助产品经理处理需求。"},
     }
     assert is_usable_bootstrap_row(weak_row) is False
+
+
+def test_is_usable_bootstrap_row_filters_campus_like_weak_rows_without_experience():
+    weak_row = {
+        "job_title": "算法工程师",
+        "source": "hf_job_educational_train_2026_05_17",
+        "clean_text": "任务类型：从岗位中提取学历\n岗位职责：参与模型优化。\n岗位要求：2025届毕业生，硕士及以上学历，熟悉 Python 和 PyTorch。",
+        "labels": {"岗位方向": "算法工程", "学历要求": "硕士", "必备技能": ["Python", "PyTorch"]},
+        "sections": {"responsibilities": "参与模型优化。", "requirements": "2025届毕业生，硕士及以上学历，熟悉 Python 和 PyTorch。"},
+    }
+    assert is_usable_bootstrap_row(weak_row) is False

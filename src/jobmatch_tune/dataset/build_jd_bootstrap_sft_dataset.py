@@ -25,6 +25,15 @@ LOW_SIGNAL_TITLE_KEYWORDS = [
     "校招",
     "培训生",
 ]
+LOW_SIGNAL_TEXT_PATTERNS = [
+    "任务类型：从岗位中提取学历",
+    "毕业生",
+    "管培生",
+    "实习单位",
+    "2025届",
+    "2026届",
+    "2027届",
+]
 
 
 def load_schema(path: str) -> dict[str, Any]:
@@ -83,6 +92,8 @@ def is_usable_bootstrap_row(row: dict[str, Any]) -> bool:
 
     if source in WEAK_BOOTSTRAP_SOURCES:
         if any(keyword in title for keyword in LOW_SIGNAL_TITLE_KEYWORDS):
+            return False
+        if any(pattern in clean_text for pattern in LOW_SIGNAL_TEXT_PATTERNS) and not has_experience:
             return False
         if skill_count < 1:
             return False

@@ -13,6 +13,15 @@ from jobmatch_tune.utils.io import read_jsonl, write_jsonl
 
 
 LOW_SIGNAL_TITLE_KEYWORDS = ["实习", "应届", "校招", "培训生"]
+LOW_SIGNAL_TEXT_PATTERNS = [
+    "任务类型：从岗位中提取学历",
+    "毕业生",
+    "管培生",
+    "实习单位",
+    "2025届",
+    "2026届",
+    "2027届",
+]
 
 
 def load_schema(path: str | Path) -> dict[str, Any]:
@@ -23,6 +32,7 @@ def load_schema(path: str | Path) -> dict[str, Any]:
 def is_strict_plus_row(row: dict[str, Any]) -> bool:
     title = str(row.get("job_title") or "").strip().lower()
     source = str(row.get("source") or "")
+    clean_text = str(row.get("clean_text") or "")
     labels = row.get("labels") or {}
     sections = row.get("sections") or {}
 
@@ -36,6 +46,8 @@ def is_strict_plus_row(row: dict[str, Any]) -> bool:
     if not direction or not education:
         return False
     if any(keyword in title for keyword in LOW_SIGNAL_TITLE_KEYWORDS):
+        return False
+    if any(pattern in clean_text for pattern in LOW_SIGNAL_TEXT_PATTERNS) and not experience:
         return False
 
     resp_len = len(responsibilities)

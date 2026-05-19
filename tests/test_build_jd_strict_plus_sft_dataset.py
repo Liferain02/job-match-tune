@@ -22,3 +22,14 @@ def test_is_strict_plus_row_rejects_low_signal_title():
         "sections": {"responsibilities": "协助产品经理做需求。", "requirements": "本科及以上。"},
     }
     assert is_strict_plus_row(row) is False
+
+
+def test_is_strict_plus_row_rejects_campus_like_text_without_experience():
+    row = {
+        "job_title": "后端开发工程师",
+        "source": "hf_job_educational_train_2026_05_17",
+        "clean_text": "任务类型：从岗位中提取学历\n岗位职责：参与服务开发。\n岗位要求：2026届毕业生，本科及以上学历，熟悉 Java。",
+        "labels": {"岗位方向": "后端开发", "学历要求": "本科", "必备技能": ["Java"]},
+        "sections": {"responsibilities": "参与服务开发。", "requirements": "2026届毕业生，本科及以上学历，熟悉 Java。"},
+    }
+    assert is_strict_plus_row(row) is False
