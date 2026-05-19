@@ -273,6 +273,34 @@ def test_is_high_trust_strong_row_accepts_rd_title_without_engineer_keyword() ->
     assert is_high_trust_strong_row(row) is True
 
 
+def test_is_high_trust_strong_row_accepts_model_lead_title() -> None:
+    row = {
+        "id": "trusted_model_lead",
+        "source": "careers.tencent.com",
+        "language": "",
+        "job_title": "腾讯视频-视频生成模型负责人-(深圳)(杭州)",
+        "clean_text": "岗位职责：负责视频生成模型研发与架构设计\n任职要求：本科及以上，三年以上生成模型或多模态算法经验",
+        "sections": {"responsibilities": "负责视频生成模型研发与架构设计", "requirements": "本科及以上，三年以上生成模型或多模态算法经验"},
+        "labels": {"岗位方向": "算法工程", "学历要求": "本科", "经验要求": "三年以上生成模型或多模态算法经验"},
+        "sft_ready": True,
+    }
+    assert is_high_trust_strong_row(row) is True
+
+
+def test_is_high_trust_strong_row_accepts_ops_dev_title() -> None:
+    row = {
+        "id": "trusted_ops_dev",
+        "source": "careers.tencent.com",
+        "language": "",
+        "job_title": "运营开发工程师-EdgeOne",
+        "clean_text": "岗位职责：负责边缘云探测系统架构设计、核心功能开发与监控可视化建设\n任职要求：本科及以上，两年以上 SRE 或运维开发经验",
+        "sections": {"responsibilities": "负责边缘云探测系统架构设计、核心功能开发与监控可视化建设", "requirements": "本科及以上，两年以上 SRE 或运维开发经验"},
+        "labels": {"岗位方向": "运维开发", "学历要求": "本科", "经验要求": "两年以上 SRE 或运维开发经验"},
+        "sft_ready": True,
+    }
+    assert is_high_trust_strong_row(row) is True
+
+
 def test_is_high_trust_strong_row_accepts_fallback_structure_from_high_trust_source() -> None:
     row = {
         "id": "trusted_fallback",
