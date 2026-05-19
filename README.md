@@ -285,12 +285,12 @@ bash scripts/data/report_pool_profiles.sh
 
 当前训练集规模：
 
-- `data/sft/train.jsonl`: `1422`
-- `data/sft/valid.jsonl`: `177`
-- `data/sft/test.jsonl`: `179`
-- `data/sft_jd_bootstrap/train.jsonl`: `3233`
-- `data/sft_jd_bootstrap/valid.jsonl`: `404`
-- `data/sft_jd_bootstrap/test.jsonl`: `405`
+- `data/sft/train.jsonl`: `1940`
+- `data/sft/valid.jsonl`: `242`
+- `data/sft/test.jsonl`: `244`
+- `data/sft_jd_bootstrap/train.jsonl`: `1371`
+- `data/sft_jd_bootstrap/valid.jsonl`: `171`
+- `data/sft_jd_bootstrap/test.jsonl`: `172`
 - `data/sft_resume/train.jsonl`: `2560`
 - `data/sft_resume/valid.jsonl`: `320`
 - `data/sft_resume/test.jsonl`: `320`
@@ -313,7 +313,7 @@ bash scripts/data/report_pool_profiles.sh
   - 中文：`221402`
   - 英文：`51330`
   - 其他 / 未知：`927`
-- 默认 `data/sft/` 现在是严格质量版：`1931 / 241 / 242`。
+- 默认 `data/sft/` 现在是严格质量版：`1940 / 242 / 244`。
 - `data/sft_expanded/` 是扩展实验版：`4524 / 565 / 566`。
 - 默认训练不再追求先凑满 2 万，而是优先保留高信任官网中文技术岗；弱标注样本只进入扩展实验集，不再直接混入默认集。当前 `20000` 目标只属于扩展实验链路，不代表默认高质量集规模。
 
@@ -354,7 +354,7 @@ bash scripts/data/report_jd_strict_tech_candidates.sh
 
 当前 `JD bootstrap` 相对 `strict` 的主要差异：
 
-- 样本量：`2411 -> 1714`
+- 样本量：`2426 -> 1714`
 - `json_valid_rate`：都为 `1.0`
 - `avg_responsibility_count`：`4.45 -> 3.92`
 - `avg_skill_count`：`1.07 -> 1.37`
@@ -365,7 +365,7 @@ bash scripts/data/report_jd_strict_tech_candidates.sh
 
 当前 `JD strict_plus` 相对 `strict` 和 `bootstrap` 的位置：
 
-- 样本量：`2411 -> 1485 -> 1714`
+- 样本量：`2426 -> 1485 -> 1714`
 - `avg_responsibility_count`：`4.45 -> 3.75 -> 3.92`
 - `avg_skill_count`：`1.07 -> 1.52 -> 1.37`
 - `education_coverage`：`0.58 -> 1.00 -> 1.00`
@@ -375,11 +375,11 @@ bash scripts/data/report_jd_strict_tech_candidates.sh
 
 当前 `JD strict` 拒绝审计的主要结论：
 
-- `total_rejected = 4680`
+- `total_rejected = 4668`
 - Top 3 原因：
-  - `missing_direction = 2421`
+  - `missing_direction = 2420`
   - `sft_not_ready = 1094`
-  - `missing_title_signal = 360`
+  - `language_not_zh = 348`
 - 说明当前 `strict` 的主瓶颈已经不是单纯经验字段缺失，而是：
   - 岗位方向规则没有覆盖到足够多的高信任官网样本
   - 以及一批样本被上游标成 `sft_not_ready`
@@ -388,9 +388,9 @@ bash scripts/data/report_jd_strict_tech_candidates.sh
 
 - `total_tech_like_rejected = 680`
 - Top reasons:
-  - `missing_direction = 219`
-  - `clean_text_too_short = 216`
-  - `missing_edu_exp_skill = 80`
+  - `clean_text_too_short = 230`
+  - `missing_direction = 180`
+  - `missing_edu_exp_skill = 82`
   - `sft_not_ready = 75`
 
 清洗与构造训练集：

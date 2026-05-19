@@ -10,6 +10,7 @@ from jobmatch_tune.preprocess.jd_field_rules import (
     extract_education_requirement,
     extract_experience_requirement,
     extract_skills_from_text,
+    infer_job_direction,
 )
 from jobmatch_tune.preprocess.normalize_jd import split_sections
 from jobmatch_tune.utils.io import read_jsonl, write_jsonl
@@ -210,6 +211,27 @@ MINIMAL_SKILL_SCHEMA = {
     }
 }
 
+MINIMAL_DIRECTION_SCHEMA = {
+    "job_directions": [
+        "前端开发",
+        "客户端开发",
+        "嵌入式开发",
+        "硬件研发",
+        "网络与基础设施",
+        "AI Infra",
+        "高性能计算",
+        "汽车软件/智驾研发",
+        "运维开发",
+        "安全工程",
+        "测试开发",
+        "后端开发",
+        "数据开发",
+        "算法工程",
+        "AI应用开发",
+        "产品经理",
+    ]
+}
+
 WEAK_TITLE_INCLUDE_KEYWORDS = [
     "java",
     "python",
@@ -261,8 +283,9 @@ def build_jd_parse_sample(row: dict[str, Any]) -> dict[str, Any]:
     labels = row.get("labels", {})
     sections = row.get("sections", {})
     source_text = row.get("clean_text", "")
+    direction = get_effective_direction(row)
     assistant = {
-        "岗位方向": labels.get("岗位方向", ""),
+        "岗位方向": direction,
         "核心职责": _split_lines(sections.get("responsibilities", ""))[:6],
         "必备技能": labels.get("必备技能", []),
         "加分项": _split_lines(sections.get("bonus", ""))[:6],
@@ -344,6 +367,18 @@ def title_has_exclusion_exception(title: str, direction: str) -> bool:
     return any(keyword in title for keyword in exceptions)
 
 
+def get_effective_direction(row: dict[str, Any]) -> str:
+    labels = row.get("labels") or {}
+    direction = str(labels.get("岗位方向") or "").strip()
+    if direction:
+        return direction
+    title = str(row.get("job_title") or "").strip()
+    clean_text = str(row.get("clean_text") or "").strip()
+    if not title or not clean_text:
+        return ""
+    return infer_job_direction(title, clean_text, MINIMAL_DIRECTION_SCHEMA)
+
+
 def is_high_trust_strong_row(row: dict[str, Any]) -> bool:
     language = str(row.get("language") or "").strip().lower()
     source = row.get("source")
@@ -358,7 +393,7 @@ def is_high_trust_strong_row(row: dict[str, Any]) -> bool:
     lowered_title = title.lower()
     clean_text = str(row.get("clean_text") or "").strip()
     labels = row.get("labels") or {}
-    direction = str(labels.get("岗位方向") or "").strip()
+    direction = get_effective_direction(row)
     if not title or not clean_text or not direction:
         return False
     if title_has_excluded_signal(lowered_title) and not title_has_exclusion_exception(lowered_title, direction):

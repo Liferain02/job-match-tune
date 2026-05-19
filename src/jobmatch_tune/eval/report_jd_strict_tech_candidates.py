@@ -6,7 +6,7 @@ import re
 from collections import Counter
 from typing import Any
 
-from jobmatch_tune.dataset.build_sft_dataset import HIGH_TRUST_SOURCES
+from jobmatch_tune.dataset.build_sft_dataset import HIGH_TRUST_SOURCES, get_effective_direction
 from jobmatch_tune.eval.report_jd_strict_rejections import classify_rejection
 from jobmatch_tune.utils.io import read_jsonl, write_jsonl, write_text
 
@@ -56,7 +56,7 @@ def build_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
     reason_counter: Counter[str] = Counter(reason for reason, _ in filtered)
     source_counter: Counter[str] = Counter(str(row.get("source") or "") for _, row in filtered)
     title_counter: Counter[str] = Counter(str(row.get("job_title") or "") for _, row in filtered)
-    direction_counter: Counter[str] = Counter(str((row.get("labels") or {}).get("岗位方向") or "<empty>") for _, row in filtered)
+    direction_counter: Counter[str] = Counter(get_effective_direction(row) or "<empty>" for _, row in filtered)
 
     return {
         "total_tech_like_rejected": len(filtered),
@@ -83,7 +83,7 @@ def build_samples(rows: list[dict[str, Any]], limit: int) -> list[dict[str, Any]
                 "source": row.get("source"),
                 "job_title": row.get("job_title"),
                 "reason": reason,
-                "direction": (row.get("labels") or {}).get("岗位方向", ""),
+                "direction": get_effective_direction(row),
                 "experience": (row.get("labels") or {}).get("经验要求", ""),
                 "education": (row.get("labels") or {}).get("学历要求", ""),
                 "skills": (row.get("labels") or {}).get("必备技能", []),

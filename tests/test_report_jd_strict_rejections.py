@@ -37,3 +37,17 @@ def test_build_samples_outputs_reason_and_preview():
     assert len(samples) == 1
     assert samples[0]["reason"] == "missing_title_signal"
     assert "clean_text_preview" in samples[0]
+
+
+def test_classify_rejection_accepts_backfilled_direction():
+    row = {
+        "id": "row_backfilled",
+        "source": "careers.tencent.com",
+        "language": "",
+        "job_title": "运营开发工程师-EdgeOne",
+        "clean_text": "岗位职责：负责边缘云健康探测系统的架构设计与核心功能开发\n任职要求：本科及以上，三年以上工作经验",
+        "sections": {"responsibilities": "负责边缘云健康探测系统的架构设计与核心功能开发", "requirements": "本科及以上，三年以上工作经验"},
+        "labels": {"岗位方向": "", "学历要求": "本科", "经验要求": "三年以上工作经验", "必备技能": []},
+        "sft_ready": True,
+    }
+    assert classify_rejection(row) == "accepted"

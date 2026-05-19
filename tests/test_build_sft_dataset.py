@@ -3,6 +3,7 @@ from __future__ import annotations
 from jobmatch_tune.dataset.build_sft_dataset import (
     build_jd_parse_sample,
     collect_sft_rows,
+    get_effective_direction,
     is_high_trust_strong_row,
     is_high_confidence_weak_tech_row,
 )
@@ -299,6 +300,36 @@ def test_is_high_trust_strong_row_accepts_ops_dev_title() -> None:
         "sft_ready": True,
     }
     assert is_high_trust_strong_row(row) is True
+
+
+def test_get_effective_direction_backfills_missing_direction() -> None:
+    row = {
+        "id": "trusted_backfill_dir",
+        "source": "careers.tencent.com",
+        "language": "zh",
+        "job_title": "运营开发工程师-EdgeOne",
+        "clean_text": "岗位职责：负责边缘云健康探测系统架构设计、核心功能开发与性能优化。",
+        "sections": {"responsibilities": "负责边缘云系统开发", "requirements": "本科及以上，三年以上工作经验"},
+        "labels": {"岗位方向": "", "学历要求": "本科", "经验要求": "三年以上工作经验"},
+        "sft_ready": True,
+    }
+    assert get_effective_direction(row) == "运维开发"
+    assert is_high_trust_strong_row(row) is True
+
+
+def test_build_jd_parse_sample_uses_backfilled_direction() -> None:
+    row = {
+        "id": "trusted_backfilled_sample",
+        "job_title": "云网络高级开发工程师",
+        "company": "示例公司",
+        "location": "北京",
+        "clean_text": "岗位职责：负责云网关数据面的软件设计和开发\n任职要求：本科及以上，三年以上工作经验",
+        "sections": {"responsibilities": "负责云网关数据面的软件设计和开发", "requirements": "本科及以上，三年以上工作经验"},
+        "labels": {"岗位方向": "", "必备技能": [], "经验要求": "三年以上工作经验", "学历要求": "本科"},
+    }
+    sample = build_jd_parse_sample(row)
+    assistant = sample["messages"][2]["content"]
+    assert "网络与基础设施" in assistant
 
 
 def test_is_high_trust_strong_row_accepts_fallback_structure_from_high_trust_source() -> None:

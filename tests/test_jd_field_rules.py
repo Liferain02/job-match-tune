@@ -200,6 +200,66 @@ def test_infer_job_direction_accepts_compiler_optimization_title() -> None:
     assert direction == "高性能计算"
 
 
+def test_infer_job_direction_accepts_gameplay_dev_expert_title() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "游戏玩法开发专家",
+        "岗位职责：负责角色控制、相机控制、NPC控制等模块的开发与相关技术预研。",
+        schema,
+    )
+    assert direction == "后端开发"
+
+
+def test_infer_job_direction_accepts_game_ai_dev_title() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "游戏AI开发工程师",
+        "岗位职责：负责NPC、Bot与拟人AI的行为开发、感知、寻路与动作系统优化。",
+        schema,
+    )
+    assert direction == "算法工程"
+
+
+def test_infer_job_direction_accepts_conference_mobile_title() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "腾讯会议-Android研发工程师",
+        "岗位职责：负责会议 Android 客户端功能研发与性能优化。",
+        schema,
+    )
+    assert direction == "客户端开发"
+
+
+def test_infer_job_direction_accepts_conference_sdk_title() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "腾讯会议-音视频引擎SDK开发工程师",
+        "岗位职责：负责音视频引擎 SDK 模块设计开发与性能优化。",
+        schema,
+    )
+    assert direction == "客户端开发"
+
+
+def test_infer_job_direction_accepts_big_data_dev_title() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "大数据开发工程师",
+        "岗位职责：负责离线数仓、ETL链路和数据平台开发。",
+        schema,
+    )
+    assert direction == "数据开发"
+
+
+def test_infer_job_direction_accepts_vehicle_control_title() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "转向电控工程师",
+        "岗位职责：负责转向电控系统方案设计、功能定义和联合标定开发。",
+        schema,
+    )
+    assert direction == "汽车软件/智驾研发"
+
+
 def test_infer_job_direction_rejects_business_project_manager_title() -> None:
     schema = _schema()
     direction = infer_job_direction(

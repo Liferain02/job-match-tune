@@ -9,6 +9,7 @@ from typing import Any
 
 from jobmatch_tune.dataset.build_sft_dataset import (
     HIGH_TRUST_SOURCES,
+    get_effective_direction,
     is_high_trust_strong_row,
     title_has_excluded_signal,
     title_has_exclusion_exception,
@@ -48,7 +49,7 @@ def classify_rejection(row: dict[str, Any]) -> str:
     lowered_title = title.lower()
     clean_text = str(row.get("clean_text") or "").strip()
     labels = row.get("labels") or {}
-    direction = str(labels.get("岗位方向") or "").strip()
+    direction = get_effective_direction(row)
 
     is_zh_like = language in {"zh", "zh-cn"} or (not language and source == "careers.tencent.com")
     if not is_zh_like:
@@ -144,7 +145,7 @@ def build_samples(rows: list[dict[str, Any]], per_reason: int, seed: int) -> lis
                     "source": row.get("source"),
                     "job_title": row.get("job_title"),
                     "reason": reason,
-                    "direction": (row.get("labels") or {}).get("岗位方向", ""),
+                    "direction": get_effective_direction(row),
                     "experience": (row.get("labels") or {}).get("经验要求", ""),
                     "education": (row.get("labels") or {}).get("学历要求", ""),
                     "skills": (row.get("labels") or {}).get("必备技能", []),
