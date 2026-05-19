@@ -4,10 +4,12 @@ from jobmatch_tune.eval.compare_jd_sft_tracks import build_report
 from jobmatch_tune.utils.io import write_jsonl
 
 
-def test_build_report_compares_two_tracks(tmp_path: Path):
+def test_build_report_compares_three_tracks(tmp_path: Path):
     strict_dir = tmp_path / "strict"
+    strict_plus_dir = tmp_path / "strict_plus"
     bootstrap_dir = tmp_path / "bootstrap"
     strict_dir.mkdir()
+    strict_plus_dir.mkdir()
     bootstrap_dir.mkdir()
     row = {
         "id": "demo_jd_parse",
@@ -21,8 +23,12 @@ def test_build_report_compares_two_tracks(tmp_path: Path):
         ],
     }
     write_jsonl(strict_dir / "train.jsonl", [row])
+    write_jsonl(strict_plus_dir / "train.jsonl", [row, row])
     write_jsonl(bootstrap_dir / "train.jsonl", [row, row])
-    report = build_report(strict_dir, bootstrap_dir)
+    report = build_report(strict_dir, bootstrap_dir, strict_plus_dir)
     assert report["strict"]["total_samples"] == 1
     assert report["bootstrap"]["total_samples"] == 2
-    assert report["delta"]["total_samples"] == 1
+    assert report["strict_plus"]["total_samples"] == 2
+    assert report["delta_strict_to_bootstrap"]["total_samples"] == 1
+    assert report["delta_strict_to_strict_plus"]["total_samples"] == 1
+    assert report["delta_strict_plus_to_bootstrap"]["total_samples"] == 0
