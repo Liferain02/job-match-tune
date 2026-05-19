@@ -224,6 +224,76 @@ def _variant_mixed_cn_en(label: dict[str, Any]) -> str:
     )
 
 
+def _variant_achievement_first(label: dict[str, Any]) -> str:
+    parts = [
+        f"求职岗位：{label.get('目标岗位', '')}",
+        "个人优势：",
+        _render_lines(label.get("优势标签", [])),
+        "项目经历：",
+        _render_lines(label.get("项目经历", [])),
+        "实习经历：",
+        _render_lines(label.get("实习经历", [])),
+        f"核心技能：{'、'.join(label.get('核心技能', []))}",
+        f"教育背景：{'；'.join(label.get('教育背景', []))}",
+    ]
+    return "\n".join(part for part in parts if part and part.strip())
+
+
+def _variant_table_like(label: dict[str, Any]) -> str:
+    return "\n".join(
+        [
+            f"目标岗位 | {label.get('目标岗位', '')}",
+            f"教育背景 | {'；'.join(label.get('教育背景', []))}",
+            f"核心技能 | {' / '.join(label.get('核心技能', []))}",
+            f"实习经历 | {'；'.join(label.get('实习经历', []))}",
+            f"项目经历 | {'；'.join(label.get('项目经历', []))}",
+            f"优势标签 | {'；'.join(label.get('优势标签', []))}",
+        ]
+    )
+
+
+def _variant_short_paragraph(label: dict[str, Any]) -> str:
+    return (
+        f"候选人目标岗位为{label.get('目标岗位', '')}。"
+        f"教育背景包括{'；'.join(label.get('教育背景', []))}。"
+        f"核心技能覆盖{'、'.join(label.get('核心技能', []))}。"
+        f"实习经历包括{'；'.join(label.get('实习经历', []))}。"
+        f"项目经历包括{'；'.join(label.get('项目经历', []))}。"
+        f"优势标签包括{'、'.join(label.get('优势标签', []))}。"
+    )
+
+
+def _variant_skill_matrix(label: dict[str, Any]) -> str:
+    return "\n".join(
+        [
+            f"Role={label.get('目标岗位', '')}",
+            "Skill Matrix:",
+            " | ".join(label.get("核心技能", [])),
+            "Projects:",
+            _render_lines(label.get("项目经历", []), prefix="> "),
+            "Internships:",
+            _render_lines(label.get("实习经历", []), prefix="> "),
+            "Education:",
+            _render_lines(label.get("教育背景", []), prefix="> "),
+            "Strengths:",
+            _render_lines(label.get("优势标签", []), prefix="> "),
+        ]
+    )
+
+
+def _variant_dense_resume(label: dict[str, Any]) -> str:
+    return "\n".join(
+        [
+            f"岗位:{label.get('目标岗位', '')}",
+            f"教育:{'|'.join(label.get('教育背景', []))}",
+            f"技能:{'|'.join(label.get('核心技能', []))}",
+            f"实习:{'|'.join(label.get('实习经历', []))}",
+            f"项目:{'|'.join(label.get('项目经历', []))}",
+            f"优势:{'|'.join(label.get('优势标签', []))}",
+        ]
+    )
+
+
 VARIANT_BUILDERS = [
     ("original", _variant_original),
     ("profile_card", lambda row: _variant_profile_card(row["label"])),
@@ -240,6 +310,11 @@ VARIANT_BUILDERS = [
     ("markdown_sections", lambda row: _variant_markdown_sections(row["label"])),
     ("semicolon", lambda row: _variant_semicolon(row["label"])),
     ("mixed_cn_en", lambda row: _variant_mixed_cn_en(row["label"])),
+    ("achievement_first", lambda row: _variant_achievement_first(row["label"])),
+    ("table_like", lambda row: _variant_table_like(row["label"])),
+    ("short_paragraph", lambda row: _variant_short_paragraph(row["label"])),
+    ("skill_matrix", lambda row: _variant_skill_matrix(row["label"])),
+    ("dense_resume", lambda row: _variant_dense_resume(row["label"])),
 ]
 
 

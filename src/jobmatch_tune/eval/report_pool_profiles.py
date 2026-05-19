@@ -60,8 +60,12 @@ def profile_match(path: str | Path) -> dict[str, Any]:
         "top_source_types": top_counter(rows, lambda r: r.get("source_type")),
         "top_match_levels": top_counter(rows, lambda r: (r.get("label") or {}).get("匹配等级")),
         "raw_label_presence": {
-            "with_raw_label": sum(1 for r in rows if r.get("raw_label") not in (None, "")),
-            "with_raw_score": sum(1 for r in rows if r.get("raw_score") not in (None, "")),
+            "with_raw_label": sum(
+                1 for r in rows if (r.get("label") or {}).get("raw_label") not in (None, "")
+            ),
+            "with_raw_score": sum(
+                1 for r in rows if (r.get("label") or {}).get("raw_score") not in (None, "")
+            ),
         },
     }
 

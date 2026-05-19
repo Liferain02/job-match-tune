@@ -131,7 +131,7 @@ def split_grouped_samples(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", default="data/eval/match_manual_train_pool.jsonl")
+    parser.add_argument("--input", default="data/eval/match_train_pool_combined.jsonl")
     parser.add_argument("--out-dir", default="data/sft_match")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--train-ratio", type=float, default=0.8)

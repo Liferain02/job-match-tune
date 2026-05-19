@@ -256,13 +256,13 @@ bash scripts/data/build_current_data_pools.sh
 - `data/eval/public_jd_candidate_pool.jsonl`: `679`
 - `data/eval/jd_train_pool_combined.jsonl`: `2457`
 - `data/eval/resume_train_pool_combined.jsonl`: `160`
-- `data/eval/match_train_pool_combined.jsonl`: `96`
+- `data/eval/match_train_pool_combined.jsonl`: `1176`
 
 当前统一就绪报告结论：
 
 - `JD`: 还没到训练门槛
 - `resume`: 还没到训练门槛
-- `match`: 还没到训练门槛
+- `match`: 已达到当前训练门槛
 
 也就是说，当前仍然不应该开 SFT。
 
@@ -277,6 +277,18 @@ bash scripts/data/build_current_data_pools.sh
 ```bash
 bash scripts/data/report_pool_profiles.sh
 ```
+
+当前训练集规模：
+
+- `data/sft/train.jsonl`: `1422`
+- `data/sft/valid.jsonl`: `177`
+- `data/sft/test.jsonl`: `179`
+- `data/sft_resume/train.jsonl`: `2560`
+- `data/sft_resume/valid.jsonl`: `320`
+- `data/sft_resume/test.jsonl`: `320`
+- `data/sft_match/train.jsonl`: `929`
+- `data/sft_match/valid.jsonl`: `132`
+- `data/sft_match/test.jsonl`: `115`
 
 当前这条链路会导入三类补充源：
 
