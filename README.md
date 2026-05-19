@@ -288,6 +288,9 @@ bash scripts/data/report_pool_profiles.sh
 - `data/sft/train.jsonl`: `1422`
 - `data/sft/valid.jsonl`: `177`
 - `data/sft/test.jsonl`: `179`
+- `data/sft_jd_bootstrap/train.jsonl`: 由 `bash scripts/data/build_jd_bootstrap_sft_dataset.sh` 生成
+- `data/sft_jd_bootstrap/valid.jsonl`: 由 `bash scripts/data/build_jd_bootstrap_sft_dataset.sh` 生成
+- `data/sft_jd_bootstrap/test.jsonl`: 由 `bash scripts/data/build_jd_bootstrap_sft_dataset.sh` 生成
 - `data/sft_resume/train.jsonl`: `2560`
 - `data/sft_resume/valid.jsonl`: `320`
 - `data/sft_resume/test.jsonl`: `320`
@@ -313,6 +316,12 @@ bash scripts/data/report_pool_profiles.sh
 - 默认 `data/sft/` 现在是严格质量版：`1421 / 177 / 179`。
 - `data/sft_expanded/` 是扩展实验版：`4524 / 565 / 566`。
 - 默认训练不再追求先凑满 2 万，而是优先保留高信任官网中文技术岗；弱标注样本只进入扩展实验集，不再直接混入默认集。当前 `20000` 目标只属于扩展实验链路，不代表默认高质量集规模。
+
+如果要把 `JD combined pool` 转成一条独立的 bootstrap SFT 数据线，而不覆盖当前严格高质量集：
+
+```bash
+bash scripts/data/build_jd_bootstrap_sft_dataset.sh
+```
 
 清洗与构造训练集：
 
