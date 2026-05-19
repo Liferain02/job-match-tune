@@ -323,6 +323,17 @@ bash scripts/data/report_pool_profiles.sh
 bash scripts/data/build_jd_bootstrap_sft_dataset.sh
 ```
 
+如果要生成介于 `strict` 和 `bootstrap` 之间的 `JD strict_plus` 数据线：
+
+```bash
+bash scripts/data/build_jd_strict_plus_sft_dataset.sh
+```
+
+当前 `strict_plus` 规模为：
+
+- `train / valid / test = 3255 / 406 / 408`
+- 总计 `4069`
+
 如果要直接比较 `JD strict` 和 `JD bootstrap` 的质量指标：
 
 ```bash
