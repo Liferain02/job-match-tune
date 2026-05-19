@@ -340,6 +340,12 @@ bash scripts/data/build_jd_strict_plus_sft_dataset.sh
 bash scripts/data/compare_jd_sft_tracks.sh
 ```
 
+如果要审计高信任官网样本为什么没有进入 `JD strict` 主集：
+
+```bash
+bash scripts/data/report_jd_strict_rejections.sh
+```
+
 当前 `JD bootstrap` 相对 `strict` 的主要差异：
 
 - 样本量：`2411 -> 1714`
@@ -360,6 +366,17 @@ bash scripts/data/compare_jd_sft_tracks.sh
 - `experience_coverage`：`0.66 -> 0.78 -> 0.67`
 
 结论：最新 `strict_plus` 已经从“数量优先”转成“经验字段更完整”的增强集，`experience_coverage` 高于 `strict`，技能密度也更高，但样本量最小。它适合做第二阶段补强，不适合做唯一主集。
+
+当前 `JD strict` 拒绝审计的主要结论：
+
+- `total_rejected = 4680`
+- Top 3 原因：
+  - `missing_direction = 2421`
+  - `sft_not_ready = 1094`
+  - `missing_title_signal = 360`
+- 说明当前 `strict` 的主瓶颈已经不是单纯经验字段缺失，而是：
+  - 岗位方向规则没有覆盖到足够多的高信任官网样本
+  - 以及一批样本被上游标成 `sft_not_ready`
 
 清洗与构造训练集：
 
