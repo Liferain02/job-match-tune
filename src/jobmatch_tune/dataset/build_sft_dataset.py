@@ -28,6 +28,7 @@ HIGH_TRUST_SOURCES = {
     "zhaopin.jd.com",
     "careers.tencent.com",
     "talent.baidu.com",
+    "hr.xiaomi.com",
     "moka_voyah",
     "moka_se",
     "moka_eastmoney",

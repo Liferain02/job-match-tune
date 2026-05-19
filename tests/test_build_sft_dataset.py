@@ -219,6 +219,20 @@ def test_is_high_trust_strong_row_accepts_tencent_empty_language() -> None:
     assert is_high_trust_strong_row(row) is True
 
 
+def test_is_high_trust_strong_row_accepts_xiaomi_source() -> None:
+    row = {
+        "id": "trusted_xiaomi_android",
+        "source": "hr.xiaomi.com",
+        "language": "zh",
+        "job_title": "Android Multimedia系统工程师（小米电视）",
+        "clean_text": "岗位职责：负责 Android 系统框架开发与性能优化\n任职要求：本科及以上，3年以上 Android 开发经验，熟悉 Java",
+        "sections": {"responsibilities": "负责 Android 系统框架开发与性能优化", "requirements": "本科及以上，3年以上 Android 开发经验，熟悉 Java"},
+        "labels": {"岗位方向": "客户端开发", "学历要求": "本科", "经验要求": "3年以上 Android 开发经验", "必备技能": ["Java"]},
+        "sft_ready": True,
+    }
+    assert is_high_trust_strong_row(row) is True
+
+
 def test_is_high_trust_strong_row_accepts_hpc() -> None:
     row = {
         "id": "trusted_hpc",

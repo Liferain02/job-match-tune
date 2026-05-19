@@ -319,7 +319,7 @@ https://job.toutiao.com/api/v1/config/job/filters/2
 
 基于这一轮结果，中文官网数据源优先级建议更新为：
 
-1. **已打通并稳定**：腾讯、百度、京东
+1. **已打通并稳定**：腾讯、百度、京东、小米
 2. **高价值但仍需继续攻**：字节跳动
 3. **有前端线索但还没打通**：华为、阿里
 4. **暂未继续**：网易、美团
@@ -329,6 +329,7 @@ https://job.toutiao.com/api/v1/config/job/filters/2
 ```bash
 bash scripts/data/refresh_baidu_data.sh
 bash scripts/data/refresh_jd_data.sh
+bash scripts/data/refresh_xiaomi_data.sh
 bash scripts/data/import_chinese_job_exports.sh
 bash scripts/data/import_public_job_exports.sh
 bash scripts/data/rebuild_data_pipeline.sh

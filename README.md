@@ -119,13 +119,19 @@ bash scripts/data/refresh_baidu_data.sh
 bash scripts/data/refresh_jd_data.sh
 ```
 
+如需一键刷新小米数据：
+
+```bash
+bash scripts/data/refresh_xiaomi_data.sh
+```
+
 如需一键刷新 Moka 招聘官网数据：
 
 ```bash
 bash scripts/data/refresh_moka_data.sh
 ```
 
-如需一键刷新腾讯 + 百度 + 京东 + Moka 并重建下游：
+如需一键刷新腾讯 + 百度 + 京东 + 小米 + Moka 并重建下游：
 
 ```bash
 bash scripts/data/refresh_official_job_data.sh
