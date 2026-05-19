@@ -254,13 +254,15 @@ bash scripts/data/build_current_data_pools.sh
 当前基于仓库已有数据实际生成出的池子规模：
 
 - `data/eval/public_jd_candidate_pool.jsonl`: `679`
-- `data/eval/jd_train_pool_combined.jsonl`: `2459`
+- `data/eval/jd_train_pool_supplemental.jsonl`: `2`
+- `data/eval/jd_train_pool_weak_structured.jsonl`: `35477`
+- `data/eval/jd_train_pool_combined.jsonl`: `37796`
 - `data/eval/resume_train_pool_combined.jsonl`: `768`
 - `data/eval/match_train_pool_combined.jsonl`: `1176`
 
 当前统一就绪报告结论：
 
-- `JD`: 还没到训练门槛
+- `JD`: combined pool 已过线，但默认 `sft` 规模仍未过线
 - `resume`: 还没到训练门槛
 - `match`: 已达到当前训练门槛
 

@@ -59,12 +59,19 @@ def build_combined_rows(
     manual_rows: list[dict[str, Any]],
     public_rows: list[dict[str, Any]],
     supplemental_rows: list[dict[str, Any]] | None = None,
+    weak_structured_rows: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     combined = build_manual_rows(manual_rows)
     for row in supplemental_rows or []:
         copied = dict(row)
         meta = dict(copied.get("meta") or {})
         meta["pool_origin"] = meta.get("pool_origin") or "supplemental_candidate"
+        copied["meta"] = meta
+        combined.append(copied)
+    for row in weak_structured_rows or []:
+        copied = dict(row)
+        meta = dict(copied.get("meta") or {})
+        meta["pool_origin"] = meta.get("pool_origin") or "weak_structured_candidate"
         copied["meta"] = meta
         combined.append(copied)
     for row in public_rows:
@@ -81,6 +88,7 @@ def main() -> None:
     parser.add_argument("--manual-input", default="data/interim/jd_clean_dedup.jsonl")
     parser.add_argument("--public-input", default="data/eval/public_jd_candidate_pool.jsonl")
     parser.add_argument("--supplemental-input", default="data/eval/jd_train_pool_supplemental.jsonl")
+    parser.add_argument("--weak-structured-input", default="data/eval/jd_train_pool_weak_structured.jsonl")
     parser.add_argument("--out", default="data/eval/jd_train_pool_combined.jsonl")
     args = parser.parse_args()
 
@@ -89,10 +97,15 @@ def main() -> None:
     supplemental_rows = (
         list(read_jsonl(args.supplemental_input)) if Path(args.supplemental_input).exists() else []
     )
-    combined = build_combined_rows(manual_rows, public_rows, supplemental_rows)
+    weak_structured_rows = (
+        list(read_jsonl(args.weak_structured_input)) if Path(args.weak_structured_input).exists() else []
+    )
+    combined = build_combined_rows(manual_rows, public_rows, supplemental_rows, weak_structured_rows)
     write_jsonl(args.out, combined)
     print(
-        f"manual={len(manual_rows)} public={len(public_rows)} supplemental={len(supplemental_rows)} combined={len(combined)}"
+        "manual="
+        f"{len(manual_rows)} public={len(public_rows)} supplemental={len(supplemental_rows)} "
+        f"weak_structured={len(weak_structured_rows)} combined={len(combined)}"
     )
 
 

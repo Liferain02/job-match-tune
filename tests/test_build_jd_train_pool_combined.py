@@ -93,5 +93,17 @@ def test_build_combined_rows_merges_and_deduplicates():
             "meta": {"language": "zh", "pool_origin": "supplemental_weak_high_conf"},
         }
     ]
-    combined = build_combined_rows(manual_rows, public_rows, supplemental_rows)
-    assert len(combined) == 2
+    weak_structured_rows = [
+        {
+            "id": "weak_struct_1",
+            "source": "hf_job_educational_train_2026_05_17",
+            "job_title": "后端开发工程师",
+            "company": "D",
+            "location": "杭州",
+            "salary": "",
+            "raw_text": "岗位名称：后端开发工程师\n岗位职责：负责服务开发。\n任职要求：本科及以上，熟悉 Java、MySQL、Redis。",
+            "meta": {"language": "zh", "pool_origin": "weak_structured_candidate"},
+        }
+    ]
+    combined = build_combined_rows(manual_rows, public_rows, supplemental_rows, weak_structured_rows)
+    assert len(combined) == 3
