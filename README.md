@@ -257,13 +257,16 @@ bash scripts/data/build_current_data_pools.sh
 - `data/eval/jd_train_pool_supplemental.jsonl`: `2`
 - `data/eval/jd_train_pool_weak_structured.jsonl`: `35477`
 - `data/eval/jd_train_pool_combined.jsonl`: `37796`
-- `data/eval/resume_train_pool_combined.jsonl`: `768`
+- `data/eval/resume_train_pool_synthetic.jsonl`: `3200`
+- `data/eval/resume_train_pool_from_sft.jsonl`: `3200`
+- `data/eval/resume_train_pool_bootstrap.jsonl`: `2600`
+- `data/eval/resume_train_pool_combined.jsonl`: `3137`
 - `data/eval/match_train_pool_combined.jsonl`: `1176`
 
 当前统一就绪报告结论：
 
 - `JD`: combined pool 已过线，但默认 `sft` 规模仍未过线
-- `resume`: 还没到训练门槛
+- `resume`: 已达到当前训练门槛
 - `match`: 已达到当前训练门槛
 
 也就是说，当前仍然不应该开 SFT。

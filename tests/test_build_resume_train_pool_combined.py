@@ -81,5 +81,23 @@ def test_build_combined_rows_merges_and_deduplicates():
             "label": {"目标岗位": "后端开发"},
         }
     ]
-    combined = build_combined_rows(manual_rows, public_rows, synthetic_rows)
-    assert len(combined) == 3
+    sft_rows = [
+        {
+            "id": "sft_1",
+            "task": "resume_parse",
+            "source_type": "sft_materialized",
+            "text": "目标岗位：前端开发\n核心技能：TypeScript、Vite",
+            "label": {"目标岗位": "前端开发"},
+        }
+    ]
+    bootstrap_rows = [
+        {
+            "id": "bootstrap_1",
+            "task": "resume_parse",
+            "source_type": "bootstrap_from_jd",
+            "text": "目标岗位：测试开发\n核心技能：Python、Pytest",
+            "label": {"目标岗位": "测试开发"},
+        }
+    ]
+    combined = build_combined_rows(manual_rows, public_rows, synthetic_rows, sft_rows, bootstrap_rows)
+    assert len(combined) == 5

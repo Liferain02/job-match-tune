@@ -55,9 +55,15 @@ def build_combined_rows(
     manual_rows: list[dict[str, Any]],
     public_rows: list[dict[str, Any]],
     synthetic_rows: list[dict[str, Any]] | None = None,
+    sft_rows: list[dict[str, Any]] | None = None,
+    bootstrap_rows: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     combined = list(manual_rows)
     for row in synthetic_rows or []:
+        combined.append(row)
+    for row in sft_rows or []:
+        combined.append(row)
+    for row in bootstrap_rows or []:
         combined.append(row)
     for row in public_rows:
         if is_usable_public_resume_row(row):
@@ -78,16 +84,22 @@ def main() -> None:
     parser.add_argument("--manual-input", default="data/eval/resume_manual_train_pool.jsonl")
     parser.add_argument("--public-input", default="data/external/public_resume_imports.jsonl")
     parser.add_argument("--synthetic-input", default="data/eval/resume_train_pool_synthetic.jsonl")
+    parser.add_argument("--sft-input", default="data/eval/resume_train_pool_from_sft.jsonl")
+    parser.add_argument("--bootstrap-input", default="data/eval/resume_train_pool_bootstrap.jsonl")
     parser.add_argument("--out", default="data/eval/resume_train_pool_combined.jsonl")
     args = parser.parse_args()
 
     manual_rows = list(read_jsonl(args.manual_input))
     public_rows = list(read_jsonl(args.public_input)) if Path(args.public_input).exists() else []
     synthetic_rows = list(read_jsonl(args.synthetic_input)) if Path(args.synthetic_input).exists() else []
-    combined = build_combined_rows(manual_rows, public_rows, synthetic_rows)
+    sft_rows = list(read_jsonl(args.sft_input)) if Path(args.sft_input).exists() else []
+    bootstrap_rows = list(read_jsonl(args.bootstrap_input)) if Path(args.bootstrap_input).exists() else []
+    combined = build_combined_rows(manual_rows, public_rows, synthetic_rows, sft_rows, bootstrap_rows)
     write_jsonl(args.out, combined)
     print(
-        f"manual={len(manual_rows)} public={len(public_rows)} synthetic={len(synthetic_rows)} combined={len(combined)}"
+        "manual="
+        f"{len(manual_rows)} public={len(public_rows)} synthetic={len(synthetic_rows)} "
+        f"sft={len(sft_rows)} bootstrap={len(bootstrap_rows)} combined={len(combined)}"
     )
 
 
