@@ -331,8 +331,8 @@ bash scripts/data/build_jd_strict_plus_sft_dataset.sh
 
 当前 `strict_plus` 规模为：
 
-- `train / valid / test = 3255 / 406 / 408`
-- 总计 `4069`
+- `train / valid / test = 3290 / 411 / 412`
+- 总计 `4113`
 
 如果要直接比较 `JD strict` 和 `JD bootstrap` 的质量指标：
 
@@ -342,22 +342,22 @@ bash scripts/data/compare_jd_sft_tracks.sh
 
 当前 `JD bootstrap` 相对 `strict` 的主要差异：
 
-- 样本量：`1778 -> 4042`
+- 样本量：`1778 -> 4051`
 - `json_valid_rate`：都为 `1.0`
 - `avg_responsibility_count`：`4.51 -> 2.70`
-- `avg_skill_count`：`1.32 -> 2.06`
+- `avg_skill_count`：`1.32 -> 2.05`
 - `education_coverage`：`0.79 -> 1.00`
-- `experience_coverage`：`0.50 -> 0.26`
+- `experience_coverage`：`0.50 -> 0.28`
 
 结论：`bootstrap` 已经比早期版本干净很多，但经验字段仍然弱于 `strict`，因此当前更适合做第二阶段增强训练，而不是直接替代 `strict`。
 
 当前 `JD strict_plus` 相对 `strict` 和 `bootstrap` 的位置：
 
-- 样本量：`1778 -> 4069 -> 4042`
-- `avg_responsibility_count`：`4.51 -> 2.38 -> 2.70`
-- `avg_skill_count`：`1.32 -> 2.19 -> 2.06`
+- 样本量：`1778 -> 4113 -> 4051`
+- `avg_responsibility_count`：`4.51 -> 2.40 -> 2.70`
+- `avg_skill_count`：`1.32 -> 2.17 -> 2.05`
 - `education_coverage`：`0.79 -> 1.00 -> 1.00`
-- `experience_coverage`：`0.50 -> 0.26 -> 0.26`
+- `experience_coverage`：`0.50 -> 0.28 -> 0.28`
 
 结论：`strict_plus` 现在更像一条“中间强度”的增强集。它的技能密度高于 `bootstrap`，但职责密度反而更低，经验覆盖与 `bootstrap` 基本相同。因此它也不适合直接替代 `strict`，更适合作为第二阶段补强数据候选。
 

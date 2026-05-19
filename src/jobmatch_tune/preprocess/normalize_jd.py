@@ -13,6 +13,7 @@ from jobmatch_tune.preprocess.clean_text import clean_text
 from jobmatch_tune.preprocess.jd_field_rules import (
     extract_education_requirement,
     extract_experience_requirement,
+    extract_experience_requirement_from_meta,
     extract_skills_from_text,
     infer_job_direction,
 )
@@ -67,10 +68,16 @@ def normalize_jd_row(row: dict[str, Any], schema: dict[str, Any]) -> dict[str, A
     cleaned = clean_text(raw_text, is_html=False)
     sections = split_sections(cleaned)
     title = row.get("job_title") or ""
+    existing_labels = row.get("labels") or {}
+    experience = (
+        extract_experience_requirement(cleaned)
+        or extract_experience_requirement_from_meta(meta)
+        or str(existing_labels.get("经验要求") or "").strip()
+    )
     labels = {
         "岗位方向": infer_job_direction(title, cleaned, schema),
         "必备技能": extract_skills_from_text(cleaned, schema),
-        "经验要求": extract_experience_requirement(cleaned),
+        "经验要求": experience,
         "学历要求": extract_education_requirement(cleaned),
     }
     return {

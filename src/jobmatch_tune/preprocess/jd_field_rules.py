@@ -16,6 +16,9 @@ EDUCATION_PATTERNS = [
 EXPERIENCE_PATTERNS = [
     r"((?:[一二三四五六七八九十两0-9]+|[0-9]+\+?)年以上[^，。；;\n]*经验)",
     r"((?:[一二三四五六七八九十两0-9]+|[0-9]+\+?)年[^，。；;\n]*工作经验)",
+    r"((?:[0-9]+)\s*[-~至]\s*(?:[0-9]+)\s*年(?:工作)?经验)",
+    r"((?:[0-9]+)\s*[-~至]\s*(?:[0-9]+)\s*年)",
+    r"((?:[0-9]+)\s*年及以上[^，。；;\n]*经验?)",
     r"(经验要求[：:]\s*[^，。；;\n]+)",
     r"(工作经验[：:]\s*[^，。；;\n]+)",
     r"(经验不限)",
@@ -149,6 +152,36 @@ def extract_experience_requirement(text: str) -> str:
         if match:
             value = match.group(1)
             return re.sub(r"^(经验要求|工作经验)[：:]\s*", "", value).strip()
+    return ""
+
+
+def extract_experience_requirement_from_meta(meta: dict[str, Any] | None) -> str:
+    if not isinstance(meta, dict):
+        return ""
+    for key in (
+        "experience_requirement",
+        "experience",
+        "work_year",
+        "workYear",
+        "workExperience",
+        "experienceRange",
+    ):
+        value = meta.get(key)
+        if value is None:
+            continue
+        text = str(value).strip()
+        if not text:
+            continue
+        if text in {"不限", "经验不限", "工作经验不限"}:
+            return "经验不限"
+        if re.search(r"^\d+\s*[-~至]\s*\d+\s*年$", text):
+            return text
+        if re.search(r"^\d+\+?\s*年$", text):
+            return text
+        if re.search(r"^\d+\s*年及以上$", text):
+            return text
+        if "经验" in text or "年" in text:
+            return text
     return ""
 
 
