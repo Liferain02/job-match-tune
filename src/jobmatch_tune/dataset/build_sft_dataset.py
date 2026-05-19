@@ -52,6 +52,8 @@ HIGH_TRUST_SOURCES = {
     "moka_xmyanquhr",
 }
 
+KNOWN_ZH_HIGH_TRUST_SOURCES = HIGH_TRUST_SOURCES | {"careers.tencent.com"}
+
 TECH_TITLE_KEYWORDS = [
     "工程师",
     "开发",
@@ -338,11 +340,14 @@ def title_has_exclusion_exception(title: str, direction: str) -> bool:
 
 
 def is_high_trust_strong_row(row: dict[str, Any]) -> bool:
-    if row.get("language") != "zh":
+    language = str(row.get("language") or "").strip().lower()
+    source = row.get("source")
+    is_zh_like = language in {"zh", "zh-cn"} or (not language and source in KNOWN_ZH_HIGH_TRUST_SOURCES)
+    if not is_zh_like:
         return False
     if not row.get("sft_ready", True):
         return False
-    if row.get("source") not in HIGH_TRUST_SOURCES:
+    if source not in HIGH_TRUST_SOURCES:
         return False
     title = str(row.get("job_title") or "").strip()
     lowered_title = title.lower()

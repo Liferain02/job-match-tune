@@ -313,7 +313,7 @@ bash scripts/data/report_pool_profiles.sh
   - 中文：`221402`
   - 英文：`51330`
   - 其他 / 未知：`927`
-- 默认 `data/sft/` 现在是严格质量版：`1421 / 177 / 179`。
+- 默认 `data/sft/` 现在是严格质量版：`1928 / 241 / 242`。
 - `data/sft_expanded/` 是扩展实验版：`4524 / 565 / 566`。
 - 默认训练不再追求先凑满 2 万，而是优先保留高信任官网中文技术岗；弱标注样本只进入扩展实验集，不再直接混入默认集。当前 `20000` 目标只属于扩展实验链路，不代表默认高质量集规模。
 
@@ -342,24 +342,24 @@ bash scripts/data/compare_jd_sft_tracks.sh
 
 当前 `JD bootstrap` 相对 `strict` 的主要差异：
 
-- 样本量：`1778 -> 1714`
+- 样本量：`2411 -> 1714`
 - `json_valid_rate`：都为 `1.0`
-- `avg_responsibility_count`：`4.51 -> 3.92`
-- `avg_skill_count`：`1.32 -> 1.37`
-- `education_coverage`：`0.79 -> 1.00`
-- `experience_coverage`：`0.50 -> 0.67`
+- `avg_responsibility_count`：`4.45 -> 3.92`
+- `avg_skill_count`：`1.07 -> 1.37`
+- `education_coverage`：`0.58 -> 1.00`
+- `experience_coverage`：`0.66 -> 0.67`
 
-结论：最新 `bootstrap` 已经明显收紧，经验字段覆盖从早期低位提升到了 `0.67`，职责密度也回到了更可用的水平。但它本质上仍是增强集，不适合直接替代 `strict` 主集。
+结论：最新 `bootstrap` 已经明显收紧，职责密度和技能密度都在可用区间。它在学历覆盖上仍然更完整，但经验覆盖已经和 `strict` 接近。因此它更适合作为第二阶段增强集，而不是直接替代 `strict` 主集。
 
 当前 `JD strict_plus` 相对 `strict` 和 `bootstrap` 的位置：
 
-- 样本量：`1778 -> 1485 -> 1714`
-- `avg_responsibility_count`：`4.51 -> 3.75 -> 3.92`
-- `avg_skill_count`：`1.32 -> 1.52 -> 1.37`
-- `education_coverage`：`0.79 -> 1.00 -> 1.00`
-- `experience_coverage`：`0.50 -> 0.78 -> 0.67`
+- 样本量：`2411 -> 1485 -> 1714`
+- `avg_responsibility_count`：`4.45 -> 3.75 -> 3.92`
+- `avg_skill_count`：`1.07 -> 1.52 -> 1.37`
+- `education_coverage`：`0.58 -> 1.00 -> 1.00`
+- `experience_coverage`：`0.66 -> 0.78 -> 0.67`
 
-结论：最新 `strict_plus` 已经从“数量优先”转成“经验字段更完整”的增强集，`experience_coverage` 甚至高于 `strict`，但代价是样本量明显下降。`bootstrap` 也被同步收紧，现在比 `strict` 更完整地覆盖学历和经验，但仍不建议直接替代 `strict` 主集。
+结论：最新 `strict_plus` 已经从“数量优先”转成“经验字段更完整”的增强集，`experience_coverage` 高于 `strict`，技能密度也更高，但样本量最小。它适合做第二阶段补强，不适合做唯一主集。
 
 清洗与构造训练集：
 

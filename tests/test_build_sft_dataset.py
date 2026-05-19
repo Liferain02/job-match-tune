@@ -203,6 +203,20 @@ def test_is_high_trust_strong_row_accepts_ai_infra() -> None:
     assert is_high_trust_strong_row(row) is True
 
 
+def test_is_high_trust_strong_row_accepts_tencent_empty_language() -> None:
+    row = {
+        "id": "trusted_tencent_empty_lang",
+        "source": "careers.tencent.com",
+        "language": "",
+        "job_title": "大模型推理框架研发工程师",
+        "clean_text": "岗位职责：负责大模型推理框架研发与性能优化\n任职要求：本科及以上，三年以上工作经验，熟悉 C++ 与分布式系统",
+        "sections": {"responsibilities": "负责大模型推理框架研发与性能优化", "requirements": "本科及以上，三年以上工作经验，熟悉 C++ 与分布式系统"},
+        "labels": {"岗位方向": "后端开发", "学历要求": "本科", "经验要求": "三年以上工作经验"},
+        "sft_ready": True,
+    }
+    assert is_high_trust_strong_row(row) is True
+
+
 def test_is_high_trust_strong_row_accepts_hpc() -> None:
     row = {
         "id": "trusted_hpc",
