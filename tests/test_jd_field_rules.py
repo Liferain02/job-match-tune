@@ -158,3 +158,63 @@ def test_infer_job_direction_accepts_architect_post_title() -> None:
         schema,
     )
     assert direction == "后端开发"
+
+
+def test_infer_job_direction_accepts_server_dev_title() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "服务器开发工程师（UGC业务）",
+        "岗位职责：负责游戏服务器端架构设计、开发和性能优化。",
+        schema,
+    )
+    assert direction == "后端开发"
+
+
+def test_infer_job_direction_accepts_network_software_title() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "交换机软件研发工程师",
+        "岗位职责：负责交换机软件设计、开发、测试和维护工作。",
+        schema,
+    )
+    assert direction == "网络与基础设施"
+
+
+def test_infer_job_direction_accepts_ops_dev_title() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "运营开发工程师-EdgeOne",
+        "岗位职责：负责边缘云健康探测系统架构设计、核心功能开发与性能优化。",
+        schema,
+    )
+    assert direction == "运维开发"
+
+
+def test_infer_job_direction_accepts_compiler_optimization_title() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "AI编译优化工程师(北京/上海/深圳)",
+        "岗位职责：负责高性能图和算子编译器研发与生成算子优化。",
+        schema,
+    )
+    assert direction == "高性能计算"
+
+
+def test_infer_job_direction_rejects_business_project_manager_title() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "业务项目经理（保险运营）",
+        "岗位职责：负责项目推进、跨团队协同和业务交付。",
+        schema,
+    )
+    assert direction == ""
+
+
+def test_infer_job_direction_rejects_platform_operations_title() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "平台运营岗",
+        "岗位职责：负责平台业务运营、活动策划和商家协同。",
+        schema,
+    )
+    assert direction == ""

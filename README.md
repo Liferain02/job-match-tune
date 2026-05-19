@@ -346,6 +346,12 @@ bash scripts/data/compare_jd_sft_tracks.sh
 bash scripts/data/report_jd_strict_rejections.sh
 ```
 
+如果要只看其中“标题本身像技术岗”的拒绝样本：
+
+```bash
+bash scripts/data/report_jd_strict_tech_candidates.sh
+```
+
 当前 `JD bootstrap` 相对 `strict` 的主要差异：
 
 - 样本量：`2411 -> 1714`
@@ -377,6 +383,15 @@ bash scripts/data/report_jd_strict_rejections.sh
 - 说明当前 `strict` 的主瓶颈已经不是单纯经验字段缺失，而是：
   - 岗位方向规则没有覆盖到足够多的高信任官网样本
   - 以及一批样本被上游标成 `sft_not_ready`
+
+进一步过滤掉明显业务岗后，真正值得继续回收的技术候选拒绝样本约为：
+
+- `total_tech_like_rejected = 680`
+- Top reasons:
+  - `missing_direction = 219`
+  - `clean_text_too_short = 216`
+  - `missing_edu_exp_skill = 80`
+  - `sft_not_ready = 75`
 
 清洗与构造训练集：
 
