@@ -6,5 +6,6 @@ bash scripts/data/refresh_baidu_data.sh
 bash scripts/data/refresh_jd_data.sh
 bash scripts/data/refresh_xiaomi_data.sh
 bash scripts/data/refresh_meituan_data.sh
+bash scripts/data/refresh_didi_data.sh
 bash scripts/data/refresh_moka_data.sh
 bash scripts/data/rebuild_data_pipeline.sh

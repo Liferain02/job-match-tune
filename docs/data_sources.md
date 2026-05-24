@@ -319,7 +319,7 @@ https://job.toutiao.com/api/v1/config/job/filters/2
 
 基于这一轮结果，中文官网数据源优先级建议更新为：
 
-1. **已打通并稳定**：腾讯、百度、京东、小米、美团
+1. **已打通并稳定**：腾讯、百度、京东、小米、美团、滴滴
 2. **高价值但仍需继续攻**：字节跳动
 3. **有前端线索但还没打通**：华为、阿里
 4. **暂未继续**：网易
@@ -366,6 +366,42 @@ bash scripts/data/rebuild_data_pipeline.sh
 1. 新增 `18` 条 tech-like raw
 2. 最终进入 `JD strict` 主集 `5` 条
 3. 说明美团源可用，但当前对 `strict` 的提升弱于腾讯短 JD 和小米研发页
+
+## 滴滴招聘
+
+结论：推荐接入。
+
+原因：
+
+1. `https://talent.didiglobal.com/social/list/1` 为公开社会招聘页。
+2. 前端 bundle 明确暴露了匿名接口：
+   - `/recruit-portal-service/api/job/front/list`
+   - `/recruit-portal-service/api/job/front/view/{jdId}`
+3. 列表接口可直接分页返回职位 JSON，详情接口可直接返回 `jobDesc / qualification / workArea / deptName` 等核心字段。
+4. 相比小米和美团，滴滴这条源的增量更明显。
+
+当前项目已接入：
+
+1. 抓取器：`jobmatch_tune.crawler.didi_careers`
+2. 刷新脚本：
+
+```bash
+bash scripts/data/refresh_didi_data.sh
+```
+
+2026-05-24 当前结果：
+
+1. `data/raw/didi_jd_raw.jsonl`：540 条 tech-like raw。
+2. `data/interim/jd_clean_dedup.jsonl` 中滴滴来源：528 条。
+3. 其中已有 `岗位方向` 的样本：421 条。
+4. 其中已有学历 / 经验 / 技能等基础信号的样本：509 条。
+5. 最终进入 `JD strict` 主集：395 条。
+
+说明：
+
+1. 这条源已经证明可匿名稳定抓取。
+2. 当前对 `JD strict` 的提升明显强于美团，也高于小米单轮增量。
+3. 后续如果继续补高信任官网源，滴滴这类“公开列表 API + 公开详情 API”模式优先级最高。
 
 ## 其他公司官网
 

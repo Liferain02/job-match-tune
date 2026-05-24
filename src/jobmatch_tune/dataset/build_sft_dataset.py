@@ -30,6 +30,7 @@ HIGH_TRUST_SOURCES = {
     "talent.baidu.com",
     "hr.xiaomi.com",
     "zhaopin.meituan.com",
+    "talent.didiglobal.com",
     "moka_voyah",
     "moka_se",
     "moka_eastmoney",
