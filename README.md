@@ -92,6 +92,14 @@ python -m jobmatch_tune.crawler.jd_careers \
   --db data/jobmatch_tune.sqlite3
 ```
 
+抓取携程公开招聘 JD：
+
+```bash
+python -m jobmatch_tune.crawler.ctrip_careers \
+  --out data/raw/ctrip_jd_raw.jsonl \
+  --db data/jobmatch_tune.sqlite3
+```
+
 抓取 Moka 托管招聘官网 JD：
 
 ```bash
@@ -117,6 +125,12 @@ bash scripts/data/refresh_baidu_data.sh
 
 ```bash
 bash scripts/data/refresh_jd_data.sh
+```
+
+如需一键刷新携程数据：
+
+```bash
+bash scripts/data/refresh_ctrip_data.sh
 ```
 
 如需一键刷新小米数据：
@@ -147,13 +161,18 @@ bash scripts/data/refresh_didi_data.sh
 - 详情：`/recruit-portal-service/api/job/front/view/{jdId}`
 - 本轮接入后新增 `540` 条 tech-like raw，进入 dedup `528` 条，进入 `JD strict` 主集 `395` 条
 
+当前携程公开招聘 API 已验证可用：
+- 列表：`/api/hrrecruit/getJobAd`
+- 当前已抓取 `656` 条 tech-like raw，已进入 `jd_clean` 层 `656` 条
+- 按现有 `strict` 准入规则单独评估，这批样本约有 `193` 条可进入 `JD strict`
+
 如需一键刷新 Moka 招聘官网数据：
 
 ```bash
 bash scripts/data/refresh_moka_data.sh
 ```
 
-如需一键刷新腾讯 + 百度 + 京东 + 小米 + 美团 + 滴滴 + Moka 并重建下游：
+如需一键刷新腾讯 + 百度 + 京东 + 携程 + 小米 + 美团 + 滴滴 + Moka 并重建下游：
 
 ```bash
 bash scripts/data/refresh_official_job_data.sh

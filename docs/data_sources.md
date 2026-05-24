@@ -403,6 +403,34 @@ bash scripts/data/refresh_didi_data.sh
 2. 当前对 `JD strict` 的提升明显强于美团，也高于小米单轮增量。
 3. 后续如果继续补高信任官网源，滴滴这类“公开列表 API + 公开详情 API”模式优先级最高。
 
+## 携程招聘
+
+结论：已打通公开职位 API，并已接入仓库。
+
+已确认接口：
+
+1. `POST /api/hrrecruit/getJobAd`
+
+当前项目已接入：
+
+1. 抓取器：`jobmatch_tune.crawler.ctrip_careers`
+2. 刷新脚本：
+
+```bash
+bash scripts/data/refresh_ctrip_data.sh
+```
+
+2026-05-24 当前结果：
+
+1. `data/raw/ctrip_jd_raw.jsonl`：656 条 tech-like raw。
+2. `data/interim/jd_clean.jsonl` 中携程来源：656 条。
+3. 按当前 `JD strict` 准入规则单独评估，约 193 条可进入主集。
+
+说明：
+
+1. 这条源属于“公开列表 API + 完整正文”模式，信任级别与滴滴接近。
+2. 当前主要价值不在总量，而在新增了一批结构完整的客户端、后端、数据、AI 方向 JD。
+
 ## 其他公司官网
 
 推荐优先尝试：

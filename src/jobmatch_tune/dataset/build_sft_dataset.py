@@ -28,6 +28,7 @@ HIGH_TRUST_SOURCES = {
     "zhaopin.jd.com",
     "careers.tencent.com",
     "talent.baidu.com",
+    "careers.ctrip.com",
     "hr.xiaomi.com",
     "zhaopin.meituan.com",
     "talent.didiglobal.com",
