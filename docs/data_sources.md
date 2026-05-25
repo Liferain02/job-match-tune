@@ -398,6 +398,26 @@ bash scripts/data/probe_ant_careers.sh outputs/eval_reports/ant_probe.json
 2. 一旦恢复出 `social/position/search` 的稳定 payload，再接正式 crawler。
 3. 按当前 `totalPositions=477` 和 `技术类=409` 来看，这条源一旦打通，对 `JD strict` 会有实际价值。
 
+## Feishu ATS（得物这类站点）
+
+当前结论：**站点模板已确认，但列表接口仍未打通，当前仍然是 probe 源。**
+
+已确认：
+
+1. 以得物为例：`https://poizon.jobs.feishu.cn`
+2. `websiteInfo` 可解析，`filters` 和 `job/posts/{id}` 可访问。
+3. 页面脚本 bundle 已能自动提取并扫描 `/api/...` 路径。
+4. 当前得物站点 bundle 里只明确暴露了：
+   - `/api/embed/error-page/`
+5. 仍未恢复出正式职位列表接口，因此暂时不能接成正式 crawler。
+
+当前项目已新增探测器：
+
+```bash
+bash scripts/data/probe_feishu_ats.sh https://poizon.jobs.feishu.cn \
+  outputs/eval_reports/poizon_feishu_probe.json
+```
+
 ## 拼多多校园招聘
 
 当前结论：**站点可访问，但目前还只是校园招聘 Next.js 探测阶段，尚未恢复出职位列表接口。**

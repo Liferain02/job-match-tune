@@ -185,10 +185,15 @@ bash scripts/data/probe_feishu_ats.sh https://poizon.jobs.feishu.cn \
 - 它会探测：
   - `websiteInfo`
   - 页面脚本 bundle URL
+  - 主 bundle 中暴露的 `/api/...` 路径
   - `config/job/filters/{portal_type}`
   - `job/posts/{id}`
   - `search/job/posts`
 - 适合用来判断一个 Feishu ATS 站点是否值得继续接成正式 crawler。
+- 当前得物站点重跑后的结论是：
+  - 详情与 filters 接口可访问
+  - bundle 扫描只暴露了 `/api/embed/error-page/`
+  - 仍未恢复出职位列表接口
 
 如需探测蚂蚁招聘公开接口可用性：
 

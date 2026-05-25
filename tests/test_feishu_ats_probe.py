@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from jobmatch_tune.crawler.feishu_ats_probe import extract_script_urls, extract_website_info
+from jobmatch_tune.crawler.feishu_ats_probe import (
+    extract_api_paths,
+    extract_script_urls,
+    extract_website_info,
+    select_candidate_bundle_urls,
+)
 
 
 def test_extract_website_info_returns_payload() -> None:
@@ -30,3 +35,24 @@ def test_extract_script_urls_returns_unique_sources() -> None:
     """
     urls = extract_script_urls(html)
     assert urls == ["https://example.com/a.js", "https://example.com/b.js"]
+
+
+def test_extract_api_paths_returns_unique_values() -> None:
+    text = '"/api/v1/search/job/posts" x "/api/v1/job/posts/1" y "/api/v1/search/job/posts"'
+    paths = extract_api_paths(text)
+    assert paths == ["/api/v1/search/job/posts", "/api/v1/job/posts/1"]
+
+
+def test_select_candidate_bundle_urls_prefers_index_main_app() -> None:
+    urls = [
+        "https://example.com/static/runtime.js",
+        "https://example.com/static/main-1.js",
+        "https://example.com/static/index-2.js",
+        "https://example.com/static/app-3.js",
+    ]
+    selected = select_candidate_bundle_urls(urls)
+    assert selected[:3] == [
+        "https://example.com/static/main-1.js",
+        "https://example.com/static/index-2.js",
+        "https://example.com/static/app-3.js",
+    ]
