@@ -367,6 +367,36 @@ bash scripts/data/rebuild_data_pipeline.sh
 2. 最终进入 `JD strict` 主集 `5` 条
 3. 说明美团源可用，但当前对 `strict` 的提升弱于腾讯短 JD 和小米研发页
 
+## 蚂蚁招聘
+
+当前结论：**匿名筛选枚举接口已打通，但正式职位搜索 payload 仍在恢复，暂未接入 crawler。**
+
+已确认：
+
+1. 公开站点：`https://hrcareersweb.antgroup.com`
+2. 匿名 `POST` 接口可用：
+   - `/api/searchCondition/list`
+   - `/api/searchCondition/listPositionGroup`
+   - `/api/searchCondition/listTalentPlan`
+3. 其中 `/api/searchCondition/list` 当前可直接返回：
+   - `totalPositions = 477`
+   - `category=技术类` 当前数量 `409`
+   - 多个 `dept / workCity / recruitType` 维度
+4. 当前 `POST /api/social/position/search` 仍返回 `400 / 无效参数`
+5. 当前 `POST /api/position/searchPositionIdsByQuery` 仍返回 `param_can_not_be_null`
+
+当前项目已新增探测器：
+
+```bash
+bash scripts/data/probe_ant_careers.sh outputs/eval_reports/ant_probe.json
+```
+
+说明：
+
+1. 这一步的目标是先把匿名可用接口和搜索 payload 约束固化下来。
+2. 一旦恢复出 `social/position/search` 的稳定 payload，再接正式 crawler。
+3. 按当前 `totalPositions=477` 和 `技术类=409` 来看，这条源一旦打通，对 `JD strict` 会有实际价值。
+
 ## 滴滴招聘
 
 结论：推荐接入。

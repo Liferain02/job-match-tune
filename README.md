@@ -189,6 +189,25 @@ bash scripts/data/probe_feishu_ats.sh https://poizon.jobs.feishu.cn \
   - `search/job/posts`
 - 适合用来判断一个 Feishu ATS 站点是否值得继续接成正式 crawler。
 
+如需探测蚂蚁招聘公开接口可用性：
+
+```bash
+bash scripts/data/probe_ant_careers.sh \
+  outputs/eval_reports/ant_probe.json
+```
+
+说明：
+
+- 这个脚本当前不会直接抓取 JD。
+- 它会探测：
+  - `/api/searchCondition/list`
+  - `/api/searchCondition/listPositionGroup`
+  - `/api/searchCondition/listTalentPlan`
+  - `/api/social/position/search`
+  - `/api/position/searchPositionIdsByQuery`
+- 当前已确认筛选枚举接口匿名可用，并能拿到 `totalPositions` 和 `技术类` 数量。
+- `social/position/search` 仍需要继续恢复正确 payload，现阶段更适合作为 probe 而不是正式 crawler。
+
 如需一键刷新腾讯 + 百度 + 京东 + 携程 + 小米 + 美团 + 滴滴 + Moka 并重建下游：
 
 ```bash
