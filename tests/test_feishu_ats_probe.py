@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from jobmatch_tune.crawler.feishu_ats_probe import extract_website_info
+from jobmatch_tune.crawler.feishu_ats_probe import extract_script_urls, extract_website_info
 
 
 def test_extract_website_info_returns_payload() -> None:
@@ -18,3 +18,15 @@ def test_extract_website_info_returns_payload() -> None:
 
 def test_extract_website_info_handles_missing_block() -> None:
     assert extract_website_info("<html></html>") == {}
+
+
+def test_extract_script_urls_returns_unique_sources() -> None:
+    html = """
+    <html><head>
+    <script src="https://example.com/a.js"></script>
+    <script defer src="https://example.com/b.js"></script>
+    <script src="https://example.com/a.js"></script>
+    </head></html>
+    """
+    urls = extract_script_urls(html)
+    assert urls == ["https://example.com/a.js", "https://example.com/b.js"]

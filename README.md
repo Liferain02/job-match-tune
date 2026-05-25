@@ -184,6 +184,7 @@ bash scripts/data/probe_feishu_ats.sh https://poizon.jobs.feishu.cn \
 - 这个脚本不会把数据直接接进训练集。
 - 它会探测：
   - `websiteInfo`
+  - 页面脚本 bundle URL
   - `config/job/filters/{portal_type}`
   - `job/posts/{id}`
   - `search/job/posts`

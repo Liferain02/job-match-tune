@@ -13,6 +13,7 @@ WEBSITE_INFO_RE = re.compile(
     r'<script[^>]+id="js-websiteInfo"[^>]*>(.*?)</script>',
     flags=re.IGNORECASE | re.DOTALL,
 )
+SCRIPT_SRC_RE = re.compile(r'<script[^>]+src="([^"]+)"', flags=re.IGNORECASE)
 
 
 def build_session(timeout: float) -> requests.Session:
@@ -56,6 +57,15 @@ def extract_website_info(html: str) -> dict[str, Any]:
     if not isinstance(payload, dict):
         return {}
     return payload
+
+
+def extract_script_urls(html: str) -> list[str]:
+    urls: list[str] = []
+    for match in SCRIPT_SRC_RE.finditer(html):
+        src = match.group(1).strip()
+        if src and src not in urls:
+            urls.append(src)
+    return urls
 
 
 def probe_filters(session: requests.Session, base_url: str, portal_type: int) -> dict[str, Any]:
@@ -148,9 +158,12 @@ def probe_site(base_url: str, *, timeout: float = 20.0) -> dict[str, Any]:
     session = build_session(timeout)
     html = fetch_html(session, f"{base_url}/index")
     website_info = extract_website_info(html)
+    script_urls = extract_script_urls(html)
     report: dict[str, Any] = {
         "base_url": base_url,
         "website_info": website_info,
+        "script_url_count": len(script_urls),
+        "script_urls": script_urls[:20],
         "filters": [],
         "detail_probe": probe_detail(session, base_url),
     }
