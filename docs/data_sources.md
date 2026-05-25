@@ -435,7 +435,11 @@ bash scripts/data/probe_feishu_ats.sh https://poizon.jobs.feishu.cn \
    - `/api/sns/web`
 4. 其中最像职位数据入口的是：
    - `/api/store/jpd/main`
-5. 但当前对 `/api/store/jpd/main` 的 GET / POST 探测，返回的仍然是站点 HTML 壳，不是职位 JSON。
+5. 当前 probe 进一步确认：
+   - `/api/data`
+   - `/api/bizInUrl`
+   这两条更像埋点/追踪接口，不是职位数据接口。
+6. 当前对 `/api/store/jpd/main` 的 GET / POST 探测，返回的仍然是站点 HTML 壳，不是职位 JSON。
 
 当前项目已新增探测器：
 

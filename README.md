@@ -248,6 +248,7 @@ bash scripts/data/probe_xiaohongshu_careers.sh \
   - 页面主 bundle URL
   - bundle 中暴露的 `/api/...` 路径
   - 候选数据接口 `/api/store/jpd/main` 的 GET / POST 返回
+  - `/api/data`、`/api/bizInUrl` 这类候选接口的返回
 - 适合用来判断小红书招聘站点是否存在可继续恢复的职位列表接口。
 
 如需一键刷新腾讯 + 百度 + 京东 + 携程 + 小米 + 美团 + 滴滴 + Moka 并重建下游：

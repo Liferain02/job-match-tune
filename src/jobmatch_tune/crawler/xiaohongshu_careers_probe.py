@@ -72,6 +72,22 @@ def extract_api_paths(text: str) -> list[str]:
     return paths
 
 
+def extract_endpoint_snippets(text: str, endpoint: str, radius: int = 180) -> list[str]:
+    snippets: list[str] = []
+    start = 0
+    while True:
+        idx = text.find(endpoint, start)
+        if idx < 0:
+            break
+        left = max(0, idx - radius)
+        right = min(len(text), idx + len(endpoint) + radius)
+        snippet = text[left:right]
+        if snippet not in snippets:
+            snippets.append(snippet)
+        start = idx + len(endpoint)
+    return snippets
+
+
 def select_candidate_bundle_urls(script_urls: list[str]) -> list[str]:
     preferred = [url for url in script_urls if "/main." in url or "/runtime-main." in url]
     fallback = [url for url in script_urls if url not in preferred]
@@ -107,6 +123,18 @@ def probe_candidate_endpoint(
     return result
 
 
+def probe_endpoint_variants(session: requests.Session) -> dict[str, Any]:
+    variants = {
+        "store_jpd_main_get": probe_candidate_endpoint(session, "/api/store/jpd/main"),
+        "store_jpd_main_post": probe_candidate_endpoint(session, "/api/store/jpd/main", post_payload={}),
+        "data_get": probe_candidate_endpoint(session, "/api/data"),
+        "data_post": probe_candidate_endpoint(session, "/api/data", post_payload={}),
+        "biz_in_url_get": probe_candidate_endpoint(session, "/api/bizInUrl"),
+        "biz_in_url_post": probe_candidate_endpoint(session, "/api/bizInUrl", post_payload={}),
+    }
+    return variants
+
+
 def probe_xiaohongshu_careers(timeout: float = 20.0) -> dict[str, Any]:
     session = build_session(timeout)
     html = fetch_html(session, f"{XHS_JOBS_BASE_URL}/")
@@ -114,6 +142,7 @@ def probe_xiaohongshu_careers(timeout: float = 20.0) -> dict[str, Any]:
     candidate_bundle_urls = select_candidate_bundle_urls(script_urls)
     bundle_api_paths: list[str] = []
     bundle_text_preview_by_url: dict[str, str] = {}
+    endpoint_snippets: dict[str, list[str]] = {}
     for url in candidate_bundle_urls[:3]:
         try:
             bundle_text = fetch_text(session, url)
@@ -124,6 +153,10 @@ def probe_xiaohongshu_careers(timeout: float = 20.0) -> dict[str, Any]:
         for path in extract_api_paths(bundle_text):
             if path not in bundle_api_paths:
                 bundle_api_paths.append(path)
+        for endpoint in ["/api/store/jpd/main", "/api/data", "/api/bizInUrl"]:
+            snippets = extract_endpoint_snippets(bundle_text, endpoint)
+            if snippets:
+                endpoint_snippets[endpoint] = snippets[:3]
     return {
         "base_url": XHS_JOBS_BASE_URL,
         "script_url_count": len(script_urls),
@@ -132,8 +165,8 @@ def probe_xiaohongshu_careers(timeout: float = 20.0) -> dict[str, Any]:
         "bundle_api_path_count": len(bundle_api_paths),
         "bundle_api_paths": bundle_api_paths[:50],
         "bundle_text_preview_by_url": bundle_text_preview_by_url,
-        "store_jpd_main_get": probe_candidate_endpoint(session, "/api/store/jpd/main"),
-        "store_jpd_main_post": probe_candidate_endpoint(session, "/api/store/jpd/main", post_payload={}),
+        "endpoint_snippets": endpoint_snippets,
+        "endpoint_probes": probe_endpoint_variants(session),
     }
 
 
