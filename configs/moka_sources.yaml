@@ -150,3 +150,17 @@ sources:
     source_name: moka_reo
     source_url: https://app.mokahr.com/m/candidate/applications/deliver-query/reo
     modes: [campus]
+  - org_id: wellintech
+    company: 亚控科技
+    source_name: moka_wellintech
+    source_url: https://app.mokahr.com/campus-recruitment/wellintech/140203
+    modes: [campus]
+    site_ids:
+      campus: 140203
+  - org_id: smoore
+    company: 思摩尔国际
+    source_name: moka_smoore
+    source_url: https://app.mokahr.com/m/campus-recruitment/smoore/150918
+    modes: [campus]
+    site_ids:
+      campus: 150918

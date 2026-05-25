@@ -184,6 +184,19 @@ bash scripts/data/refresh_official_job_data.sh
 - `crawl`：强制抓取后再重建
 - `rebuild`：只重建清洗、去重和 SFT 数据
 
+当前按最新 `strict` 口径重建后，`JD strict` 主集已到：
+
+- `train / valid / test = 2653 / 331 / 333`
+- 总计 `3317`
+
+当前贡献最大的高信任官网源：
+
+- `careers.tencent.com = 853`
+- `zhaopin.jd.com = 731`
+- `talent.baidu.com = 400`
+- `talent.didiglobal.com = 395`
+- `careers.ctrip.com = 193`
+
 导入公开职位导出文件并扩充原始语料：
 
 ```bash
@@ -461,7 +474,7 @@ bash scripts/data/report_jd_strict_tech_candidates.sh
   - `excluded_title = 67`
   - `clean_text_too_short = 21`
 
-补了一条 `careers.tencent.com` 技术短 JD 例外后，腾讯高信任技术岗里的 `clean_text_too_short` 已经从 `238` 压到 `25`，`strict` 主集也从 `2426` 提升到了 `2639`。
+补了一条 `careers.tencent.com` 技术短 JD 例外后，腾讯高信任技术岗里的 `clean_text_too_short` 已经从 `238` 压到 `25`。后续随着滴滴、携程等官网源并入并按最新 `strict` 口径重建，`strict` 主集已经进一步提升到 `3317`。
 
 清洗与构造训练集：
 

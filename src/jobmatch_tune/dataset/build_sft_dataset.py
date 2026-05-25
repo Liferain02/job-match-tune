@@ -48,6 +48,8 @@ HIGH_TRUST_SOURCES = {
     "moka_qianli1",
     "moka_cyou_inc",
     "moka_reo",
+    "moka_wellintech",
+    "moka_smoore",
     "moka_jspdg",
     "moka_step",
     "moka_high_flyer",

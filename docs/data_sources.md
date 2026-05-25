@@ -319,7 +319,7 @@ https://job.toutiao.com/api/v1/config/job/filters/2
 
 基于这一轮结果，中文官网数据源优先级建议更新为：
 
-1. **已打通并稳定**：腾讯、百度、京东、小米、美团、滴滴
+1. **已打通并稳定**：腾讯、百度、京东、小米、美团、滴滴、携程、Moka
 2. **高价值但仍需继续攻**：字节跳动
 3. **有前端线索但还没打通**：华为、阿里
 4. **暂未继续**：网易
@@ -425,11 +425,32 @@ bash scripts/data/refresh_ctrip_data.sh
 1. `data/raw/ctrip_jd_raw.jsonl`：656 条 tech-like raw。
 2. `data/interim/jd_clean.jsonl` 中携程来源：656 条。
 3. 按当前 `JD strict` 准入规则单独评估，约 193 条可进入主集。
+4. 在最新 `strict` 重建口径下，携程已经成为前五高信任官网源之一。
 
 说明：
 
 1. 这条源属于“公开列表 API + 完整正文”模式，信任级别与滴滴接近。
 2. 当前主要价值不在总量，而在新增了一批结构完整的客户端、后端、数据、AI 方向 JD。
+
+## 当前 strict 主集来源画像
+
+2026-05-25 当前按最新 `strict` 口径重建后：
+
+1. `JD strict` 主集：`train / valid / test = 2653 / 331 / 333`
+2. 总计：`3317`
+
+来源前五：
+
+1. `careers.tencent.com = 853`
+2. `zhaopin.jd.com = 731`
+3. `talent.baidu.com = 400`
+4. `talent.didiglobal.com = 395`
+5. `careers.ctrip.com = 193`
+
+补充说明：
+
+1. 这说明当前最有效的高信任官网源仍然是：腾讯、京东、百度、滴滴、携程。
+2. 小米、美团和长尾 Moka 源是有效补充，但单源增量明显更小。
 
 ## 其他公司官网
 
