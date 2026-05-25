@@ -418,6 +418,37 @@ bash scripts/data/probe_feishu_ats.sh https://poizon.jobs.feishu.cn \
   outputs/eval_reports/poizon_feishu_probe.json
 ```
 
+## 小红书招聘
+
+当前结论：**主 bundle 已暴露多组 `/api/...` 路径，但当前候选数据接口还没有直接返回职位 JSON。**
+
+已确认：
+
+1. 公开站点：`https://jobs.xiaohongshu.com/`
+2. 页面主 bundle 稳定可访问：
+   - `runtime-main.6c71242.js`
+   - `main.5d07c3e.js`
+3. bundle 中当前能提取到的候选接口包括：
+   - `/api/store/jpd/main`
+   - `/api/data`
+   - `/api/bizInUrl`
+   - `/api/sns/web`
+4. 其中最像职位数据入口的是：
+   - `/api/store/jpd/main`
+5. 但当前对 `/api/store/jpd/main` 的 GET / POST 探测，返回的仍然是站点 HTML 壳，不是职位 JSON。
+
+当前项目已新增探测器：
+
+```bash
+bash scripts/data/probe_xiaohongshu_careers.sh \
+  outputs/eval_reports/xiaohongshu_probe.json
+```
+
+说明：
+
+1. 现阶段它仍然是 **probe 源**，不是正式 crawler 源。
+2. 但相比拼多多校园招聘，这条线已经有更明确的候选数据接口，值得后续继续深挖。
+
 ## 拼多多校园招聘
 
 当前结论：**站点可访问，但目前还只是校园招聘 Next.js 探测阶段，尚未恢复出职位列表接口。**

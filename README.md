@@ -234,6 +234,22 @@ bash scripts/data/probe_pdd_campus.sh \
   - `/api/` 根路径返回
 - 适合用来判断拼多多校园招聘站点是否存在可继续恢复的职位列表/详情接口。
 
+如需探测小红书招聘官网公开接口线索：
+
+```bash
+bash scripts/data/probe_xiaohongshu_careers.sh \
+  outputs/eval_reports/xiaohongshu_probe.json
+```
+
+说明：
+
+- 这个脚本当前不会直接抓取 JD。
+- 它会探测：
+  - 页面主 bundle URL
+  - bundle 中暴露的 `/api/...` 路径
+  - 候选数据接口 `/api/store/jpd/main` 的 GET / POST 返回
+- 适合用来判断小红书招聘站点是否存在可继续恢复的职位列表接口。
+
 如需一键刷新腾讯 + 百度 + 京东 + 携程 + 小米 + 美团 + 滴滴 + Moka 并重建下游：
 
 ```bash
