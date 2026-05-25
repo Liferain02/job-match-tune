@@ -212,6 +212,23 @@ bash scripts/data/probe_ant_careers.sh \
   - 缺少必填字段（`param_can_not_be_null`）
 - `social/position/search` 仍需要继续恢复正确 payload，现阶段更适合作为 probe 而不是正式 crawler。
 
+如需探测拼多多校园招聘官网的 Next/接口线索：
+
+```bash
+bash scripts/data/probe_pdd_campus.sh \
+  outputs/eval_reports/pdd_campus_probe.json
+```
+
+说明：
+
+- 这个脚本当前不会直接抓取 JD。
+- 它会探测：
+  - `__NEXT_DATA__`
+  - 页面脚本 bundle URL
+  - bundle 中暴露的 `/api/...` 路径线索
+  - `/api/` 根路径返回
+- 适合用来判断拼多多校园招聘站点是否存在可继续恢复的职位列表/详情接口。
+
 如需一键刷新腾讯 + 百度 + 京东 + 携程 + 小米 + 美团 + 滴滴 + Moka 并重建下游：
 
 ```bash

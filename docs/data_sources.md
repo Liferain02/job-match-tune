@@ -398,6 +398,35 @@ bash scripts/data/probe_ant_careers.sh outputs/eval_reports/ant_probe.json
 2. 一旦恢复出 `social/position/search` 的稳定 payload，再接正式 crawler。
 3. 按当前 `totalPositions=477` 和 `技术类=409` 来看，这条源一旦打通，对 `JD strict` 会有实际价值。
 
+## 拼多多校园招聘
+
+当前结论：**站点可访问，但目前还只是校园招聘 Next.js 探测阶段，尚未恢复出职位列表接口。**
+
+已确认：
+
+1. 公开站点：`https://careers.pinduoduo.com/`
+2. 首页可匿名访问，且是标准 Next.js 页面。
+3. 当前已解析出：
+   - `__NEXT_DATA__`
+   - `build_id = LR1yH0GJQdKAm_NxM1UMs`
+   - 8 个 `_next/static` bundle URL
+4. `/api/` 根路径当前返回：
+   - `403`
+   - `{"error_code":40003,"error_msg":""}`
+5. 当前 bundle 直接提取到的 `/api/...` 路径主要是监控、验证码和安全相关接口，仍未恢复出正式职位列表/详情接口。
+
+当前项目已新增探测器：
+
+```bash
+bash scripts/data/probe_pdd_campus.sh outputs/eval_reports/pdd_campus_probe.json
+```
+
+说明：
+
+1. 这一步的目标是先固化首页、bundle、`__NEXT_DATA__` 和 `/api/` 根路径的真实返回。
+2. 现阶段它仍然是 **probe 源**，不是正式 crawler 源。
+3. 如果后续能从 campus bundle 中继续恢复出职位列表接口，再判断它对 `JD strict` 是否有实际增量价值。
+
 ## 滴滴招聘
 
 结论：推荐接入。
