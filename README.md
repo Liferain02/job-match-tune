@@ -172,6 +172,23 @@ bash scripts/data/refresh_didi_data.sh
 bash scripts/data/refresh_moka_data.sh
 ```
 
+如需探测 Feishu ATS 招聘官网（例如得物）公开接口可用性：
+
+```bash
+bash scripts/data/probe_feishu_ats.sh https://poizon.jobs.feishu.cn \
+  outputs/eval_reports/poizon_feishu_probe.json
+```
+
+说明：
+
+- 这个脚本不会把数据直接接进训练集。
+- 它会探测：
+  - `websiteInfo`
+  - `config/job/filters/{portal_type}`
+  - `job/posts/{id}`
+  - `search/job/posts`
+- 适合用来判断一个 Feishu ATS 站点是否值得继续接成正式 crawler。
+
 如需一键刷新腾讯 + 百度 + 京东 + 携程 + 小米 + 美团 + 滴滴 + Moka 并重建下游：
 
 ```bash
