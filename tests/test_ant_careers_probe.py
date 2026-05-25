@@ -31,7 +31,9 @@ def test_build_social_search_variants_uses_discovered_values() -> None:
         }
     }
     variants = build_social_search_variants(payload)
-    assert len(variants) == 4
-    assert variants[2]["category"] == ["11"]
-    assert variants[3]["workCity"] == "330100"
-    assert variants[3]["dept"] == "19612"
+    assert len(variants) == 6
+    assert variants[2]["payload"]["category"] == ["11"]
+    assert variants[3]["payload"]["workCity"] == "330100"
+    assert variants[3]["payload"]["dept"] == "19612"
+    assert variants[4]["payload"]["recruitType"] == "social_recruit"
+    assert variants[5]["payload"]["recruitType"] == ["social_recruit"]

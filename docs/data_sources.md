@@ -380,10 +380,11 @@ bash scripts/data/rebuild_data_pipeline.sh
    - `/api/searchCondition/listTalentPlan`
 3. 其中 `/api/searchCondition/list` 当前可直接返回：
    - `totalPositions = 477`
-   - `category=技术类` 当前数量 `409`
+   - `category=技术类` 当前数量 `411`
    - 多个 `dept / workCity / recruitType` 维度
 4. 当前 `POST /api/social/position/search` 仍返回 `400 / 无效参数`
 5. 当前 `POST /api/position/searchPositionIdsByQuery` 仍返回 `param_can_not_be_null`
+6. 当前 probe 已自动覆盖多组搜索 payload 变体，用来区分“参数结构错误”和“缺少必填字段”，后续可以继续据此反推正式 crawler 的请求体。
 
 当前项目已新增探测器：
 

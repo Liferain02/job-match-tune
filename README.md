@@ -206,6 +206,9 @@ bash scripts/data/probe_ant_careers.sh \
   - `/api/social/position/search`
   - `/api/position/searchPositionIdsByQuery`
 - 当前已确认筛选枚举接口匿名可用，并能拿到 `totalPositions` 和 `技术类` 数量。
+- probe 现在会自动尝试多组 `social/position/search` payload 变体，区分：
+  - 参数结构错误（`400 Bad Request`）
+  - 缺少必填字段（`param_can_not_be_null`）
 - `social/position/search` 仍需要继续恢复正确 payload，现阶段更适合作为 probe 而不是正式 crawler。
 
 如需一键刷新腾讯 + 百度 + 京东 + 携程 + 小米 + 美团 + 滴滴 + Moka 并重建下游：

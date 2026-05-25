@@ -109,25 +109,60 @@ def build_social_search_variants(condition_payload: dict[str, Any]) -> list[dict
         elif item_type == "dept" and not dept_value:
             dept_value = str(value or "")
     variants = [
-        {},
-        {"keyword": "", "currentPage": 1, "pageSize": 20},
+        {"name": "empty", "payload": {}},
         {
-            "keyword": "",
-            "currentPage": 1,
-            "pageSize": 20,
-            "category": [category_value] if category_value else [],
-            "workCity": [],
-            "dept": [],
-            "recruitType": [],
+            "name": "minimal_page",
+            "payload": {"keyword": "", "currentPage": 1, "pageSize": 20},
         },
         {
-            "keyword": "",
-            "currentPage": 1,
-            "pageSize": 20,
-            "category": category_value,
-            "workCity": work_city_value,
-            "dept": dept_value,
-            "recruitType": "",
+            "name": "array_filters_empty",
+            "payload": {
+                "keyword": "",
+                "currentPage": 1,
+                "pageSize": 20,
+                "category": [category_value] if category_value else [],
+                "workCity": [],
+                "dept": [],
+                "recruitType": [],
+            },
+        },
+        {
+            "name": "scalar_filters_empty_recruit",
+            "payload": {
+                "keyword": "",
+                "currentPage": 1,
+                "pageSize": 20,
+                "category": category_value,
+                "workCity": work_city_value,
+                "dept": dept_value,
+                "recruitType": "",
+            },
+        },
+        {
+            "name": "scalar_filters_social_recruit",
+            "payload": {
+                "language": "zh_CN",
+                "keyword": "",
+                "currentPage": 1,
+                "pageSize": 20,
+                "category": category_value,
+                "workCity": work_city_value,
+                "dept": dept_value,
+                "recruitType": "social_recruit",
+            },
+        },
+        {
+            "name": "array_filters_social_recruit",
+            "payload": {
+                "language": "zh_CN",
+                "keyword": "",
+                "currentPage": 1,
+                "pageSize": 20,
+                "category": [category_value] if category_value else [],
+                "workCity": [work_city_value] if work_city_value else [],
+                "dept": [dept_value] if dept_value else [],
+                "recruitType": ["social_recruit"],
+            },
         },
     ]
     return variants
@@ -136,9 +171,10 @@ def build_social_search_variants(condition_payload: dict[str, Any]) -> list[dict
 def probe_social_search(session: requests.Session, condition_payload: dict[str, Any]) -> list[dict[str, Any]]:
     variants = build_social_search_variants(condition_payload)
     results: list[dict[str, Any]] = []
-    for idx, payload in enumerate(variants, start=1):
-        result = _post(session, SOCIAL_SEARCH_URL, payload)
+    for idx, variant in enumerate(variants, start=1):
+        result = _post(session, SOCIAL_SEARCH_URL, variant["payload"])
         result["variant"] = idx
+        result["variant_name"] = variant["name"]
         results.append(result)
     return results
 
