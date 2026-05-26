@@ -11,5 +11,17 @@ PYTHONPATH=src python -m jobmatch_tune.crawler.xiaomi_careers \
   --search-keyword 测试 \
   --search-keyword 数据 \
   --search-keyword Java \
+  --search-keyword Python \
+  --search-keyword 安全 \
+  --search-keyword 编译 \
+  --search-keyword 引擎 \
+  --search-keyword Go \
+  --search-keyword iOS \
+  --search-keyword SDK \
+  --search-keyword 平台 \
+  --search-keyword 音视频 \
+  --search-keyword Android \
+  --search-keyword 运维 \
+  --search-keyword C++ \
   --out data/raw/xiaomi_jd_raw.jsonl \
   --db data/jobmatch_tune.sqlite3

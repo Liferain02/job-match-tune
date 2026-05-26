@@ -302,6 +302,56 @@ def build_social_search_variants(
     return variants
 
 
+def build_position_id_search_variants(condition_payload: dict[str, Any]) -> list[dict[str, Any]]:
+    search_items = _extract_search_items(condition_payload)
+    category_value = ""
+    work_city_value = ""
+    dept_value = ""
+    for item in search_items:
+        item_type = str(item.get("type") or "")
+        choices = item.get("items") or []
+        if not isinstance(choices, list) or not choices:
+            continue
+        first_choice = choices[0]
+        if not isinstance(first_choice, dict):
+            continue
+        value = str(first_choice.get("value") or "")
+        if item_type == "category" and not category_value:
+            category_value = value
+        elif item_type == "workCity" and not work_city_value:
+            work_city_value = value
+        elif item_type == "dept" and not dept_value:
+            dept_value = value
+    return [
+        {"name": "query_rd", "payload": {"query": "研发", "pageNo": 1, "pageSize": 20}},
+        {"name": "query_tech", "payload": {"query": "技术类", "pageNo": 1, "pageSize": 20}},
+        {"name": "query_empty", "payload": {"query": "", "pageNo": 1, "pageSize": 20}},
+        {
+            "name": "category_only",
+            "payload": {"query": "", "category": category_value, "pageNo": 1, "pageSize": 20},
+        },
+        {
+            "name": "dept_only",
+            "payload": {"query": "", "dept": dept_value, "pageNo": 1, "pageSize": 20},
+        },
+        {
+            "name": "work_city_only",
+            "payload": {"query": "", "workCity": work_city_value, "pageNo": 1, "pageSize": 20},
+        },
+        {
+            "name": "combined_scalar",
+            "payload": {
+                "query": "",
+                "category": category_value,
+                "dept": dept_value,
+                "workCity": work_city_value,
+                "pageNo": 1,
+                "pageSize": 20,
+            },
+        },
+    ]
+
+
 def probe_social_search(
     session: requests.Session,
     condition_payload: dict[str, Any],
@@ -323,16 +373,16 @@ def probe_social_search(
     return results
 
 
-def probe_position_id_search(session: requests.Session) -> list[dict[str, Any]]:
-    variants = [
-        {"query": "研发", "pageNo": 1, "pageSize": 20},
-        {"query": "技术类", "pageNo": 1, "pageSize": 20},
-        {"query": "", "pageNo": 1, "pageSize": 20},
-    ]
+def probe_position_id_search(
+    session: requests.Session,
+    condition_payload: dict[str, Any],
+) -> list[dict[str, Any]]:
+    variants = build_position_id_search_variants(condition_payload)
     results: list[dict[str, Any]] = []
-    for idx, payload in enumerate(variants, start=1):
-        result = _post(session, POSITION_IDS_URL, payload)
+    for idx, variant in enumerate(variants, start=1):
+        result = _post(session, POSITION_IDS_URL, variant["payload"])
         result["variant"] = idx
+        result["variant_name"] = variant["name"]
         results.append(result)
     return results
 
@@ -387,7 +437,7 @@ def probe_ant_site(timeout: float = 20.0) -> dict[str, Any]:
             position_group_payload=position_group_payload,
             talent_plan_payload=talent_plan_payload,
         ),
-        "position_id_search_probes": probe_position_id_search(session),
+        "position_id_search_probes": probe_position_id_search(session, condition_payload),
     }
 
 

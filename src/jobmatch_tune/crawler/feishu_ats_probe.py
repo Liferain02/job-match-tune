@@ -15,6 +15,7 @@ WEBSITE_INFO_RE = re.compile(
 )
 SCRIPT_SRC_RE = re.compile(r'<script[^>]+src="([^"]+)"', flags=re.IGNORECASE)
 API_PATH_RE = re.compile(r"/api/[A-Za-z0-9_./?=&-]+")
+BYTEDANCE_HUNTER_MARKER = "字节跳动猎头平台"
 
 
 def build_session(timeout: float) -> requests.Session:
@@ -179,6 +180,42 @@ def probe_list(session: requests.Session, base_url: str, portal_type: int) -> di
     return result
 
 
+def probe_list_get(
+    session: requests.Session,
+    base_url: str,
+    *,
+    params: dict[str, Any],
+    label: str,
+) -> dict[str, Any]:
+    url = f"{base_url}/api/v1/search/job/posts"
+    response = session.get(
+        url,
+        params=params,
+        headers={
+            "Origin": base_url,
+            "Referer": f"{base_url}/index",
+        },
+    )
+    result: dict[str, Any] = {
+        "label": label,
+        "url": response.url,
+        "status_code": response.status_code,
+        "content_type": response.headers.get("content-type", ""),
+        "params": params,
+    }
+    try:
+        parsed = response.json()
+    except ValueError:
+        text = response.text
+        result["json"] = None
+        result["text_preview"] = text[:300]
+        result["redirected_to_bytedance_hunter"] = BYTEDANCE_HUNTER_MARKER in text
+    else:
+        result["json"] = parsed
+        result["redirected_to_bytedance_hunter"] = False
+    return result
+
+
 def probe_site(base_url: str, *, timeout: float = 20.0) -> dict[str, Any]:
     session = build_session(timeout)
     html = fetch_html(session, f"{base_url}/index")
@@ -212,6 +249,39 @@ def probe_site(base_url: str, *, timeout: float = 20.0) -> dict[str, Any]:
     for portal_type in range(1, 10):
         report["filters"].append(probe_filters(session, base_url, portal_type))
     report["list_probe"] = probe_list(session, base_url, portal_type=1)
+    report["list_get_probes"] = [
+        probe_list_get(
+            session,
+            base_url,
+            params={"keyword": "", "limit": 10, "offset": 0, "portal_type": 1},
+            label="minimal_get",
+        ),
+        probe_list_get(
+            session,
+            base_url,
+            params={
+                "keyword": "",
+                "current": 1,
+                "limit": 10,
+                "portal_type": 1,
+                "spread": "probe",
+            },
+            label="current_limit_get",
+        ),
+        probe_list_get(
+            session,
+            base_url,
+            params={
+                "keyword": "",
+                "current": 1,
+                "limit": 10,
+                "portal_type": 1,
+                "location": "CT_11",
+                "spread": "probe",
+            },
+            label="with_location_get",
+        ),
+    ]
     return report
 
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 from jobmatch_tune.crawler.ant_careers_probe import (
     _extract_search_items,
     build_social_search_variants,
+    build_position_id_search_variants,
     _extract_id_list,
     extract_endpoint_snippets,
     extract_script_urls,
@@ -92,3 +93,20 @@ def test_extract_endpoint_snippets_finds_context() -> None:
     snippets = extract_endpoint_snippets(text, "/api/social/position/search", radius=5)
     assert snippets
     assert "/api/social/position/search" in snippets[0]
+
+
+def test_build_position_id_search_variants_uses_discovered_values() -> None:
+    payload = {
+        "content": {
+            "searchItems": [
+                {"type": "dept", "items": [{"label": "平台技术事业群", "value": "19612"}]},
+                {"type": "category", "items": [{"label": "技术类", "value": "11"}]},
+                {"type": "workCity", "items": [{"label": "杭州", "value": "330100"}]},
+            ]
+        }
+    }
+    variants = build_position_id_search_variants(payload)
+    assert len(variants) == 7
+    assert variants[3]["payload"]["category"] == "11"
+    assert variants[4]["payload"]["dept"] == "19612"
+    assert variants[5]["payload"]["workCity"] == "330100"

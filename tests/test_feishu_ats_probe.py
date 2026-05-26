@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from jobmatch_tune.crawler.feishu_ats_probe import (
+    BYTEDANCE_HUNTER_MARKER,
     extract_api_paths,
     extract_script_urls,
     extract_website_info,
@@ -56,3 +57,7 @@ def test_select_candidate_bundle_urls_prefers_index_main_app() -> None:
         "https://example.com/static/index-2.js",
         "https://example.com/static/app-3.js",
     ]
+
+
+def test_bytedance_hunter_marker_constant() -> None:
+    assert BYTEDANCE_HUNTER_MARKER == "字节跳动猎头平台"
