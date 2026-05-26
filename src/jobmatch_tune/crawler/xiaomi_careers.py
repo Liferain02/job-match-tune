@@ -7,6 +7,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 import requests
 
@@ -15,6 +16,7 @@ from jobmatch_tune.utils.io import read_jsonl, write_jsonl
 
 
 XIAOMI_LIST_URL_TEMPLATE = "https://hr.xiaomi.com/job/list/{path}"
+XIAOMI_SEARCH_URL_TEMPLATE = "https://hr.xiaomi.com/job/search/{path}"
 LIST_ROW_RE = re.compile(
     r"<tr>\s*"
     r'<td class="first"><a href="(?P<href>https://hr\.xiaomi\.com/job/view/(?P<job_id>\d+))">'
@@ -193,6 +195,13 @@ def build_page_path(list_path: str, page: int) -> str:
     return f"{list_path}-0-{page}"
 
 
+def build_search_path(keyword: str, page: int) -> str:
+    encoded = quote(keyword.strip())
+    if page <= 1:
+        return encoded
+    return f"{encoded}-0-{page}"
+
+
 def convert_xiaomi_job(
     row: dict[str, str],
     detail_fields: dict[str, str],
@@ -249,6 +258,7 @@ def convert_xiaomi_job(
 def crawl_xiaomi_jobs(
     *,
     list_paths: list[str],
+    search_keywords: list[str] | None = None,
     max_pages: int = 20,
     interval_seconds: float = 0.2,
     timeout: float = 20.0,
@@ -281,12 +291,42 @@ def crawl_xiaomi_jobs(
             if new_count == 0:
                 break
             time.sleep(interval_seconds)
+    search_keywords = search_keywords or []
+    for keyword in search_keywords:
+        seen_page_first_id: set[str] = set()
+        for page in range(1, max_pages + 1):
+            search_url = XIAOMI_SEARCH_URL_TEMPLATE.format(path=build_search_path(keyword, page))
+            html_text = fetch_html(session, search_url, retries=retries)
+            list_rows = parse_list_rows(html_text)
+            if not list_rows:
+                break
+            first_id = list_rows[0]["job_id"]
+            if first_id in seen_page_first_id:
+                break
+            seen_page_first_id.add(first_id)
+            new_count = 0
+            for item in list_rows:
+                if item["job_id"] in seen_ids:
+                    continue
+                detail_html = fetch_html(session, item["href"], retries=retries)
+                detail_fields = parse_detail_fields(detail_html)
+                row = convert_xiaomi_job(item, detail_fields, crawl_time=crawl_time, list_path=f"search:{keyword}")
+                if not row["raw_text"]:
+                    continue
+                seen_ids.add(item["job_id"])
+                rows.append(row)
+                new_count += 1
+                time.sleep(interval_seconds)
+            if new_count == 0:
+                break
+            time.sleep(interval_seconds)
     return rows
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--list-path", action="append", default=[])
+    parser.add_argument("--search-keyword", action="append", default=[])
     parser.add_argument("--max-pages", type=int, default=20)
     parser.add_argument("--interval-seconds", type=float, default=0.2)
     parser.add_argument("--timeout", type=float, default=20.0)
@@ -299,6 +339,7 @@ def main() -> None:
     list_paths = args.list_path or ["8-0-2"]
     rows = crawl_xiaomi_jobs(
         list_paths=list_paths,
+        search_keywords=args.search_keyword,
         max_pages=args.max_pages,
         interval_seconds=args.interval_seconds,
         timeout=args.timeout,
@@ -321,7 +362,10 @@ def main() -> None:
     write_jsonl(args.out, merged_rows)
     init_db(args.db)
     upsert_jd_raw(args.db, rows)
-    print(f"crawled {len(rows)} Xiaomi posts for list_paths={list_paths}")
+    print(
+        f"crawled {len(rows)} Xiaomi posts for list_paths={list_paths} "
+        f"search_keywords={args.search_keyword}"
+    )
     print(f"wrote raw JSONL: {args.out} ({len(merged_rows)} rows)")
     print(f"upserted SQLite: {args.db}")
 

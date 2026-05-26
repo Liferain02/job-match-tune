@@ -139,6 +139,10 @@ bash scripts/data/refresh_ctrip_data.sh
 bash scripts/data/refresh_xiaomi_data.sh
 ```
 
+当前小米抓取已同时覆盖：
+- 旧版研发职位列表页 `8-0-2`
+- 关键词搜索页：`开发 / 算法 / 前端 / 后端 / 客户端 / 测试 / 数据 / Java`
+
 如需一键刷新美团数据：
 
 ```bash

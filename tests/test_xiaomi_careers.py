@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from jobmatch_tune.crawler.xiaomi_careers import (
+    build_search_path,
     build_page_path,
     convert_xiaomi_job,
     parse_detail_fields,
@@ -81,3 +82,8 @@ def test_convert_xiaomi_job_marks_tech_ready() -> None:
 def test_build_page_path() -> None:
     assert build_page_path("8-0-2", 1) == "8-0-2"
     assert build_page_path("8-0-2", 3) == "8-0-2-0-3"
+
+
+def test_build_search_path() -> None:
+    assert build_search_path("开发", 1) == "%E5%BC%80%E5%8F%91"
+    assert build_search_path("开发", 2) == "%E5%BC%80%E5%8F%91-0-2"

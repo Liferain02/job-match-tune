@@ -336,6 +336,19 @@ bash scripts/data/import_public_job_exports.sh
 bash scripts/data/rebuild_data_pipeline.sh
 ```
 
+补充说明：
+
+- 小米旧站除了 `job/list/8-0-2` 这类分类列表页，还支持 `job/search/<关键词>` 检索页。
+- 当前小米抓取已纳入这组高信任技术关键词：
+  - `开发`
+  - `算法`
+  - `前端`
+  - `后端`
+  - `客户端`
+  - `测试`
+  - `数据`
+  - `Java`
+
 ## 字节跳动招聘
 
 结论：可作为候选数据源，但需要进一步确认 API 参数和职位详情接口。
