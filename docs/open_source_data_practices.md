@@ -41,7 +41,7 @@ LLaMA-Factory 的数据准备强调：
 
 后续可以继续做：
 
-- 增加一个项目内 `dataset_registry.yaml`，集中登记各 SFT 数据线、字段、用途和推荐训练权重。
+- 继续扩展项目内 `dataset_registry.yaml`，集中登记更多实验数据线、字段、用途和推荐训练权重。
 
 ### 1.3 Open-Instruct
 
@@ -138,18 +138,37 @@ readiness 现在检查：
 - `JD`: ready
 - `resume`: ready
 - `match`: ready
+- `multitask`: ready
 - `all_ready_for_training = true`
+
+### 2.4 多任务训练集 registry
+
+resume 扩量后达到 `48148` 条，如果直接和 JD、match 混合训练，会明显改变任务分布。参考 LLaMA-Factory 的 dataset registry 和 Axolotl 的 dataset 配置思路，本项目新增：
+
+- [configs/dataset_registry.yaml](/share/home/lifr/workspace/code/job-match-tune/configs/dataset_registry.yaml)
+- [build_multitask_sft_dataset.py](/share/home/lifr/workspace/code/job-match-tune/src/jobmatch_tune/dataset/build_multitask_sft_dataset.py)
+- [build_multitask_sft_dataset.sh](/share/home/lifr/workspace/code/job-match-tune/scripts/data/build_multitask_sft_dataset.sh)
+
+当前多任务训练集：
+
+- `train`: `8000`
+- `valid`: `1000`
+
+任务配比：
+
+- `JD`: `4000 / 500`
+- `resume`: `2400 / 300`
+- `match`: `1600 / 200`
+
+这样既保留了 resume 扩量带来的格式多样性，又避免训练时被 resume 单任务压过。
 
 ## 3. 当前仍应继续优化的方向
 
 1. JD 数据继续补高信任中文官网源，而不是盲目扩大弱源。
 2. 给 JD quality 增加 reason code，让每条样本通过原因可解释。
 3. 对 `quality_weak` 层做人工抽样评估。
-4. 增加多任务训练采样权重，避免 resume 48148 条在混合训练时压过 JD 和 match。
-5. 为训练脚本增加数据配比配置，例如：
-   - JD: 50%
-   - resume: 30%
-   - match: 20%
+4. 在多任务训练后按任务分别评估，确认 JD、resume、match 没有互相拖累。
+5. 根据评估结果调整 `configs/dataset_registry.yaml` 中的采样配比。
 
 ## 4. 参考链接
 
@@ -159,4 +178,3 @@ readiness 现在检查：
 - Open-Instruct GitHub: https://github.com/allenai/open-instruct
 - Data-Juicer GitHub: https://github.com/modelscope/data-juicer
 - Data-Juicer distributed processing: https://datajuicer.github.io/data-juicer/en/main/docs/Distributed.html
-

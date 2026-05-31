@@ -580,6 +580,7 @@ bash scripts/data/report_data_readiness.sh
 - `JD`: `4000 / 500 / 500`，combined pool `37796`
 - `resume`: `38408 / 4850 / 4890`，combined pool `3137`
 - `match`: `1799 / 228 / 229`，combined pool `2256`
+- `multitask`: `8000 / 1000`，任务配比为 `JD 50% / resume 30% / match 20%`
 
 ---
 

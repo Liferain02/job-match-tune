@@ -13,12 +13,14 @@ READINESS_THRESHOLDS = {
     "jd": {"train": 4000, "valid": 500, "test": 500, "pool": 8000},
     "resume": {"train": 10000, "valid": 1000, "test": 1000, "pool": 3000},
     "match": {"train": 1500, "valid": 200, "test": 200, "pool": 2000},
+    "multitask": {"train": 8000, "valid": 1000, "test": 0, "pool": 9000},
 }
 
 REQUIRED_FIELDS = {
     "jd": ["岗位方向", "核心职责", "必备技能", "学历要求", "经验要求"],
     "resume": ["目标岗位", "教育背景", "核心技能", "实习经历", "项目经历", "优势标签"],
     "match": ["匹配结论", "匹配优势", "主要短板", "简历优化建议", "推荐投递岗位方向"],
+    "multitask": [],
 }
 
 MAX_EMPTY_RATE = {
@@ -44,6 +46,7 @@ MAX_EMPTY_RATE = {
         "简历优化建议": 0.0,
         "推荐投递岗位方向": 0.0,
     },
+    "multitask": {},
 }
 
 
@@ -127,6 +130,40 @@ def audit_sft_files(task_name: str, paths: list[str]) -> dict[str, Any]:
     }
 
 
+def build_multitask_report(train_path: str, valid_path: str) -> dict[str, Any]:
+    thresholds = READINESS_THRESHOLDS["multitask"]
+    train_count = count_jsonl(train_path)
+    valid_count = count_jsonl(valid_path)
+    audit = audit_sft_files("multitask", [train_path, valid_path])
+    task_mix = {}
+    for path in [train_path, valid_path]:
+        split = Path(path).stem
+        for row in read_jsonl(path):
+            task = str((row.get("meta") or {}).get("dataset_task") or row.get("task_type") or "")
+            task_mix.setdefault(split, {})
+            task_mix[split][task] = task_mix[split].get(task, 0) + 1
+    required_tasks = {"jd", "resume", "match"}
+    has_required_mix = all(required_tasks.issubset(set(task_mix.get(split, {}))) for split in ("train", "valid"))
+    count_ready = train_count >= thresholds["train"] and valid_count >= thresholds["valid"]
+    format_ready = (
+        audit["invalid_json"] == 0
+        and audit["duplicate_ids"] == 0
+        and audit["cross_split_duplicate_hashes"] == 0
+    )
+    ready = count_ready and format_ready and has_required_mix
+    return {
+        "task": "multitask",
+        "counts": {"train": train_count, "valid": valid_count, "test": 0, "combined_pool": train_count + valid_count},
+        "thresholds": thresholds,
+        "count_ready": count_ready,
+        "format_ready": format_ready,
+        "task_mix": task_mix,
+        "has_required_mix": has_required_mix,
+        "quality_audit": audit,
+        "ready_for_sft": ready,
+    }
+
+
 def build_task_report(
     task_name: str,
     train_path: str,
@@ -190,6 +227,10 @@ def build_report() -> dict[str, object]:
             "data/sft_match/valid.jsonl",
             "data/sft_match/test.jsonl",
             "data/eval/match_train_pool_combined.jsonl",
+        ),
+        "multitask": build_multitask_report(
+            "data/sft_multitask/train.jsonl",
+            "data/sft_multitask/valid.jsonl",
         ),
     }
     return {

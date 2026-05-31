@@ -471,6 +471,26 @@ bash scripts/data/report_pool_profiles.sh
 - `data/sft_match/train.jsonl`: `1799`
 - `data/sft_match/valid.jsonl`: `228`
 - `data/sft_match/test.jsonl`: `229`
+- `data/sft_multitask/train.jsonl`: `8000`
+- `data/sft_multitask/valid.jsonl`: `1000`
+
+当前默认 14B SFT 配置使用 `data/sft_multitask/`，而不是直接把 4.8 万条 resume 全量混入训练。多任务采样配比在 [configs/dataset_registry.yaml](/share/home/lifr/workspace/code/job-match-tune/configs/dataset_registry.yaml) 中维护：
+
+- `JD`: `4000 / 500`
+- `resume`: `2400 / 300`
+- `match`: `1600 / 200`
+
+重建多任务训练集：
+
+```bash
+bash scripts/data/build_multitask_sft_dataset.sh
+```
+
+启动 14B 多任务 SFT：
+
+```bash
+bash scripts/train/train_qwen3_14b_multitask_sft.sh
+```
 
 当前这条链路会导入三类补充源：
 

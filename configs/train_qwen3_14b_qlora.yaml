@@ -1,8 +1,8 @@
 model_name_or_path: models/Qwen3-14B
 output_dir: outputs/checkpoints/qwen3-14b-jobmatch-qlora
 
-train_file: data/sft/train.jsonl
-valid_file: data/sft/valid.jsonl
+train_file: data/sft_multitask/train.jsonl
+valid_file: data/sft_multitask/valid.jsonl
 
 max_seq_length: 768
 per_device_train_batch_size: 1
@@ -51,4 +51,3 @@ performance:
   loss_type: nll
   use_liger_kernel: false
   activation_offloading: false
-

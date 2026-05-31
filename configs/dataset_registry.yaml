@@ -1,0 +1,23 @@
+multitask_sft:
+  train_out: data/sft_multitask/train.jsonl
+  valid_out: data/sft_multitask/valid.jsonl
+  seed: 42
+  tasks:
+    jd:
+      train_file: data/sft_jd_quality/train.jsonl
+      valid_file: data/sft_jd_quality/valid.jsonl
+      train_samples: 4000
+      valid_samples: 500
+      weight: 0.5
+    resume:
+      train_file: data/sft_resume/train.jsonl
+      valid_file: data/sft_resume/valid.jsonl
+      train_samples: 2400
+      valid_samples: 300
+      weight: 0.3
+    match:
+      train_file: data/sft_match/train.jsonl
+      valid_file: data/sft_match/valid.jsonl
+      train_samples: 1600
+      valid_samples: 200
+      weight: 0.2

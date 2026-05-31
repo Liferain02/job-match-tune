@@ -2,7 +2,12 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-from jobmatch_tune.eval.report_data_readiness import audit_sft_files, build_report, build_task_report
+from jobmatch_tune.eval.report_data_readiness import (
+    audit_sft_files,
+    build_multitask_report,
+    build_report,
+    build_task_report,
+)
 
 
 def test_build_task_report_not_ready_when_pool_missing():
@@ -26,6 +31,7 @@ def test_build_report_summarizes_not_ready_tasks():
             4000, 500, 500, 8000,  # jd
             2000, 200, 200, 3000,  # resume
             97, 12, 19, 0,  # match
+            8000, 1000,  # multitask
         ]
         with patch("jobmatch_tune.eval.report_data_readiness.audit_sft_files") as audit:
             audit.return_value = {
@@ -74,3 +80,28 @@ def test_audit_sft_files_detects_cross_split_content_overlap(tmp_path: Path):
     audit = audit_sft_files("jd", [str(train), str(valid)])
 
     assert audit["cross_split_duplicate_hashes"] == 1
+
+
+def test_build_multitask_report_requires_all_tasks(tmp_path: Path):
+    train = tmp_path / "train.jsonl"
+    valid = tmp_path / "valid.jsonl"
+    train_rows = []
+    valid_rows = []
+    for index, task in enumerate(["jd", "resume", "match"], start=1):
+        row = _sample(f"train_{index}")
+        row["messages"][1]["content"] = f"岗位名称：{task} train"
+        row["meta"] = {"dataset_task": task}
+        train_rows.append(row)
+        valid_row = _sample(f"valid_{index}")
+        valid_row["messages"][1]["content"] = f"岗位名称：{task} valid"
+        valid_row["meta"] = {"dataset_task": task}
+        valid_rows.append(valid_row)
+    train.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in train_rows), encoding="utf-8")
+    valid.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in valid_rows), encoding="utf-8")
+
+    with patch("jobmatch_tune.eval.report_data_readiness.count_jsonl") as mocked:
+        mocked.side_effect = [8000, 1000]
+        report = build_multitask_report(str(train), str(valid))
+
+    assert report["has_required_mix"] is True
+    assert report["ready_for_sft"] is True
