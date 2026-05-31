@@ -485,14 +485,22 @@ bash scripts/data/rebuild_data_pipeline.sh
 
 截至当前这版仓库，数据层大致是：
 
-- `jd_clean.jsonl`: `292167`
-- `jd_clean_dedup.jsonl`: `267949`
+- `jd_clean.jsonl`: `293582`
+- `jd_clean_dedup.jsonl`: `269351`
+- `jd_train_pool_combined.jsonl`: `37796`
 
 当前默认高质量集：
 
-- `data/sft/train.jsonl`: `1421`
-- `data/sft/valid.jsonl`: `177`
-- `data/sft/test.jsonl`: `179`
+- `data/sft/train.jsonl`: `2666`
+- `data/sft/valid.jsonl`: `333`
+- `data/sft/test.jsonl`: `334`
+
+当前 5000 条 JD 质量集：
+
+- `data/sft_jd_quality/train.jsonl`: `4000`
+- `data/sft_jd_quality/valid.jsonl`: `500`
+- `data/sft_jd_quality/test.jsonl`: `500`
+- 分层来源：`strict=3333, strict_plus=280, quality_weak=1387, bootstrap=0`
 
 当前扩展实验集：
 
@@ -503,8 +511,16 @@ bash scripts/data/rebuild_data_pipeline.sh
 这里最重要的不是数字本身，而是口径：
 
 - `data/sft/` 是默认主训练集
+- `data/sft_jd_quality/` 是当前 JD 解析任务的 5000 条候选训练主线
 - `data/sft_expanded/` 是扩量实验集
-- 不能再把这两层混为一谈
+- 不能再把这些层混为一谈
+
+`data/sft_jd_quality/` 的构建方式不是简单把弱标注样本混进去，而是分层追加：
+
+1. `strict`：高信任中文官网源，经过技术岗标题、方向、结构化职责/要求等过滤。
+2. `strict_plus`：从 combined pool 里回收结构完整、方向和学历较明确的样本。
+3. `quality_weak`：对弱源和公开数据做保守回收，要求具备岗位方向、学历或经验、至少两个技能、足够长的职责/要求文本，并清理“本科/硕士误入经验字段”等噪声。
+4. `bootstrap`：兜底层。当前 5000 条构建没有用到 bootstrap。
 
 ---
 
@@ -520,17 +536,17 @@ bash scripts/data/rebuild_data_pipeline.sh
 
 ### 15.2 还没做完的事
 
-1. 默认高质量集离 `2 万` 还很远
-2. 当前 `岗位方向` schema 还是偏窄
-3. 高信任官网里还有大量 `方向为空` 的职位没有被正确回收
-4. 默认集里的方向分布还不够均衡
+1. `data/sft_jd_quality/` 已达到 5000 条，但不是纯 strict，需要继续抽样审计 quality_weak 层。
+2. 当前 `岗位方向` schema 还可以继续细分。
+3. 高信任官网里还有部分 `方向为空` 的职位没有被正确回收。
+4. 默认集里的方向分布还不够均衡。
 
 ### 15.3 接下来最应该做的事
 
-1. 持续扩高信任中文官网源
-2. 从 `方向为空` 的高信任样本里回收真实技术岗
-3. 必要时扩 schema，而不是硬把更多职位塞进现有标签
-4. 始终把默认集和扩展集分开管理
+1. 抽样审计 `data/sft_jd_quality/` 的五个字段：岗位方向、核心职责、必备技能、学历要求、经验要求。
+2. 继续从 `方向为空` 的高信任样本里回收真实技术岗。
+3. 必要时扩 schema，而不是硬把更多职位塞进现有标签。
+4. 始终把 strict、quality、expanded、bootstrap 分开管理。
 
 ---
 

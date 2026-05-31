@@ -452,9 +452,12 @@ bash scripts/data/report_pool_profiles.sh
 
 当前训练集规模：
 
-- `data/sft/train.jsonl`: `2111`
-- `data/sft/valid.jsonl`: `263`
-- `data/sft/test.jsonl`: `265`
+- `data/sft/train.jsonl`: `2666`
+- `data/sft/valid.jsonl`: `333`
+- `data/sft/test.jsonl`: `334`
+- `data/sft_jd_quality/train.jsonl`: `4000`
+- `data/sft_jd_quality/valid.jsonl`: `500`
+- `data/sft_jd_quality/test.jsonl`: `500`
 - `data/sft_jd_bootstrap/train.jsonl`: `1371`
 - `data/sft_jd_bootstrap/valid.jsonl`: `171`
 - `data/sft_jd_bootstrap/test.jsonl`: `172`
@@ -475,14 +478,16 @@ bash scripts/data/report_pool_profiles.sh
 
 注意：
 
-- 这一步配合腾讯、百度、京东、Moka 官网抓取后，当前 `jd_clean / jd_clean_dedup` 已经达到 `292167 / 267949`。
+- 这一步配合腾讯、百度、京东、Moka 官网抓取后，当前 `jd_clean / jd_clean_dedup` 已经达到 `293582 / 269351`。
+- 当前 `JD combined pool` 为 `37796`，用于 strict_plus、quality_weak、bootstrap 等分层实验。
 - 当前去重后语言分布约为：
   - 中文：`221402`
   - 英文：`51330`
   - 其他 / 未知：`927`
-- 默认 `data/sft/` 现在是严格质量版：`2111 / 263 / 265`。
+- 默认 `data/sft/` 现在是严格质量版：`2666 / 333 / 334`。
+- `data/sft_jd_quality/` 是 5000 条 JD 质量集：先取严格官网中文技术岗，再补 strict_plus，最后补 quality_weak；当前分层为 `strict=3333, strict_plus=280, quality_weak=1387, bootstrap=0`。
 - `data/sft_expanded/` 是扩展实验版：`4524 / 565 / 566`。
-- 默认训练不再追求先凑满 2 万，而是优先保留高信任官网中文技术岗；弱标注样本只进入扩展实验集，不再直接混入默认集。当前 `20000` 目标只属于扩展实验链路，不代表默认高质量集规模。
+- 默认训练不再追求先凑满 2 万，而是优先保留高信任官网中文技术岗。`data/sft_jd_quality/` 可以作为当前 JD SFT 候选主线，但它不是纯 strict：quality_weak 层会要求方向、学历/经验、技能、职责/要求长度，并清理“本科/硕士误入经验字段”等噪声。
 
 如果要把 `JD combined pool` 转成一条独立的 bootstrap SFT 数据线，而不覆盖当前严格高质量集：
 
@@ -495,6 +500,14 @@ bash scripts/data/build_jd_bootstrap_sft_dataset.sh
 ```bash
 bash scripts/data/build_jd_strict_plus_sft_dataset.sh
 ```
+
+如果要生成当前 5000 条 `JD quality` 数据线：
+
+```bash
+bash scripts/data/build_jd_quality_sft_dataset.sh --target-total 5000
+```
+
+这条线的用途是给后续小规模增量 SFT 准备候选 JD 数据。训练前仍建议抽样审计 `岗位方向 / 核心职责 / 必备技能 / 学历要求 / 经验要求`，尤其关注 quality_weak 层。
 
 如果要单独抽出“原文信息足够、但当前还能修”的 `JD repairable pool`：
 
