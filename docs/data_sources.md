@@ -398,6 +398,16 @@ bash scripts/data/rebuild_data_pipeline.sh
 4. 当前 `POST /api/social/position/search` 仍返回 `400 / 无效参数`
 5. 当前 `POST /api/position/searchPositionIdsByQuery` 仍返回 `param_can_not_be_null`
 6. 当前 probe 已自动覆盖多组搜索 payload 变体，用来区分“参数结构错误”和“缺少必填字段”，后续可以继续据此反推正式 crawler 的请求体。
+7. 当前已从 `https://talent.antgroup.com/off-campus` 前端页进一步确认：
+   - 社招路由：
+     - `/off-campus`
+     - `/off-campus-home`
+     - `/off-campus-position`
+   - 社招 chunk：
+     - `p__SocialRecruitment__SRList__index`
+     - `p__SocialRecruitment__Home__index`
+   - Tern 前端配置里 `PROD` 已明确把 `/api` 代理到：
+     - `https://hrcareersweb.antgroup.com`
 
 当前项目已新增探测器：
 

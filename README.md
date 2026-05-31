@@ -210,12 +210,20 @@ bash scripts/data/probe_ant_careers.sh \
 
 - 这个脚本当前不会直接抓取 JD。
 - 它会探测：
+  - `talent.antgroup.com/off-campus` 前端页与脚本
   - `/api/searchCondition/list`
   - `/api/searchCondition/listPositionGroup`
   - `/api/searchCondition/listTalentPlan`
   - `/api/social/position/search`
   - `/api/position/searchPositionIdsByQuery`
 - 当前已确认筛选枚举接口匿名可用，并能拿到 `totalPositions` 和 `技术类` 数量。
+- 已额外确认前端页暴露了社招路由和 chunk 线索：
+  - `/off-campus`
+  - `/off-campus-home`
+  - `/off-campus-position`
+  - `p__SocialRecruitment__SRList__index`
+  - `p__SocialRecruitment__Home__index`
+- 前端 Tern 配置已明确 `PROD` 下 `/api -> https://hrcareersweb.antgroup.com`。
 - probe 现在会自动尝试多组 `social/position/search` payload 变体，区分：
   - 参数结构错误（`400 Bad Request`）
   - 缺少必填字段（`param_can_not_be_null`）

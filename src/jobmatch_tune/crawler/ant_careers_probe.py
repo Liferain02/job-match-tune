@@ -10,17 +10,26 @@ import requests
 
 
 ANT_BASE_URL = "https://hrcareersweb.antgroup.com"
+ANT_TALENT_BASE_URL = "https://talent.antgroup.com"
 SEARCH_CONDITION_LIST_URL = f"{ANT_BASE_URL}/api/searchCondition/list"
 SEARCH_CONDITION_GROUP_URL = f"{ANT_BASE_URL}/api/searchCondition/listPositionGroup"
 SEARCH_CONDITION_TALENT_PLAN_URL = f"{ANT_BASE_URL}/api/searchCondition/listTalentPlan"
 SOCIAL_SEARCH_URL = f"{ANT_BASE_URL}/api/social/position/search"
 POSITION_IDS_URL = f"{ANT_BASE_URL}/api/position/searchPositionIdsByQuery"
 SCRIPT_SRC_RE = re.compile(r'<script[^>]+src="([^"]+)"', flags=re.IGNORECASE)
+TERN_CONFIG_RE = re.compile(
+    r'<script[^>]+type="tern-(?:site|app)-config"[^>]*>(.*?)</script>',
+    flags=re.IGNORECASE | re.DOTALL,
+)
+TALENT_ROUTE_RE = re.compile(r"https://talent\.antgroup\.com(/[A-Za-z0-9\-_/]+)")
+SOCIAL_CHUNK_RE = re.compile(r"p__SocialRecruitment__[A-Za-z0-9_]+")
 ENTRY_PATHS = ["/social-recruitment", "/social-recruit", "/social", "/"]
+TALENT_ENTRY_PATHS = ["/off-campus", "/campus", "/"]
 
 
 def build_session(timeout: float) -> requests.Session:
     session = requests.Session()
+    session.trust_env = False
     session.headers.update(
         {
             "User-Agent": (
@@ -101,6 +110,38 @@ def extract_script_urls(html: str) -> list[str]:
         if src not in urls:
             urls.append(src)
     return urls
+
+
+def extract_tern_site_config(html: str) -> dict[str, Any] | None:
+    match = TERN_CONFIG_RE.search(html)
+    if not match:
+        return None
+    raw = match.group(1).strip()
+    if not raw:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return {"raw": raw[:1000]}
+    return parsed if isinstance(parsed, dict) else {"raw": raw[:1000]}
+
+
+def extract_talent_route_hints(html: str) -> list[str]:
+    routes: list[str] = []
+    for match in TALENT_ROUTE_RE.finditer(html):
+        route = match.group(1)
+        if route not in routes:
+            routes.append(route)
+    return routes
+
+
+def extract_social_chunk_hints(html: str) -> list[str]:
+    hints: list[str] = []
+    for match in SOCIAL_CHUNK_RE.finditer(html):
+        hint = match.group(0)
+        if hint not in hints:
+            hints.append(hint)
+    return hints
 
 
 def select_candidate_bundle_urls(script_urls: list[str]) -> list[str]:
@@ -387,7 +428,7 @@ def probe_position_id_search(
     return results
 
 
-def probe_ant_site(timeout: float = 20.0) -> dict[str, Any]:
+def probe_ant_site(timeout: float = 20.0, *, include_api: bool = True) -> dict[str, Any]:
     session = build_session(timeout)
     entry_report: dict[str, Any] = {"entry_url": None, "status": "unavailable", "errors": []}
     html = ""
@@ -401,8 +442,23 @@ def probe_ant_site(timeout: float = 20.0) -> dict[str, Any]:
         entry_report["entry_url"] = entry_url
         entry_report["status"] = "ok"
         break
+    talent_entry_report: dict[str, Any] = {"entry_url": None, "status": "unavailable", "errors": []}
+    talent_html = ""
+    for path in TALENT_ENTRY_PATHS:
+        entry_url = f"{ANT_TALENT_BASE_URL}{path}"
+        try:
+            talent_html = fetch_html(session, entry_url)
+        except requests.RequestException as exc:
+            talent_entry_report["errors"].append({"url": entry_url, "error": str(exc)})
+            continue
+        talent_entry_report["entry_url"] = entry_url
+        talent_entry_report["status"] = "ok"
+        break
     script_urls = extract_script_urls(html) if html else []
     candidate_bundle_urls = select_candidate_bundle_urls(script_urls) if script_urls else []
+    talent_script_urls = extract_script_urls(talent_html) if talent_html else []
+    talent_candidate_bundle_urls = select_candidate_bundle_urls(talent_script_urls) if talent_script_urls else []
+    talent_tern_config = extract_tern_site_config(talent_html) if talent_html else None
     social_search_snippets: dict[str, list[str]] = {}
     position_id_snippets: dict[str, list[str]] = {}
     for url in candidate_bundle_urls[:4]:
@@ -418,36 +474,53 @@ def probe_ant_site(timeout: float = 20.0) -> dict[str, Any]:
             social_search_snippets[url] = social_hits[:3]
         if position_hits:
             position_id_snippets[url] = position_hits[:3]
-    condition_report = probe_conditions(session)
-    condition_payload = condition_report["list"].get("json") or {}
-    position_group_payload = condition_report["listPositionGroup"].get("json") or {}
-    talent_plan_payload = condition_report["listTalentPlan"].get("json") or {}
-    return {
+    report = {
         "base_url": ANT_BASE_URL,
         "entry_probe": entry_report,
         "script_url_count": len(script_urls),
         "script_urls": script_urls[:20],
         "candidate_bundle_urls": candidate_bundle_urls[:10],
-        "social_search_snippets": social_search_snippets,
-        "position_id_search_snippets": position_id_snippets,
-        "conditions": condition_report,
-        "social_search_probes": probe_social_search(
-            session,
-            condition_payload,
-            position_group_payload=position_group_payload,
-            talent_plan_payload=talent_plan_payload,
-        ),
-        "position_id_search_probes": probe_position_id_search(session, condition_payload),
+        "talent_base_url": ANT_TALENT_BASE_URL,
+        "talent_entry_probe": talent_entry_report,
+        "talent_script_url_count": len(talent_script_urls),
+        "talent_script_urls": talent_script_urls[:20],
+        "talent_candidate_bundle_urls": talent_candidate_bundle_urls[:10],
+        "talent_tern_site_config": talent_tern_config,
+        "talent_route_hints": extract_talent_route_hints(talent_html)[:20] if talent_html else [],
+        "talent_social_chunk_hints": extract_social_chunk_hints(talent_html)[:20] if talent_html else [],
     }
+    if not include_api:
+        report["api_probe_skipped"] = True
+        return report
+    condition_report = probe_conditions(session)
+    condition_payload = condition_report["list"].get("json") or {}
+    position_group_payload = condition_report["listPositionGroup"].get("json") or {}
+    talent_plan_payload = condition_report["listTalentPlan"].get("json") or {}
+    report.update(
+        {
+            "social_search_snippets": social_search_snippets,
+            "position_id_search_snippets": position_id_snippets,
+            "conditions": condition_report,
+            "social_search_probes": probe_social_search(
+                session,
+                condition_payload,
+                position_group_payload=position_group_payload,
+                talent_plan_payload=talent_plan_payload,
+            ),
+            "position_id_search_probes": probe_position_id_search(session, condition_payload),
+        }
+    )
+    return report
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", required=True)
     parser.add_argument("--timeout", type=float, default=20.0)
+    parser.add_argument("--page-only", action="store_true")
     args = parser.parse_args()
 
-    report = probe_ant_site(timeout=args.timeout)
+    report = probe_ant_site(timeout=args.timeout, include_api=not args.page_only)
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")

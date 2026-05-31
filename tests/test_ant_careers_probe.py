@@ -7,6 +7,9 @@ from jobmatch_tune.crawler.ant_careers_probe import (
     _extract_id_list,
     extract_endpoint_snippets,
     extract_script_urls,
+    extract_social_chunk_hints,
+    extract_talent_route_hints,
+    extract_tern_site_config,
     select_candidate_bundle_urls,
 )
 
@@ -110,3 +113,31 @@ def test_build_position_id_search_variants_uses_discovered_values() -> None:
     assert variants[3]["payload"]["category"] == "11"
     assert variants[4]["payload"]["dept"] == "19612"
     assert variants[5]["payload"]["workCity"] == "330100"
+
+
+def test_extract_tern_site_config_parses_json() -> None:
+    html = """
+    <html><head>
+    <script type="tern-app-config">{"presets":[{"props":{"hooksJSUrl":"https://a.com/hook.js"}}]}</script>
+    </head></html>
+    """
+    parsed = extract_tern_site_config(html)
+    assert parsed is not None
+    assert parsed["presets"][0]["props"]["hooksJSUrl"] == "https://a.com/hook.js"
+
+
+def test_extract_talent_route_hints_returns_unique_routes() -> None:
+    html = """
+    <a href="https://talent.antgroup.com/off-campus"></a>
+    <a href="https://talent.antgroup.com/off-campus-home"></a>
+    <a href="https://talent.antgroup.com/off-campus"></a>
+    """
+    assert extract_talent_route_hints(html) == ["/off-campus", "/off-campus-home"]
+
+
+def test_extract_social_chunk_hints_returns_unique_chunk_names() -> None:
+    html = "p__SocialRecruitment__SRList__index xxx p__SocialRecruitment__Home__index xxx p__SocialRecruitment__SRList__index"
+    assert extract_social_chunk_hints(html) == [
+        "p__SocialRecruitment__SRList__index",
+        "p__SocialRecruitment__Home__index",
+    ]
