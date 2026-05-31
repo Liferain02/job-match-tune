@@ -255,6 +255,22 @@ bash scripts/data/probe_xiaohongshu_careers.sh \
   - `/api/data`、`/api/bizInUrl` 这类候选接口的返回
 - 适合用来判断小红书招聘站点是否存在可继续恢复的职位列表接口。
 
+如需探测哔哩哔哩招聘官网公开接口线索：
+
+```bash
+bash scripts/data/probe_bilibili_careers.sh \
+  outputs/eval_reports/bilibili_probe.json
+```
+
+说明：
+
+- 这个脚本当前不会直接抓取 JD。
+- 它会探测：
+  - 招聘页 bundle URL
+  - bundle 中暴露的 `/api/...` 路径
+  - 与 `position / resume / record / analysis / deliver / login / user / token` 相关的候选接口
+- 适合用来判断哔哩哔哩招聘站点是否存在可继续恢复的匿名职位接口。
+
 如需一键刷新腾讯 + 百度 + 京东 + 携程 + 小米 + 美团 + 滴滴 + Moka 并重建下游：
 
 ```bash

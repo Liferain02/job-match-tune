@@ -466,6 +466,36 @@ bash scripts/data/probe_xiaohongshu_careers.sh \
 1. 现阶段它仍然是 **probe 源**，不是正式 crawler 源。
 2. 但相比拼多多校园招聘，这条线已经有更明确的候选数据接口，值得后续继续深挖。
 
+## 哔哩哔哩招聘
+
+当前结论：**站点可访问，bundle 中可恢复出多条 `/api/...` 路径，但还处于接口画像阶段，尚未恢复出可直接抓职位列表的匿名接口。**
+
+已确认：
+
+1. 公开站点：`https://jobs.bilibili.com/social`
+2. 页面可匿名访问，且前端 bundle 明确暴露了多条 `/api/...` 路径。
+3. 当前 probe 会重点试探带以下语义的候选接口：
+   - `position`
+   - `resume`
+   - `record`
+   - `analysis`
+   - `deliver`
+   - `login`
+   - `user`
+   - `token`
+
+当前项目已新增探测器：
+
+```bash
+bash scripts/data/probe_bilibili_careers.sh \
+  outputs/eval_reports/bilibili_probe.json
+```
+
+说明：
+
+1. 现阶段它仍然是 **probe 源**，不是正式 crawler 源。
+2. 这条线的价值在于：相比只看 HTML，可以系统恢复前端 bundle 中的真实 API 画像。
+
 ## 拼多多校园招聘
 
 当前结论：**站点可访问，但目前还只是校园招聘 Next.js 探测阶段，尚未恢复出职位列表接口。**
