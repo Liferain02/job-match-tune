@@ -7,6 +7,7 @@ from jobmatch_tune.eval.report_data_readiness import (
     build_multitask_report,
     build_report,
     build_task_report,
+    _float_or_default,
 )
 
 
@@ -50,6 +51,11 @@ def test_build_report_summarizes_not_ready_tasks():
     assert "match" in report["summary"]["not_ready_tasks"]
     assert report["tasks"]["jd"]["quality_profile"]["tier_counts"] == {"strict": 1}
     assert report["tasks"]["jd"]["risk_ready"] is True
+
+
+def test_zero_high_risk_rate_stays_zero():
+    assert _float_or_default(0.0, 1.0) == 0.0
+    assert _float_or_default(None, 1.0) == 1.0
 
 
 def _sample(row_id: str) -> dict:

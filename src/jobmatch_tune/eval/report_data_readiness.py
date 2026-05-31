@@ -66,6 +66,15 @@ def read_json_file(path: str) -> dict[str, Any]:
     return json.loads(file_path.read_text(encoding="utf-8"))
 
 
+def _float_or_default(value: Any, default: float) -> float:
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def _empty(value: Any) -> bool:
     return value in (None, "", [], {})
 
@@ -247,7 +256,7 @@ def build_report() -> dict[str, object]:
         tasks["jd"]["quality_profile"] = jd_quality_profile
     jd_risk_report = read_json_file("outputs/eval_reports/jd_quality_risk_report.json")
     if jd_risk_report:
-        high_risk_rate = float(jd_risk_report.get("high_risk_rate") or 1.0)
+        high_risk_rate = _float_or_default(jd_risk_report.get("high_risk_rate"), 1.0)
         tasks["jd"]["risk_report"] = jd_risk_report
         tasks["jd"]["risk_ready"] = high_risk_rate <= MAX_JD_HIGH_RISK_RATE
         tasks["jd"]["ready_for_sft"] = bool(tasks["jd"]["ready_for_sft"] and tasks["jd"]["risk_ready"])

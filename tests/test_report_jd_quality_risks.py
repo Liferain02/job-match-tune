@@ -1,4 +1,5 @@
-from jobmatch_tune.eval.report_jd_quality_risks import build_risk_report, extract_title, risk_reasons, risk_score
+from jobmatch_tune.dataset.jd_quality_risk import extract_title, risk_reasons, risk_score
+from jobmatch_tune.eval.report_jd_quality_risks import build_risk_report
 
 
 def _row(title: str, assistant: str, tier: str = "quality_weak") -> dict:

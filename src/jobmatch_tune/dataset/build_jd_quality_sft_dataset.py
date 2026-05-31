@@ -19,6 +19,7 @@ from jobmatch_tune.dataset.build_sft_dataset import (
     is_high_trust_strong_row,
     split_samples,
 )
+from jobmatch_tune.dataset.jd_quality_risk import HIGH_RISK_THRESHOLD, is_high_risk
 from jobmatch_tune.preprocess.normalize_jd import normalize_jd_row
 from jobmatch_tune.utils.io import write_text
 from jobmatch_tune.utils.io import read_jsonl, write_jsonl
@@ -64,10 +65,16 @@ def _append_unique(
     seen_ids: set[str],
     *,
     limit: int,
+    max_risk_score: int | None = None,
 ) -> None:
     for row in rows:
         row_id = _row_id(row)
         if not row_id or row_id in seen_ids:
+            continue
+        if max_risk_score is not None and is_high_risk(
+            build_jd_parse_sample(row),
+            threshold=max_risk_score + 1,
+        ):
             continue
         target.append(row)
         seen_ids.add(row_id)
@@ -201,6 +208,7 @@ def build_quality_rows(
     schema: dict[str, Any],
     target_total: int,
     seed: int,
+    max_risk_score: int | None = HIGH_RISK_THRESHOLD - 1,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     selected: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
@@ -210,7 +218,7 @@ def build_quality_rows(
         "strict",
         "high_trust_zh_tech_structured",
     )
-    _append_unique(selected, strict_selected, seen_ids, limit=target_total)
+    _append_unique(selected, strict_selected, seen_ids, limit=target_total, max_risk_score=max_risk_score)
 
     stats = {"strict": len(selected), "strict_plus": 0, "quality_weak": 0, "bootstrap": 0}
     if len(selected) >= target_total:
@@ -224,7 +232,7 @@ def build_quality_rows(
         "candidate_pool_structured_direction_education",
     )
     before = len(selected)
-    _append_unique(selected, strict_plus_rows, seen_ids, limit=target_total)
+    _append_unique(selected, strict_plus_rows, seen_ids, limit=target_total, max_risk_score=max_risk_score)
     stats["strict_plus"] = len(selected) - before
     if len(selected) >= target_total:
         return selected[:target_total], stats
@@ -238,7 +246,7 @@ def build_quality_rows(
     rng = random.Random(seed)
     rng.shuffle(quality_weak_rows)
     before = len(selected)
-    _append_unique(selected, quality_weak_rows, seen_ids, limit=target_total)
+    _append_unique(selected, quality_weak_rows, seen_ids, limit=target_total, max_risk_score=max_risk_score)
     stats["quality_weak"] = len(selected) - before
     if len(selected) >= target_total:
         return selected[:target_total], stats
@@ -251,7 +259,7 @@ def build_quality_rows(
     )
     rng.shuffle(bootstrap_rows)
     before = len(selected)
-    _append_unique(selected, bootstrap_rows, seen_ids, limit=target_total)
+    _append_unique(selected, bootstrap_rows, seen_ids, limit=target_total, max_risk_score=max_risk_score)
     stats["bootstrap"] = len(selected) - before
     return selected[:target_total], stats
 
@@ -299,6 +307,7 @@ def main() -> None:
     parser.add_argument("--out-dir", default="data/sft_jd_quality")
     parser.add_argument("--profile-out", default="outputs/eval_reports/jd_quality_profile.json")
     parser.add_argument("--target-total", type=int, default=5000)
+    parser.add_argument("--max-risk-score", type=int, default=HIGH_RISK_THRESHOLD - 1)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--train-ratio", type=float, default=0.8)
     parser.add_argument("--valid-ratio", type=float, default=0.1)
@@ -313,6 +322,7 @@ def main() -> None:
         schema=schema,
         target_total=args.target_total,
         seed=args.seed,
+        max_risk_score=args.max_risk_score,
     )
     if len(quality_rows) < args.target_total:
         raise SystemExit(
