@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -10,8 +11,8 @@ from jobmatch_tune.utils.io import read_jsonl, write_text
 
 READINESS_THRESHOLDS = {
     "jd": {"train": 4000, "valid": 500, "test": 500, "pool": 8000},
-    "resume": {"train": 2000, "valid": 200, "test": 200, "pool": 3000},
-    "match": {"train": 500, "valid": 100, "test": 100, "pool": 1000},
+    "resume": {"train": 10000, "valid": 1000, "test": 1000, "pool": 3000},
+    "match": {"train": 1500, "valid": 200, "test": 200, "pool": 2000},
 }
 
 REQUIRED_FIELDS = {
@@ -62,6 +63,9 @@ def audit_sft_files(task_name: str, paths: list[str]) -> dict[str, Any]:
     invalid_json = 0
     duplicate_ids = 0
     ids: set[str] = set()
+    content_seen: dict[str, str] = {}
+    cross_split_duplicate_hashes = 0
+    split_counts: dict[str, int] = {}
     empty_counts = {field: 0 for field in REQUIRED_FIELDS[task_name]}
     task_types: dict[str, int] = {}
 
@@ -69,12 +73,14 @@ def audit_sft_files(task_name: str, paths: list[str]) -> dict[str, Any]:
         file_path = Path(path)
         if not file_path.exists():
             continue
+        split_name = file_path.stem
         with file_path.open("r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
                     continue
                 total += 1
+                split_counts[split_name] = split_counts.get(split_name, 0) + 1
                 try:
                     row = json.loads(line)
                     row_id = str(row.get("id") or "")
@@ -83,7 +89,15 @@ def audit_sft_files(task_name: str, paths: list[str]) -> dict[str, Any]:
                     ids.add(row_id)
                     task_type = str(row.get("task_type") or "")
                     task_types[task_type] = task_types.get(task_type, 0) + 1
+                    messages = row["messages"]
+                    user_text = str(messages[1].get("content") or "")
                     assistant = json.loads(row["messages"][-1]["content"])
+                    assistant_text = json.dumps(assistant, ensure_ascii=False, sort_keys=True)
+                    content_hash = hashlib.sha1(f"{user_text}\n---\n{assistant_text}".encode("utf-8")).hexdigest()
+                    previous_split = content_seen.get(content_hash)
+                    if previous_split and previous_split != split_name:
+                        cross_split_duplicate_hashes += 1
+                    content_seen.setdefault(content_hash, split_name)
                 except Exception:
                     invalid_json += 1
                     continue
@@ -103,6 +117,8 @@ def audit_sft_files(task_name: str, paths: list[str]) -> dict[str, Any]:
         "total": total,
         "invalid_json": invalid_json,
         "duplicate_ids": duplicate_ids,
+        "cross_split_duplicate_hashes": cross_split_duplicate_hashes,
+        "split_counts": split_counts,
         "task_types": task_types,
         "empty_counts": empty_counts,
         "empty_rates": empty_rates,
@@ -130,7 +146,11 @@ def build_task_report(
         and test_count >= thresholds["test"]
         and pool_count >= thresholds["pool"]
     )
-    format_ready = audit["invalid_json"] == 0 and audit["duplicate_ids"] == 0
+    format_ready = (
+        audit["invalid_json"] == 0
+        and audit["duplicate_ids"] == 0
+        and audit["cross_split_duplicate_hashes"] == 0
+    )
     ready = count_ready and format_ready and bool(audit["field_quality_ok"])
     return {
         "task": task_name,

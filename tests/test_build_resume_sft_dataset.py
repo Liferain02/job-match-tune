@@ -1,6 +1,7 @@
 from jobmatch_tune.dataset.build_resume_sft_dataset import (
     VARIANT_BUILDERS,
     build_resume_sample,
+    deduplicate_samples,
     split_grouped_samples,
 )
 
@@ -52,3 +53,13 @@ def test_split_grouped_samples_keeps_groups_together():
     assert memberships["a"] in ({"train"}, {"valid"}, {"test"})
     assert memberships["b"] in ({"train"}, {"valid"}, {"test"})
     assert memberships["c"] in ({"train"}, {"valid"}, {"test"})
+
+
+def test_deduplicate_samples_removes_exact_content_duplicates():
+    row = _row()
+    first = build_resume_sample(row, "original", row["text"])
+    second = build_resume_sample({**row, "id": "resume_eval_002"}, "original", row["text"])
+
+    deduped = deduplicate_samples([first, second])
+
+    assert len(deduped) == 1

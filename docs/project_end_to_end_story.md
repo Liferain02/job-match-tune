@@ -470,9 +470,9 @@ JD 解析 -> 简历解析 -> JD 和简历匹配度分析
 
 当前简历 SFT 数据：
 
-- `data/sft_resume/train.jsonl`: `2560`
-- `data/sft_resume/valid.jsonl`: `320`
-- `data/sft_resume/test.jsonl`: `320`
+- `data/sft_resume/train.jsonl`: `38408`
+- `data/sft_resume/valid.jsonl`: `4850`
+- `data/sft_resume/test.jsonl`: `4890`
 
 ---
 
@@ -510,9 +510,9 @@ JD 解析 -> 简历解析 -> JD 和简历匹配度分析
 
 当前 match SFT 数据：
 
-- `data/sft_match/train.jsonl`: `929`
-- `data/sft_match/valid.jsonl`: `132`
-- `data/sft_match/test.jsonl`: `115`
+- `data/sft_match/train.jsonl`: `1799`
+- `data/sft_match/valid.jsonl`: `228`
+- `data/sft_match/test.jsonl`: `229`
 
 ---
 
@@ -663,14 +663,15 @@ bash scripts/data/report_data_readiness.sh
 | 任务 | train | valid | test | combined pool |
 | --- | ---: | ---: | ---: | ---: |
 | JD | 4000 | 500 | 500 | 37796 |
-| 简历 | 2560 | 320 | 320 | 3137 |
-| 匹配 | 929 | 132 | 115 | 1176 |
+| 简历 | 38408 | 4850 | 4890 | 3137 |
+| 匹配 | 1799 | 228 | 229 | 2256 |
 
 readiness 当前检查：
 
 - 数量是否达到门槛
 - assistant 输出是否为合法 JSON
 - ID 是否重复
+- `train / valid / test` 之间是否存在内容级重复
 - 关键字段空值率是否超过阈值
 
 JD 当前字段空值率：
@@ -694,8 +695,8 @@ JD 当前字段空值率：
 1. 从多个中文招聘官网和公开数据集构建 JD 原始池。
 2. 对 JD 做清洗、去重、规则抽取和分层筛选。
 3. 构建 5000 条 JD 质量 SFT 数据。
-4. 构建 3200 条简历解析 SFT 数据。
-5. 构建 1176 条匹配分析 SFT 数据。
+4. 构建 48148 条简历解析 SFT 数据。
+5. 构建 2256 条匹配分析 SFT 数据。
 6. 对三条数据线做 readiness 审计。
 7. 在 14B QLoRA 路线上继续训练。
 8. 通过 API 和前端提供可演示能力。
@@ -716,4 +717,3 @@ JD 当前字段空值率：
 这个项目到目前为止的核心经验是：
 
 > SFT 的关键不是尽快开训，而是先把任务口径、数据分层、字段质量和评估闭环做稳。数据不稳时，训练只会放大噪声；数据稳定后，小规模增量训练才有意义。
-

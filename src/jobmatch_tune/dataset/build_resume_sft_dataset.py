@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import random
 from collections import defaultdict
@@ -331,6 +332,24 @@ def build_resume_sample(row: dict[str, Any], variant_name: str, rendered_text: s
     }
 
 
+def _sample_content_hash(sample: dict[str, Any]) -> str:
+    user_text = str(sample["messages"][1].get("content") or "")
+    assistant_text = str(sample["messages"][-1].get("content") or "")
+    return hashlib.sha1(f"{user_text}\n---\n{assistant_text}".encode("utf-8")).hexdigest()
+
+
+def deduplicate_samples(samples: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen: set[str] = set()
+    deduped = []
+    for sample in samples:
+        key = _sample_content_hash(sample)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(sample)
+    return deduped
+
+
 def split_grouped_samples(
     samples: list[dict[str, Any]], train_ratio: float, valid_ratio: float, seed: int
 ) -> dict[str, list[dict[str, Any]]]:
@@ -376,6 +395,7 @@ def main() -> None:
             if not rendered_text:
                 continue
             samples.append(build_resume_sample(row, variant_name, rendered_text))
+    samples = deduplicate_samples(samples)
 
     splits = split_grouped_samples(samples, args.train_ratio, args.valid_ratio, args.seed)
     for split, split_rows in splits.items():

@@ -19,6 +19,8 @@
 
 项目从 0 到当前版本的完整来龙去脉见 [docs/project_end_to_end_story.md](/share/home/lifr/workspace/code/job-match-tune/docs/project_end_to_end_story.md)。
 
+数据处理参考开源 SFT 项目的对照和本项目落地项见 [docs/open_source_data_practices.md](/share/home/lifr/workspace/code/job-match-tune/docs/open_source_data_practices.md)。
+
 核心目录：
 
 - `src/jobmatch_tune/`
@@ -430,15 +432,15 @@ bash scripts/data/build_current_data_pools.sh
 - `data/eval/resume_train_pool_from_sft.jsonl`: `3200`
 - `data/eval/resume_train_pool_bootstrap.jsonl`: `2600`
 - `data/eval/resume_train_pool_combined.jsonl`: `3137`
-- `data/eval/match_train_pool_combined.jsonl`: `1176`
+- `data/eval/match_train_pool_combined.jsonl`: `2256`
 
 当前统一就绪报告结论：
 
 - `JD`: `data/sft_jd_quality/` 已达到当前训练门槛，规模为 `4000 / 500 / 500`
-- `resume`: 已达到当前训练门槛，规模为 `2560 / 320 / 320`
-- `match`: 已达到当前训练门槛，规模为 `929 / 132 / 115`
+- `resume`: 已达到当前训练门槛，规模为 `38408 / 4850 / 4890`
+- `match`: 已达到当前训练门槛，规模为 `1799 / 228 / 229`
 
-也就是说，从数量、JSON 合法性、重复 ID 和字段空值率这几个工程门槛看，当前已经具备做一轮小规模增量 SFT 的条件。训练前仍建议抽样复核 `data/sft_jd_quality/` 的 `quality_weak` 层，因为这部分不是纯官网 strict 样本。
+也就是说，从数量、JSON 合法性、重复 ID、跨 split 内容去重和字段空值率这几个工程门槛看，当前已经具备做一轮小规模增量 SFT 的条件。训练前仍建议抽样复核 `data/sft_jd_quality/` 的 `quality_weak` 层，因为这部分不是纯官网 strict 样本。
 
 如果要看三个池子现在的来源和分布，不只看总数：
 
@@ -463,12 +465,12 @@ bash scripts/data/report_pool_profiles.sh
 - `data/sft_jd_bootstrap/train.jsonl`: `1371`
 - `data/sft_jd_bootstrap/valid.jsonl`: `171`
 - `data/sft_jd_bootstrap/test.jsonl`: `172`
-- `data/sft_resume/train.jsonl`: `2560`
-- `data/sft_resume/valid.jsonl`: `320`
-- `data/sft_resume/test.jsonl`: `320`
-- `data/sft_match/train.jsonl`: `929`
-- `data/sft_match/valid.jsonl`: `132`
-- `data/sft_match/test.jsonl`: `115`
+- `data/sft_resume/train.jsonl`: `38408`
+- `data/sft_resume/valid.jsonl`: `4850`
+- `data/sft_resume/test.jsonl`: `4890`
+- `data/sft_match/train.jsonl`: `1799`
+- `data/sft_match/valid.jsonl`: `228`
+- `data/sft_match/test.jsonl`: `229`
 
 当前这条链路会导入三类补充源：
 
