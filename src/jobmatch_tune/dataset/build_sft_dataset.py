@@ -312,6 +312,7 @@ def build_jd_parse_sample(row: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": f"{row['id']}_jd_parse",
         "task_type": "jd_parse",
+        "meta": row.get("meta") or {},
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": jd_parse_prompt(compose_jd_input_text(row))},

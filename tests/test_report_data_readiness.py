@@ -40,9 +40,12 @@ def test_build_report_summarizes_not_ready_tasks():
                 "cross_split_duplicate_hashes": 0,
                 "field_quality_ok": True,
             }
-            report = build_report()
+            with patch("jobmatch_tune.eval.report_data_readiness.read_json_file") as read_json_file:
+                read_json_file.return_value = {"tier_counts": {"strict": 1}}
+                report = build_report()
     assert report["summary"]["all_ready_for_training"] is False
     assert "match" in report["summary"]["not_ready_tasks"]
+    assert report["tasks"]["jd"]["quality_profile"]["tier_counts"] == {"strict": 1}
 
 
 def _sample(row_id: str) -> dict:

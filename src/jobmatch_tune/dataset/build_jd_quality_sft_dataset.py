@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import json
+from collections import Counter
 import random
 from pathlib import Path
 from typing import Any
@@ -18,6 +20,7 @@ from jobmatch_tune.dataset.build_sft_dataset import (
     split_samples,
 )
 from jobmatch_tune.preprocess.normalize_jd import normalize_jd_row
+from jobmatch_tune.utils.io import write_text
 from jobmatch_tune.utils.io import read_jsonl, write_jsonl
 
 
@@ -70,6 +73,19 @@ def _append_unique(
         seen_ids.add(row_id)
         if len(target) >= limit:
             return
+
+
+def _with_quality_meta(row: dict[str, Any], tier: str, reason: str) -> dict[str, Any]:
+    row = dict(row)
+    meta = dict(row.get("meta") or {})
+    meta["quality_tier"] = tier
+    meta["quality_reason"] = reason
+    row["meta"] = meta
+    return row
+
+
+def _tag_rows(rows: list[dict[str, Any]], tier: str, reason: str) -> list[dict[str, Any]]:
+    return [_with_quality_meta(row, tier, reason) for row in rows]
 
 
 def _clean_experience(value: Any) -> str:
@@ -168,7 +184,13 @@ def build_quality_weak_rows(rows: list[dict[str, Any]], schema: dict[str, Any]) 
         )
         normalized = _sanitize_normalized_row(normalized)
         if is_quality_weak_row(normalized):
-            built.append(normalized)
+            built.append(
+                _with_quality_meta(
+                    normalized,
+                    "quality_weak",
+                    "weak_source_direction_skill_education_or_experience",
+                )
+            )
     return built
 
 
@@ -183,6 +205,11 @@ def build_quality_rows(
     selected: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
     strict_selected = [row for row in strict_rows if is_high_trust_strong_row(row)]
+    strict_selected = _tag_rows(
+        strict_selected,
+        "strict",
+        "high_trust_zh_tech_structured",
+    )
     _append_unique(selected, strict_selected, seen_ids, limit=target_total)
 
     stats = {"strict": len(selected), "strict_plus": 0, "quality_weak": 0, "bootstrap": 0}
@@ -191,6 +218,11 @@ def build_quality_rows(
 
     strict_plus_rows = build_strict_plus_rows(candidate_rows, schema)
     strict_plus_rows = [_sanitize_normalized_row(row) for row in strict_plus_rows]
+    strict_plus_rows = _tag_rows(
+        strict_plus_rows,
+        "strict_plus",
+        "candidate_pool_structured_direction_education",
+    )
     before = len(selected)
     _append_unique(selected, strict_plus_rows, seen_ids, limit=target_total)
     stats["strict_plus"] = len(selected) - before
@@ -198,6 +230,11 @@ def build_quality_rows(
         return selected[:target_total], stats
 
     quality_weak_rows = build_quality_weak_rows(candidate_rows, schema)
+    quality_weak_rows = _tag_rows(
+        quality_weak_rows,
+        "quality_weak",
+        "weak_source_direction_skill_education_or_experience",
+    )
     rng = random.Random(seed)
     rng.shuffle(quality_weak_rows)
     before = len(selected)
@@ -207,11 +244,51 @@ def build_quality_rows(
         return selected[:target_total], stats
 
     bootstrap_rows = build_bootstrap_rows(candidate_rows, schema)
+    bootstrap_rows = _tag_rows(
+        bootstrap_rows,
+        "bootstrap",
+        "bootstrap_repairable_structured",
+    )
     rng.shuffle(bootstrap_rows)
     before = len(selected)
     _append_unique(selected, bootstrap_rows, seen_ids, limit=target_total)
     stats["bootstrap"] = len(selected) - before
     return selected[:target_total], stats
+
+
+def build_quality_profile(rows: list[dict[str, Any]], stats: dict[str, int]) -> dict[str, Any]:
+    tier_counts = Counter()
+    reason_counts = Counter()
+    source_counts = Counter()
+    direction_counts = Counter()
+    empty_counts = Counter()
+    for row in rows:
+        meta = row.get("meta") or {}
+        labels = row.get("labels") or {}
+        tier_counts[str(meta.get("quality_tier") or "unknown")] += 1
+        reason_counts[str(meta.get("quality_reason") or "unknown")] += 1
+        source_counts[str(row.get("source") or "unknown")] += 1
+        direction_counts[str(labels.get("岗位方向") or "unknown")] += 1
+        assistant = json.loads(build_jd_parse_sample(row)["messages"][-1]["content"])
+        if not assistant.get("核心职责"):
+            empty_counts["核心职责"] += 1
+        if not assistant.get("必备技能"):
+            empty_counts["必备技能"] += 1
+        if not assistant.get("学历要求"):
+            empty_counts["学历要求"] += 1
+        if not assistant.get("经验要求"):
+            empty_counts["经验要求"] += 1
+    total = len(rows)
+    return {
+        "total": total,
+        "stage_stats": stats,
+        "tier_counts": dict(tier_counts),
+        "reason_counts": dict(reason_counts),
+        "top_sources": source_counts.most_common(20),
+        "direction_counts": dict(direction_counts),
+        "empty_counts": dict(empty_counts),
+        "empty_rates": {key: round(value / total, 4) for key, value in empty_counts.items()},
+    }
 
 
 def main() -> None:
@@ -220,6 +297,7 @@ def main() -> None:
     parser.add_argument("--candidate-input", default="data/eval/jd_train_pool_combined.jsonl")
     parser.add_argument("--schema", default="configs/label_schema.yaml")
     parser.add_argument("--out-dir", default="data/sft_jd_quality")
+    parser.add_argument("--profile-out", default="outputs/eval_reports/jd_quality_profile.json")
     parser.add_argument("--target-total", type=int, default=5000)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--train-ratio", type=float, default=0.8)
@@ -249,6 +327,9 @@ def main() -> None:
     for split, split_rows in splits.items():
         write_jsonl(str(out_dir / f"{split}.jsonl"), split_rows)
         print(f"wrote {len(split_rows)} {split} samples")
+    profile = build_quality_profile(quality_rows, stats)
+    write_text(args.profile_out, json.dumps(profile, ensure_ascii=False, indent=2) + "\n")
+    print(f"wrote quality profile to {args.profile_out}")
     print(f"stage_stats={stats}")
 
 

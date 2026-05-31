@@ -492,6 +492,17 @@ bash scripts/data/build_multitask_sft_dataset.sh
 bash scripts/train/train_qwen3_14b_multitask_sft.sh
 ```
 
+JD quality 现在会同时输出质量画像，便于按层级审计：
+
+- [outputs/eval_reports/jd_quality_profile.json](/share/home/lifr/workspace/code/job-match-tune/outputs/eval_reports/jd_quality_profile.json)
+- [data/eval/jd_quality_review_seed.jsonl](/share/home/lifr/workspace/code/job-match-tune/data/eval/jd_quality_review_seed.jsonl)
+
+重建 JD quality 人工复核种子集：
+
+```bash
+bash scripts/data/build_jd_quality_review_set.sh --per-tier 20
+```
+
 当前这条链路会导入三类补充源：
 
 - GitHub `jhcoco/bosszp` CSV

@@ -57,6 +57,13 @@ def count_jsonl(path: str) -> int:
     return sum(1 for _ in read_jsonl(file_path))
 
 
+def read_json_file(path: str) -> dict[str, Any]:
+    file_path = Path(path)
+    if not file_path.exists():
+        return {}
+    return json.loads(file_path.read_text(encoding="utf-8"))
+
+
 def _empty(value: Any) -> bool:
     return value in (None, "", [], {})
 
@@ -233,6 +240,9 @@ def build_report() -> dict[str, object]:
             "data/sft_multitask/valid.jsonl",
         ),
     }
+    jd_quality_profile = read_json_file("outputs/eval_reports/jd_quality_profile.json")
+    if jd_quality_profile:
+        tasks["jd"]["quality_profile"] = jd_quality_profile
     return {
         "summary": {
             "all_ready_for_training": all(task["ready_for_sft"] for task in tasks.values()),

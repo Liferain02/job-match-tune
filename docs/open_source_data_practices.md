@@ -162,6 +162,33 @@ resume 扩量后达到 `48148` 条，如果直接和 JD、match 混合训练，�
 
 这样既保留了 resume 扩量带来的格式多样性，又避免训练时被 resume 单任务压过。
 
+### 2.5 JD quality 可解释质量画像
+
+参考 Data-Juicer / DataFlow 的可审计数据处理思路，JD quality 现在不只输出训练样本，还输出质量画像：
+
+- [outputs/eval_reports/jd_quality_profile.json](/share/home/lifr/workspace/code/job-match-tune/outputs/eval_reports/jd_quality_profile.json)
+
+画像包含：
+
+- `quality_tier`
+- `quality_reason`
+- 来源分布
+- 岗位方向分布
+- 字段空值率
+
+当前 JD quality 分层：
+
+- `strict`: `3331`
+- `strict_plus`: `275`
+- `quality_weak`: `1394`
+- `bootstrap`: `0`
+
+同时新增按层级抽样的人工复核种子集：
+
+- [data/eval/jd_quality_review_seed.jsonl](/share/home/lifr/workspace/code/job-match-tune/data/eval/jd_quality_review_seed.jsonl)
+
+默认每个层级抽 `20` 条，共 `60` 条，便于重点复核 `quality_weak`。
+
 ## 3. 当前仍应继续优化的方向
 
 1. JD 数据继续补高信任中文官网源，而不是盲目扩大弱源。

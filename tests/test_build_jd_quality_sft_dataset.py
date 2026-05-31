@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 from jobmatch_tune.dataset.build_jd_quality_sft_dataset import (
+    build_quality_profile,
     build_quality_rows,
     build_quality_weak_rows,
 )
@@ -69,6 +70,7 @@ def test_build_quality_rows_prioritizes_strict_then_enhanced() -> None:
     assert len(rows) == 3
     assert stats["strict"] == 2
     assert stats["strict_plus"] >= 1
+    assert {row["meta"]["quality_tier"] for row in rows} >= {"strict", "strict_plus"}
 
 
 def test_build_quality_weak_rows_sanitizes_degree_only_experience_and_repairs_direction() -> None:
@@ -88,5 +90,16 @@ def test_build_quality_weak_rows_sanitizes_degree_only_experience_and_repairs_di
 
     sample = build_jd_parse_sample(rows[0])
     assistant = json.loads(sample["messages"][-1]["content"])
+    assert sample["meta"]["quality_tier"] == "quality_weak"
     assert assistant["岗位方向"] == "后端开发"
     assert assistant["经验要求"] == ""
+
+
+def test_build_quality_profile_reports_tiers_and_empty_rates() -> None:
+    row = _strict_row("s1")
+    row["meta"] = {"quality_tier": "strict", "quality_reason": "high_trust"}
+    profile = build_quality_profile([row], {"strict": 1})
+
+    assert profile["total"] == 1
+    assert profile["tier_counts"] == {"strict": 1}
+    assert profile["reason_counts"] == {"high_trust": 1}
