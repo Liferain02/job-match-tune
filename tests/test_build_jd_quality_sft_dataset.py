@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 from jobmatch_tune.dataset.build_jd_quality_sft_dataset import (
+    _with_quality_score_meta,
     build_quality_profile,
     build_quality_rows,
     build_quality_weak_rows,
@@ -98,8 +99,23 @@ def test_build_quality_weak_rows_sanitizes_degree_only_experience_and_repairs_di
 def test_build_quality_profile_reports_tiers_and_empty_rates() -> None:
     row = _strict_row("s1")
     row["meta"] = {"quality_tier": "strict", "quality_reason": "high_trust"}
+    row = _with_quality_score_meta(row)
     profile = build_quality_profile([row], {"strict": 1})
 
     assert profile["total"] == 1
     assert profile["tier_counts"] == {"strict": 1}
     assert profile["reason_counts"] == {"high_trust": 1}
+    assert profile["quality_score_avg"] > 0
+    assert profile["risk_score_counts"]
+
+
+def test_quality_score_meta_tracks_risk_reasons() -> None:
+    row = _strict_row("s1")
+    row["meta"] = {"quality_tier": "strict", "quality_reason": "high_trust"}
+    row["sections"]["responsibilities"] = "负责后端系统开发。" * 260
+
+    scored = _with_quality_score_meta(row)
+
+    assert scored["meta"]["quality_risk_score"] >= 1
+    assert "oversized_single_responsibility" in scored["meta"]["quality_risk_reasons"]
+    assert scored["meta"]["quality_score"] < 100

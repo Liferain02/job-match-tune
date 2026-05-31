@@ -77,9 +77,8 @@ Data-Juicer 和 DataFlow 的共同点是把数据处理拆成可组合 operator�
 
 后续可以继续做：
 
-- 把 JD quality gate 的通过/拒绝原因写成显式 reason code。
 - 输出 reject samples，方便人工审计。
-- 给每条样本增加 `quality_tier` 和 `quality_score`。
+- 继续把 `quality_score` 和人工抽检结果闭环到采样权重中。
 
 ## 2. 本轮已经落地的优化
 
@@ -172,16 +171,26 @@ resume 扩量后达到 `48148` 条，如果直接和 JD、match 混合训练，�
 
 - `quality_tier`
 - `quality_reason`
+- `quality_risk_score`
+- `quality_risk_reasons`
+- `quality_score`
 - 来源分布
 - 岗位方向分布
 - 字段空值率
+- 风险分数分布
+- 质量分桶
 
 当前 JD quality 分层：
 
-- `strict`: `3331`
-- `strict_plus`: `275`
-- `quality_weak`: `1394`
+- `strict`: `3200`
+- `strict_plus`: `273`
+- `quality_weak`: `1527`
 - `bootstrap`: `0`
+
+当前质量画像：
+
+- `quality_score_avg`: `79.78`
+- `risk_score_counts`: `0=912, 1=2471, 2=1303, 3=314`
 
 同时新增按层级抽样的人工复核种子集：
 
@@ -206,17 +215,39 @@ resume 扩量后达到 `48148` 条，如果直接和 JD、match 混合训练，�
 
 当前结果：
 
-- `high_risk_samples`: `149`
-- `high_risk_rate`: `0.0298`
+- `high_risk_samples`: `0`
+- `high_risk_rate`: `0.0`
 - `risk_ready`: `true`
+
+并且风险规则已经被抽成共享模块：
+
+- [jd_quality_risk.py](/share/home/lifr/workspace/code/job-match-tune/src/jobmatch_tune/dataset/jd_quality_risk.py)
+
+现在 JD quality 构建和风险审计共用同一套评分规则，避免“审计发现高风险，但构建时仍放进训练集”的口径分裂。
+
+### 2.7 样本级质量元数据
+
+参考 Data-Juicer / DataFlow 这类数据处理框架的样本级可追溯实践，JD quality 样本现在会把质量信息写入每条训练样本的 `meta`：
+
+- `quality_tier`
+- `quality_reason`
+- `quality_risk_score`
+- `quality_risk_reasons`
+- `quality_score`
+
+这样做的好处：
+
+1. 人工抽检时可以优先看低分样本。
+2. 后续训练可以按质量分数做采样或加权。
+3. 线上 bad case 可以追溯到样本来源和准入原因。
+4. 多任务混合时可以继续保留 JD 样本的质量来源。
 
 ## 3. 当前仍应继续优化的方向
 
 1. JD 数据继续补高信任中文官网源，而不是盲目扩大弱源。
-2. 给 JD quality 增加 reason code，让每条样本通过原因可解释。
-3. 对 `quality_weak` 层做人工抽样评估。
-4. 在多任务训练后按任务分别评估，确认 JD、resume、match 没有互相拖累。
-5. 根据评估结果调整 `configs/dataset_registry.yaml` 中的采样配比。
+2. 对 `quality_weak` 层做人工抽样评估。
+3. 在多任务训练后按任务分别评估，确认 JD、resume、match 没有互相拖累。
+4. 根据评估结果调整 `configs/dataset_registry.yaml` 中的采样配比。
 
 ## 4. 参考链接
 

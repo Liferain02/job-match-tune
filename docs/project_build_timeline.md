@@ -474,6 +474,32 @@ strict_plus 是 strict 和弱标注之间的过渡层。
 
 这一步的意义是：训练前先把明显风险样本挡掉，而不是等模型学坏后再调 prompt。
 
+### 11.5 样本级质量分数
+
+在高风险过滤之后，又把质量信息写入了每条 JD quality 样本的 `meta`。
+
+新增字段：
+
+- `quality_tier`
+- `quality_reason`
+- `quality_risk_score`
+- `quality_risk_reasons`
+- `quality_score`
+
+质量分数的思路是：
+
+1. `strict / strict_plus / quality_weak / bootstrap` 先给不同基础分。
+2. 再根据风险原因扣分。
+3. 高风险样本直接被过滤，不进入训练集。
+4. 留在训练集里的样本仍保留低风险原因，方便人工复核和采样加权。
+
+当前质量画像：
+
+- `quality_score_avg = 79.78`
+- `risk_score_counts = 0:912, 1:2471, 2:1303, 3:314`
+
+这一步参考的是 Data-Juicer / DataFlow 一类数据处理框架的可追溯思路：训练样本不只是文本，还要带上来源、准入原因和质量信号。
+
 ---
 
 ## 12. 简历解析链路
@@ -813,4 +839,3 @@ API 能力：
 ```text
 数据质量先于训练轮数，训练 readiness 先于大规模 SFT。
 ```
-

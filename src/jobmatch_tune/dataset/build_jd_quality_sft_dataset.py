@@ -19,7 +19,7 @@ from jobmatch_tune.dataset.build_sft_dataset import (
     is_high_trust_strong_row,
     split_samples,
 )
-from jobmatch_tune.dataset.jd_quality_risk import HIGH_RISK_THRESHOLD, is_high_risk
+from jobmatch_tune.dataset.jd_quality_risk import HIGH_RISK_THRESHOLD, is_high_risk, risk_reasons, risk_score
 from jobmatch_tune.preprocess.normalize_jd import normalize_jd_row
 from jobmatch_tune.utils.io import write_text
 from jobmatch_tune.utils.io import read_jsonl, write_jsonl
@@ -53,6 +53,13 @@ NON_TECH_TITLE_KEYWORDS = [
     "培训方案",
     "招生",
 ]
+
+QUALITY_TIER_BASE_SCORE = {
+    "strict": 100,
+    "strict_plus": 90,
+    "quality_weak": 75,
+    "bootstrap": 60,
+}
 
 
 def _row_id(row: dict[str, Any]) -> str:
@@ -93,6 +100,21 @@ def _with_quality_meta(row: dict[str, Any], tier: str, reason: str) -> dict[str,
 
 def _tag_rows(rows: list[dict[str, Any]], tier: str, reason: str) -> list[dict[str, Any]]:
     return [_with_quality_meta(row, tier, reason) for row in rows]
+
+
+def _with_quality_score_meta(row: dict[str, Any]) -> dict[str, Any]:
+    sample = build_jd_parse_sample(row)
+    reasons = risk_reasons(sample)
+    score = risk_score(reasons)
+    tier = str((row.get("meta") or {}).get("quality_tier") or "unknown")
+    quality_score = max(0, QUALITY_TIER_BASE_SCORE.get(tier, 50) - score * 10)
+    row = dict(row)
+    meta = dict(row.get("meta") or {})
+    meta["quality_risk_score"] = score
+    meta["quality_risk_reasons"] = reasons
+    meta["quality_score"] = quality_score
+    row["meta"] = meta
+    return row
 
 
 def _clean_experience(value: Any) -> str:
@@ -270,6 +292,9 @@ def build_quality_profile(rows: list[dict[str, Any]], stats: dict[str, int]) -> 
     source_counts = Counter()
     direction_counts = Counter()
     empty_counts = Counter()
+    risk_score_counts = Counter()
+    quality_score_counts = Counter()
+    quality_scores = []
     for row in rows:
         meta = row.get("meta") or {}
         labels = row.get("labels") or {}
@@ -277,6 +302,10 @@ def build_quality_profile(rows: list[dict[str, Any]], stats: dict[str, int]) -> 
         reason_counts[str(meta.get("quality_reason") or "unknown")] += 1
         source_counts[str(row.get("source") or "unknown")] += 1
         direction_counts[str(labels.get("岗位方向") or "unknown")] += 1
+        risk_score_counts[int(meta.get("quality_risk_score") or 0)] += 1
+        quality_score = int(meta.get("quality_score") or 0)
+        quality_scores.append(quality_score)
+        quality_score_counts[str((quality_score // 10) * 10)] += 1
         assistant = json.loads(build_jd_parse_sample(row)["messages"][-1]["content"])
         if not assistant.get("核心职责"):
             empty_counts["核心职责"] += 1
@@ -296,6 +325,9 @@ def build_quality_profile(rows: list[dict[str, Any]], stats: dict[str, int]) -> 
         "direction_counts": dict(direction_counts),
         "empty_counts": dict(empty_counts),
         "empty_rates": {key: round(value / total, 4) for key, value in empty_counts.items()},
+        "risk_score_counts": {str(key): value for key, value in sorted(risk_score_counts.items())},
+        "quality_score_avg": round(sum(quality_scores) / total, 2) if total else 0.0,
+        "quality_score_buckets": dict(sorted(quality_score_counts.items())),
     }
 
 
@@ -329,6 +361,7 @@ def main() -> None:
             f"Only built {len(quality_rows)} rows, below target_total={args.target_total}. "
             f"stage_stats={stats}"
         )
+    quality_rows = [_with_quality_score_meta(row) for row in quality_rows]
 
     samples = [build_jd_parse_sample(row) for row in quality_rows]
     splits = split_samples(samples, args.train_ratio, args.valid_ratio, args.seed)
