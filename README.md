@@ -17,6 +17,8 @@
 
 详细说明见 [docs/project_structure.md](/share/home/lifr/workspace/code/job-match-tune/docs/project_structure.md)。
 
+项目从 0 到当前版本的完整来龙去脉见 [docs/project_end_to_end_story.md](/share/home/lifr/workspace/code/job-match-tune/docs/project_end_to_end_story.md)。
+
 核心目录：
 
 - `src/jobmatch_tune/`
