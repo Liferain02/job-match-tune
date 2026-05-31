@@ -16,6 +16,8 @@ READINESS_THRESHOLDS = {
     "multitask": {"train": 8000, "valid": 1000, "test": 0, "pool": 9000},
 }
 
+MAX_JD_HIGH_RISK_RATE = 0.05
+
 REQUIRED_FIELDS = {
     "jd": ["岗位方向", "核心职责", "必备技能", "学历要求", "经验要求"],
     "resume": ["目标岗位", "教育背景", "核心技能", "实习经历", "项目经历", "优势标签"],
@@ -243,6 +245,12 @@ def build_report() -> dict[str, object]:
     jd_quality_profile = read_json_file("outputs/eval_reports/jd_quality_profile.json")
     if jd_quality_profile:
         tasks["jd"]["quality_profile"] = jd_quality_profile
+    jd_risk_report = read_json_file("outputs/eval_reports/jd_quality_risk_report.json")
+    if jd_risk_report:
+        high_risk_rate = float(jd_risk_report.get("high_risk_rate") or 1.0)
+        tasks["jd"]["risk_report"] = jd_risk_report
+        tasks["jd"]["risk_ready"] = high_risk_rate <= MAX_JD_HIGH_RISK_RATE
+        tasks["jd"]["ready_for_sft"] = bool(tasks["jd"]["ready_for_sft"] and tasks["jd"]["risk_ready"])
     return {
         "summary": {
             "all_ready_for_training": all(task["ready_for_sft"] for task in tasks.values()),

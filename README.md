@@ -495,12 +495,20 @@ bash scripts/train/train_qwen3_14b_multitask_sft.sh
 JD quality 现在会同时输出质量画像，便于按层级审计：
 
 - [outputs/eval_reports/jd_quality_profile.json](/share/home/lifr/workspace/code/job-match-tune/outputs/eval_reports/jd_quality_profile.json)
+- [outputs/eval_reports/jd_quality_risk_report.json](/share/home/lifr/workspace/code/job-match-tune/outputs/eval_reports/jd_quality_risk_report.json)
+- [outputs/eval_reports/jd_quality_risk_samples.jsonl](/share/home/lifr/workspace/code/job-match-tune/outputs/eval_reports/jd_quality_risk_samples.jsonl)
 - [data/eval/jd_quality_review_seed.jsonl](/share/home/lifr/workspace/code/job-match-tune/data/eval/jd_quality_review_seed.jsonl)
 
 重建 JD quality 人工复核种子集：
 
 ```bash
 bash scripts/data/build_jd_quality_review_set.sh --per-tier 20
+```
+
+重跑 JD quality 风险审计：
+
+```bash
+bash scripts/data/report_jd_quality_risks.sh --sample-limit 200
 ```
 
 当前这条链路会导入三类补充源：

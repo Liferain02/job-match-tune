@@ -41,11 +41,15 @@ def test_build_report_summarizes_not_ready_tasks():
                 "field_quality_ok": True,
             }
             with patch("jobmatch_tune.eval.report_data_readiness.read_json_file") as read_json_file:
-                read_json_file.return_value = {"tier_counts": {"strict": 1}}
+                read_json_file.side_effect = [
+                    {"tier_counts": {"strict": 1}},
+                    {"high_risk_rate": 0.01},
+                ]
                 report = build_report()
     assert report["summary"]["all_ready_for_training"] is False
     assert "match" in report["summary"]["not_ready_tasks"]
     assert report["tasks"]["jd"]["quality_profile"]["tier_counts"] == {"strict": 1}
+    assert report["tasks"]["jd"]["risk_ready"] is True
 
 
 def _sample(row_id: str) -> dict:

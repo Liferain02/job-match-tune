@@ -189,6 +189,27 @@ resume 扩量后达到 `48148` 条，如果直接和 JD、match 混合训练，�
 
 默认每个层级抽 `20` 条，共 `60` 条，便于重点复核 `quality_weak`。
 
+### 2.6 JD quality 风险审计
+
+在质量画像之外，项目新增了风险审计：
+
+- [report_jd_quality_risks.py](/share/home/lifr/workspace/code/job-match-tune/src/jobmatch_tune/eval/report_jd_quality_risks.py)
+- [report_jd_quality_risks.sh](/share/home/lifr/workspace/code/job-match-tune/scripts/data/report_jd_quality_risks.sh)
+- [outputs/eval_reports/jd_quality_risk_report.json](/share/home/lifr/workspace/code/job-match-tune/outputs/eval_reports/jd_quality_risk_report.json)
+- [outputs/eval_reports/jd_quality_risk_samples.jsonl](/share/home/lifr/workspace/code/job-match-tune/outputs/eval_reports/jd_quality_risk_samples.jsonl)
+
+风险审计不是把所有空字段都当成严重问题，而是做加权评分：
+
+- 可疑标题、弱源核心字段缺失、职责为空等权重更高。
+- 单纯经验为空、学历为空只作为轻量 review signal。
+- `high_risk_rate` 会进入 readiness，当前门槛为 `<= 5%`。
+
+当前结果：
+
+- `high_risk_samples`: `149`
+- `high_risk_rate`: `0.0298`
+- `risk_ready`: `true`
+
 ## 3. 当前仍应继续优化的方向
 
 1. JD 数据继续补高信任中文官网源，而不是盲目扩大弱源。

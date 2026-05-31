@@ -301,6 +301,10 @@ def build_jd_parse_sample(row: dict[str, Any]) -> dict[str, Any]:
     source_text = row.get("clean_text", "")
     direction = get_effective_direction(row)
     skills = labels.get("必备技能") or extract_skills_from_text(source_text, MINIMAL_SKILL_SCHEMA)
+    meta = dict(row.get("meta") or {})
+    for key in ("source", "company", "location"):
+        if row.get(key) and key not in meta:
+            meta[key] = row.get(key)
     assistant = {
         "岗位方向": direction,
         "核心职责": _split_lines(sections.get("responsibilities", ""))[:6],
@@ -312,7 +316,7 @@ def build_jd_parse_sample(row: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": f"{row['id']}_jd_parse",
         "task_type": "jd_parse",
-        "meta": row.get("meta") or {},
+        "meta": meta,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": jd_parse_prompt(compose_jd_input_text(row))},
