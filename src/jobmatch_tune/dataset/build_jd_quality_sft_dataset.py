@@ -36,6 +36,20 @@ DEGREE_ONLY_EXPERIENCE = {
 
 WEAK_SOURCE_PREFIXES = ("hf_", "github_")
 
+NON_TECH_TITLE_KEYWORDS = [
+    "教师",
+    "老师",
+    "讲师",
+    "助教",
+    "编导",
+    "编剧",
+    "摄制",
+    "新闻编辑",
+    "课程开发",
+    "培训方案",
+    "招生",
+]
+
 
 def _row_id(row: dict[str, Any]) -> str:
     return str(row.get("id") or "")
@@ -114,6 +128,8 @@ def is_quality_weak_row(row: dict[str, Any]) -> bool:
     if not title or not clean_text:
         return False
     if any(keyword in title for keyword in LOW_SIGNAL_TITLE_KEYWORDS):
+        return False
+    if any(keyword in title for keyword in NON_TECH_TITLE_KEYWORDS):
         return False
 
     direction = str(labels.get("岗位方向") or "").strip()

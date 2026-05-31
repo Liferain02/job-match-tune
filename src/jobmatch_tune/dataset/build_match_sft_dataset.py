@@ -34,6 +34,8 @@ def build_analysis_from_label(label: dict[str, Any]) -> dict[str, Any]:
         strengths.append("经验背景满足岗位要求")
     if matched:
         strengths.append("已覆盖关键技能：" + "、".join(matched[:6]))
+    if not strengths:
+        strengths.append("已有简历信息可作为初步评估基础")
 
     gaps = []
     if not direction_match:
@@ -44,6 +46,8 @@ def build_analysis_from_label(label: dict[str, Any]) -> dict[str, Any]:
         gaps.append("经验条件与 JD 要求存在差距")
     if missing:
         gaps.append("缺失关键技能：" + "、".join(missing[:6]))
+    if not gaps:
+        gaps.append("暂无明显硬性短板，后续可继续补充更量化的项目成果")
 
     suggestions = []
     if missing:
@@ -62,6 +66,8 @@ def build_analysis_from_label(label: dict[str, Any]) -> dict[str, Any]:
         recommended_roles.append("同方向相近岗位")
     elif matched:
         recommended_roles.append("技能相近岗位")
+    if not recommended_roles:
+        recommended_roles.append("技能相近或低门槛过渡岗位")
 
     return {
         "匹配结论": conclusion,

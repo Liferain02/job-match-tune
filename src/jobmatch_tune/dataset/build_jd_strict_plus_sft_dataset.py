@@ -12,7 +12,23 @@ from jobmatch_tune.preprocess.normalize_jd import normalize_jd_row
 from jobmatch_tune.utils.io import read_jsonl, write_jsonl
 
 
-LOW_SIGNAL_TITLE_KEYWORDS = ["实习", "应届", "校招", "培训生"]
+LOW_SIGNAL_TITLE_KEYWORDS = [
+    "实习",
+    "应届",
+    "校招",
+    "校园招聘",
+    "培训生",
+    "教师",
+    "老师",
+    "讲师",
+    "助教",
+    "培训师",
+    "培训讲师",
+    "编导",
+    "编剧",
+    "摄制",
+    "新闻编辑",
+]
 LOW_SIGNAL_TEXT_PATTERNS = [
     "任务类型：从岗位中提取学历",
     "毕业生",

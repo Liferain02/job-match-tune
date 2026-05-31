@@ -432,11 +432,11 @@ bash scripts/data/build_current_data_pools.sh
 
 当前统一就绪报告结论：
 
-- `JD`: combined pool 已过线，但默认 `sft` 规模仍未过线
-- `resume`: 已达到当前训练门槛
-- `match`: 已达到当前训练门槛
+- `JD`: `data/sft_jd_quality/` 已达到当前训练门槛，规模为 `4000 / 500 / 500`
+- `resume`: 已达到当前训练门槛，规模为 `2560 / 320 / 320`
+- `match`: 已达到当前训练门槛，规模为 `929 / 132 / 115`
 
-也就是说，当前仍然不应该开 SFT。
+也就是说，从数量、JSON 合法性、重复 ID 和字段空值率这几个工程门槛看，当前已经具备做一轮小规模增量 SFT 的条件。训练前仍建议抽样复核 `data/sft_jd_quality/` 的 `quality_weak` 层，因为这部分不是纯官网 strict 样本。
 
 如果要看三个池子现在的来源和分布，不只看总数：
 

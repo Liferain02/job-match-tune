@@ -569,6 +569,18 @@ bash scripts/data/prepare_public_match_pipeline.sh
 bash scripts/data/report_data_readiness.sh
 ```
 
+当前 readiness 脚本会检查三类信息：
+
+- 数量是否达到训练门槛：JD 使用 `data/sft_jd_quality/`，resume 使用 `data/sft_resume/`，match 使用 `data/sft_match/`。
+- 格式是否可训练：assistant 输出必须是合法 JSON，样本 ID 不能重复。
+- 字段覆盖是否达标：按任务分别统计关键字段空值率，超过阈值则不认为 ready。
+
+截至当前版本，三条线都已通过工程门槛：
+
+- `JD`: `4000 / 500 / 500`，combined pool `37796`
+- `resume`: `2560 / 320 / 320`，combined pool `3137`
+- `match`: `929 / 132 / 115`，combined pool `1176`
+
 ---
 
 ## 7. 一句话总结

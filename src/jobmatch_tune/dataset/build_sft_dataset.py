@@ -163,6 +163,16 @@ STRONG_TITLE_EXCLUDE_KEYWORDS = [
     "客户经理",
     "品牌经理",
     "投放",
+    "教师",
+    "老师",
+    "讲师",
+    "助教",
+    "编导",
+    "编剧",
+    "摄制",
+    "新闻编辑",
+    "课程开发",
+    "培训方案",
 ]
 
 STRICT_DIRECTION_TITLE_HINTS = {
@@ -290,10 +300,11 @@ def build_jd_parse_sample(row: dict[str, Any]) -> dict[str, Any]:
     sections = row.get("sections", {})
     source_text = row.get("clean_text", "")
     direction = get_effective_direction(row)
+    skills = labels.get("必备技能") or extract_skills_from_text(source_text, MINIMAL_SKILL_SCHEMA)
     assistant = {
         "岗位方向": direction,
         "核心职责": _split_lines(sections.get("responsibilities", ""))[:6],
-        "必备技能": labels.get("必备技能", []),
+        "必备技能": skills,
         "加分项": _split_lines(sections.get("bonus", ""))[:6],
         "经验要求": labels.get("经验要求") or extract_experience_requirement(source_text),
         "学历要求": labels.get("学历要求") or extract_education_requirement(source_text),

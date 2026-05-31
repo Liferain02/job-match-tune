@@ -3,14 +3,46 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+from typing import Any
 
 from jobmatch_tune.utils.io import read_jsonl, write_text
 
 
 READINESS_THRESHOLDS = {
-    "jd": {"train": 5000, "valid": 500, "test": 500, "pool": 8000},
+    "jd": {"train": 4000, "valid": 500, "test": 500, "pool": 8000},
     "resume": {"train": 2000, "valid": 200, "test": 200, "pool": 3000},
     "match": {"train": 500, "valid": 100, "test": 100, "pool": 1000},
+}
+
+REQUIRED_FIELDS = {
+    "jd": ["岗位方向", "核心职责", "必备技能", "学历要求", "经验要求"],
+    "resume": ["目标岗位", "教育背景", "核心技能", "实习经历", "项目经历", "优势标签"],
+    "match": ["匹配结论", "匹配优势", "主要短板", "简历优化建议", "推荐投递岗位方向"],
+}
+
+MAX_EMPTY_RATE = {
+    "jd": {
+        "岗位方向": 0.0,
+        "核心职责": 0.08,
+        "必备技能": 0.30,
+        "学历要求": 0.35,
+        "经验要求": 0.55,
+    },
+    "resume": {
+        "目标岗位": 0.0,
+        "教育背景": 0.0,
+        "核心技能": 0.0,
+        "实习经历": 0.0,
+        "项目经历": 0.0,
+        "优势标签": 0.0,
+    },
+    "match": {
+        "匹配结论": 0.0,
+        "匹配优势": 0.0,
+        "主要短板": 0.0,
+        "简历优化建议": 0.0,
+        "推荐投递岗位方向": 0.0,
+    },
 }
 
 
@@ -19,6 +51,64 @@ def count_jsonl(path: str) -> int:
     if not file_path.exists():
         return 0
     return sum(1 for _ in read_jsonl(file_path))
+
+
+def _empty(value: Any) -> bool:
+    return value in (None, "", [], {})
+
+
+def audit_sft_files(task_name: str, paths: list[str]) -> dict[str, Any]:
+    total = 0
+    invalid_json = 0
+    duplicate_ids = 0
+    ids: set[str] = set()
+    empty_counts = {field: 0 for field in REQUIRED_FIELDS[task_name]}
+    task_types: dict[str, int] = {}
+
+    for path in paths:
+        file_path = Path(path)
+        if not file_path.exists():
+            continue
+        with file_path.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                total += 1
+                try:
+                    row = json.loads(line)
+                    row_id = str(row.get("id") or "")
+                    if row_id in ids:
+                        duplicate_ids += 1
+                    ids.add(row_id)
+                    task_type = str(row.get("task_type") or "")
+                    task_types[task_type] = task_types.get(task_type, 0) + 1
+                    assistant = json.loads(row["messages"][-1]["content"])
+                except Exception:
+                    invalid_json += 1
+                    continue
+                for field in REQUIRED_FIELDS[task_name]:
+                    if _empty(assistant.get(field)):
+                        empty_counts[field] += 1
+
+    empty_rates = {
+        field: (round(count / total, 4) if total else 1.0)
+        for field, count in empty_counts.items()
+    }
+    field_quality_ok = all(
+        empty_rates[field] <= MAX_EMPTY_RATE[task_name][field]
+        for field in REQUIRED_FIELDS[task_name]
+    )
+    return {
+        "total": total,
+        "invalid_json": invalid_json,
+        "duplicate_ids": duplicate_ids,
+        "task_types": task_types,
+        "empty_counts": empty_counts,
+        "empty_rates": empty_rates,
+        "max_empty_rates": MAX_EMPTY_RATE[task_name],
+        "field_quality_ok": field_quality_ok,
+    }
 
 
 def build_task_report(
@@ -33,12 +123,15 @@ def build_task_report(
     valid_count = count_jsonl(valid_path)
     test_count = count_jsonl(test_path)
     pool_count = count_jsonl(pool_path)
-    ready = (
+    audit = audit_sft_files(task_name, [train_path, valid_path, test_path])
+    count_ready = (
         train_count >= thresholds["train"]
         and valid_count >= thresholds["valid"]
         and test_count >= thresholds["test"]
         and pool_count >= thresholds["pool"]
     )
+    format_ready = audit["invalid_json"] == 0 and audit["duplicate_ids"] == 0
+    ready = count_ready and format_ready and bool(audit["field_quality_ok"])
     return {
         "task": task_name,
         "counts": {
@@ -48,6 +141,9 @@ def build_task_report(
             "combined_pool": pool_count,
         },
         "thresholds": thresholds,
+        "count_ready": count_ready,
+        "format_ready": format_ready,
+        "quality_audit": audit,
         "ready_for_sft": ready,
     }
 
@@ -56,9 +152,9 @@ def build_report() -> dict[str, object]:
     tasks = {
         "jd": build_task_report(
             "jd",
-            "data/sft/train.jsonl",
-            "data/sft/valid.jsonl",
-            "data/sft/test.jsonl",
+            "data/sft_jd_quality/train.jsonl",
+            "data/sft_jd_quality/valid.jsonl",
+            "data/sft_jd_quality/test.jsonl",
             "data/eval/jd_train_pool_combined.jsonl",
         ),
         "resume": build_task_report(
