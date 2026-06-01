@@ -150,14 +150,14 @@ resume 扩量后达到 `48148` 条，如果直接和 JD、match 混合训练，�
 
 当前多任务训练集：
 
-- `train`: `8000`
-- `valid`: `1000`
+- `train`: `8899`
+- `valid`: `1116`
 
 任务配比：
 
-- `JD`: `4000 / 500`
-- `resume`: `2400 / 300`
-- `match`: `1600 / 200`
+- `JD`: `4400 / 550`
+- `resume`: `2700 / 338`
+- `match`: `1799 / 228`
 
 这样既保留了 resume 扩量带来的格式多样性，又避免训练时被 resume 单任务压过。
 
@@ -184,13 +184,13 @@ resume 扩量后达到 `48148` 条，如果直接和 JD、match 混合训练，�
 
 - `strict`: `3200`
 - `strict_plus`: `260`
-- `quality_weak`: `1540`
+- `quality_weak`: `2040`
 - `bootstrap`: `0`
 
 当前质量画像：
 
-- `quality_score_avg`: `80.10`
-- `risk_score_counts`: `0=944, 1=2534, 2=1261, 3=261`
+- `quality_score_avg`: `78.42`
+- `risk_score_counts`: `0=944, 1=2949, 2=1261, 3=346`
 
 同时新增按层级抽样的人工复核种子集：
 

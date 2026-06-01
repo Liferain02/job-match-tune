@@ -433,16 +433,16 @@ strict_plus 是 strict 和弱标注之间的过渡层。
 
 当前目标规模：
 
-- `train = 4000`
-- `valid = 500`
-- `test = 500`
-- 总计 `5000`
+- `train = 4400`
+- `valid = 550`
+- `test = 550`
+- 总计 `5500`
 
 最近一次重建后的分层统计：
 
 - `strict = 3200`
 - `strict_plus = 260`
-- `quality_weak = 1540`
+- `quality_weak = 2040`
 - `bootstrap = 0`
 
 ### 11.4 高风险 JD 过滤
@@ -468,7 +468,7 @@ strict_plus 是 strict 和弱标注之间的过渡层。
 
 当前风险审计结果：
 
-- `total = 5000`
+- `total = 5500`
 - `high_risk_samples = 0`
 - `high_risk_rate = 0.0`
 
@@ -495,8 +495,8 @@ strict_plus 是 strict 和弱标注之间的过渡层。
 
 当前质量画像：
 
-- `quality_score_avg = 80.10`
-- `risk_score_counts = 0:944, 1:2534, 2:1261, 3:261`
+- `quality_score_avg = 78.42`
+- `risk_score_counts = 0:944, 1:2949, 2:1261, 3:346`
 
 这一步参考的是 Data-Juicer / DataFlow 一类数据处理框架的可追溯思路：训练样本不只是文本，还要带上来源、准入原因和质量信号。
 
@@ -658,14 +658,14 @@ JD 解析 -> 简历解析 -> JD 和简历匹配度分析
 
 当前输出：
 
-- `data/sft_multitask/train.jsonl = 8000`
-- `data/sft_multitask/valid.jsonl = 1000`
+- `data/sft_multitask/train.jsonl = 8899`
+- `data/sft_multitask/valid.jsonl = 1116`
 
 训练样本分布：
 
-- JD：`4000 / 500`
-- resume：`2400 / 300`
-- match：`1600 / 200`
+- JD：`4400 / 550`
+- resume：`2700 / 338`
+- match：`1799 / 228`
 
 这样做的目的：
 

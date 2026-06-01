@@ -495,12 +495,18 @@ bash scripts/data/rebuild_data_pipeline.sh
 - `data/sft/valid.jsonl`: `333`
 - `data/sft/test.jsonl`: `334`
 
-当前 5000 条 JD 质量集：
+当前 5500 条 JD 质量集：
 
-- `data/sft_jd_quality/train.jsonl`: `4000`
-- `data/sft_jd_quality/valid.jsonl`: `500`
-- `data/sft_jd_quality/test.jsonl`: `500`
-- 分层来源：`strict=3333, strict_plus=280, quality_weak=1387, bootstrap=0`
+- `data/sft_jd_quality/train.jsonl`: `4400`
+- `data/sft_jd_quality/valid.jsonl`: `550`
+- `data/sft_jd_quality/test.jsonl`: `550`
+- 分层来源：`strict=3200, strict_plus=260, quality_weak=2040, bootstrap=0`
+
+扩容探测结论：
+
+- 在当前风险门控下，候选池最多可构建约 `5965` 条 JD quality。
+- 直接扩到 `5900` 会让 `经验要求` 空值率升到 `57.63%`，超过 readiness 的 `55%` 门槛。
+- 因此当前默认值定为 `5500`，此时 `经验要求` 空值率为 `54.55%`，仍通过训练前门控。
 
 当前扩展实验集：
 
@@ -511,7 +517,7 @@ bash scripts/data/rebuild_data_pipeline.sh
 这里最重要的不是数字本身，而是口径：
 
 - `data/sft/` 是默认主训练集
-- `data/sft_jd_quality/` 是当前 JD 解析任务的 5000 条候选训练主线
+- `data/sft_jd_quality/` 是当前 JD 解析任务的 5500 条候选训练主线
 - `data/sft_expanded/` 是扩量实验集
 - 不能再把这些层混为一谈
 
@@ -520,7 +526,7 @@ bash scripts/data/rebuild_data_pipeline.sh
 1. `strict`：高信任中文官网源，经过技术岗标题、方向、结构化职责/要求等过滤。
 2. `strict_plus`：从 combined pool 里回收结构完整、方向和学历较明确的样本。
 3. `quality_weak`：对弱源和公开数据做保守回收，要求具备岗位方向、学历或经验、至少两个技能、足够长的职责/要求文本，并清理“本科/硕士误入经验字段”等噪声。
-4. `bootstrap`：兜底层。当前 5000 条构建没有用到 bootstrap。
+4. `bootstrap`：兜底层。当前 5500 条构建没有用到 bootstrap。
 
 ---
 
@@ -536,7 +542,7 @@ bash scripts/data/rebuild_data_pipeline.sh
 
 ### 15.2 还没做完的事
 
-1. `data/sft_jd_quality/` 已达到 5000 条，但不是纯 strict，需要继续抽样审计 quality_weak 层。
+1. `data/sft_jd_quality/` 已达到 5500 条，但不是纯 strict，需要继续抽样审计 quality_weak 层。
 2. 当前 `岗位方向` schema 还可以继续细分。
 3. 高信任官网里还有部分 `方向为空` 的职位没有被正确回收。
 4. 默认集里的方向分布还不够均衡。

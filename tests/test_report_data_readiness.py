@@ -113,7 +113,7 @@ def test_build_multitask_report_requires_all_tasks(tmp_path: Path):
     valid.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in valid_rows), encoding="utf-8")
 
     with patch("jobmatch_tune.eval.report_data_readiness.count_jsonl") as mocked:
-        mocked.side_effect = [8000, 1000]
+        mocked.side_effect = [8800, 1100]
         report = build_multitask_report(str(train), str(valid))
 
     assert report["has_required_mix"] is True

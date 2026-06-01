@@ -367,7 +367,7 @@ def main() -> None:
     parser.add_argument("--schema", default="configs/label_schema.yaml")
     parser.add_argument("--out-dir", default="data/sft_jd_quality")
     parser.add_argument("--profile-out", default="outputs/eval_reports/jd_quality_profile.json")
-    parser.add_argument("--target-total", type=int, default=5000)
+    parser.add_argument("--target-total", type=int, default=5500)
     parser.add_argument("--max-risk-score", type=int, default=HIGH_RISK_THRESHOLD - 1)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--train-ratio", type=float, default=0.8)

@@ -438,7 +438,7 @@ bash scripts/data/build_current_data_pools.sh
 
 当前统一就绪报告结论：
 
-- `JD`: `data/sft_jd_quality/` 已达到当前训练门槛，规模为 `4000 / 500 / 500`
+- `JD`: `data/sft_jd_quality/` 已达到当前训练门槛，规模为 `4400 / 550 / 550`
 - `resume`: 已达到当前训练门槛，规模为 `38408 / 4850 / 4890`
 - `match`: 已达到当前训练门槛，规模为 `1799 / 228 / 229`
 
@@ -461,9 +461,9 @@ bash scripts/data/report_pool_profiles.sh
 - `data/sft/train.jsonl`: `2666`
 - `data/sft/valid.jsonl`: `333`
 - `data/sft/test.jsonl`: `334`
-- `data/sft_jd_quality/train.jsonl`: `4000`
-- `data/sft_jd_quality/valid.jsonl`: `500`
-- `data/sft_jd_quality/test.jsonl`: `500`
+- `data/sft_jd_quality/train.jsonl`: `4400`
+- `data/sft_jd_quality/valid.jsonl`: `550`
+- `data/sft_jd_quality/test.jsonl`: `550`
 - `data/sft_jd_bootstrap/train.jsonl`: `1371`
 - `data/sft_jd_bootstrap/valid.jsonl`: `171`
 - `data/sft_jd_bootstrap/test.jsonl`: `172`
@@ -473,14 +473,14 @@ bash scripts/data/report_pool_profiles.sh
 - `data/sft_match/train.jsonl`: `1799`
 - `data/sft_match/valid.jsonl`: `228`
 - `data/sft_match/test.jsonl`: `229`
-- `data/sft_multitask/train.jsonl`: `8000`
-- `data/sft_multitask/valid.jsonl`: `1000`
+- `data/sft_multitask/train.jsonl`: `8899`
+- `data/sft_multitask/valid.jsonl`: `1116`
 
 当前默认 14B SFT 配置使用 `data/sft_multitask/`，而不是直接把 4.8 万条 resume 全量混入训练。多任务采样配比在 [configs/dataset_registry.yaml](/share/home/lifr/workspace/code/job-match-tune/configs/dataset_registry.yaml) 中维护：
 
-- `JD`: `4000 / 500`
-- `resume`: `2400 / 300`
-- `match`: `1600 / 200`
+- `JD`: `4400 / 550`
+- `resume`: `2700 / 338`
+- `match`: `1799 / 228`
 
 重建多任务训练集：
 
@@ -530,7 +530,7 @@ bash scripts/data/report_jd_quality_risks.sh --sample-limit 200
   - 英文：`51330`
   - 其他 / 未知：`927`
 - 默认 `data/sft/` 现在是严格质量版：`2666 / 333 / 334`。
-- `data/sft_jd_quality/` 是 5000 条 JD 质量集：先取严格官网中文技术岗，再补 strict_plus，最后补 quality_weak；当前分层为 `strict=3333, strict_plus=280, quality_weak=1387, bootstrap=0`。
+- `data/sft_jd_quality/` 是 5500 条 JD 质量集：先取严格官网中文技术岗，再补 strict_plus，最后补 quality_weak；当前分层为 `strict=3200, strict_plus=260, quality_weak=2040, bootstrap=0`。
 - `data/sft_expanded/` 是扩展实验版：`4524 / 565 / 566`。
 - 默认训练不再追求先凑满 2 万，而是优先保留高信任官网中文技术岗。`data/sft_jd_quality/` 可以作为当前 JD SFT 候选主线，但它不是纯 strict：quality_weak 层会要求方向、学历/经验、技能、职责/要求长度，并清理“本科/硕士误入经验字段”等噪声。
 
@@ -546,10 +546,10 @@ bash scripts/data/build_jd_bootstrap_sft_dataset.sh
 bash scripts/data/build_jd_strict_plus_sft_dataset.sh
 ```
 
-如果要生成当前 5000 条 `JD quality` 数据线：
+如果要生成当前 5500 条 `JD quality` 数据线：
 
 ```bash
-bash scripts/data/build_jd_quality_sft_dataset.sh --target-total 5000
+bash scripts/data/build_jd_quality_sft_dataset.sh --target-total 5500
 ```
 
 这条线的用途是给后续小规模增量 SFT 准备候选 JD 数据。训练前仍建议抽样审计 `岗位方向 / 核心职责 / 必备技能 / 学历要求 / 经验要求`，尤其关注 quality_weak 层。
