@@ -219,3 +219,10 @@ def test_parse_json_output_normalizes_structured_resume_items():
     assert result["data"]["教育背景"] == ["本科，软件工程"]
     assert result["data"]["实习经历"] == ["示例科技，参与服务开发"]
     assert result["data"]["项目经历"] == ["订单平台，负责 API 开发。"]
+
+
+def test_parse_json_output_keeps_canonical_resume_direction():
+    for direction in ("硬件研发", "网络与基础设施", "AI Infra"):
+        result = parse_json_output(f'{{"目标岗位":"{direction}","教育背景":[]}}')
+        assert result["ok"] is True
+        assert result["data"]["目标岗位"] == direction

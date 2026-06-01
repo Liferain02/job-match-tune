@@ -105,10 +105,19 @@ def _ensure_sentence_ending(text: str) -> str:
     return text if re.search(r"[。！？.!?]$", text) else f"{text}。"
 
 
+def _canonicalize_resume_direction(direction: str, context_text: str) -> str:
+    compact = re.sub(r"\s+", "", direction).lower()
+    for canonical in load_label_schema().get("job_directions", []):
+        canonical_compact = re.sub(r"\s+", "", canonical).lower()
+        if compact in {canonical_compact, f"{canonical_compact}工程师"}:
+            return canonical
+    return canonicalize_job_direction(direction, context_text or direction, load_label_schema()) or direction
+
+
 def _normalize_resume_fields(data: dict[str, Any], context_text: str) -> dict[str, Any]:
     direction = _normalize_string(data.get("目标岗位"))
     if direction:
-        data["目标岗位"] = canonicalize_job_direction(direction, context_text or direction, load_label_schema())
+        data["目标岗位"] = _canonicalize_resume_direction(direction, context_text)
     for field in ("教育背景", "核心技能", "实习经历", "优势标签"):
         data[field] = _ensure_resume_list(data.get(field))
     projects = _ensure_resume_list(data.get("项目经历"), split_semicolon=True)
