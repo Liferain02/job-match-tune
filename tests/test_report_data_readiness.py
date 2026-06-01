@@ -32,7 +32,7 @@ def test_build_report_summarizes_not_ready_tasks():
             4000, 500, 500, 8000,  # jd
             2000, 200, 200, 3000,  # resume
             97, 12, 19, 0,  # match
-            8000, 1000,  # multitask
+            9700, 1200,  # multitask
         ]
         with patch("jobmatch_tune.eval.report_data_readiness.audit_sft_files") as audit:
             audit.return_value = {
@@ -113,7 +113,7 @@ def test_build_multitask_report_requires_all_tasks(tmp_path: Path):
     valid.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in valid_rows), encoding="utf-8")
 
     with patch("jobmatch_tune.eval.report_data_readiness.count_jsonl") as mocked:
-        mocked.side_effect = [8800, 1100]
+        mocked.side_effect = [9700, 1200]
         report = build_multitask_report(str(train), str(valid))
 
     assert report["has_required_mix"] is True

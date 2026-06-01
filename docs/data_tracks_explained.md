@@ -579,8 +579,8 @@ bash scripts/data/report_data_readiness.sh
 
 - `JD`: `4400 / 550 / 550`，combined pool `37796`
 - `resume`: `38408 / 4850 / 4890`，combined pool `3137`
-- `match`: `1799 / 228 / 229`，combined pool `2256`
-- `multitask`: `8899 / 1116`，任务配比约为 `JD 49% / resume 30% / match 20%`
+- `match`: `3917 / 486 / 493`，combined pool `4896`
+- `multitask`: `9800 / 1208`，任务配比约为 `JD 45% / resume 29% / match 27%`
 
 ---
 

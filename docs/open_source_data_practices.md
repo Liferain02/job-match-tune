@@ -91,13 +91,15 @@ Data-Juicer 和 DataFlow 的共同点是把数据处理拆成可组合 operator�
 
 本轮改动：
 
-- `build_match_train_pool_synthetic.py` 默认 `max_jd_rows` 从 `360` 提升到 `720`
+- `build_match_train_pool_synthetic.py` 默认 `max_jd_rows` 从 `720` 提升到 `1200`
+- `negatives_per_jd` 从 `1` 提升到 `2`
 - 重建 synthetic match pool
 
 现在：
 
-- combined pool: `2256`
-- SFT split: `1799 / 228 / 229`
+- combined pool: `4896`
+- SFT split: `3917 / 486 / 493`
+- 匹配等级分布覆盖 `高匹配 / 较匹配 / 基本匹配 / 低匹配`
 
 ### 2.2 resume 数据扩量和去泄漏
 
@@ -150,14 +152,14 @@ resume 扩量后达到 `48148` 条，如果直接和 JD、match 混合训练，�
 
 当前多任务训练集：
 
-- `train`: `8899`
-- `valid`: `1116`
+- `train`: `9800`
+- `valid`: `1208`
 
 任务配比：
 
 - `JD`: `4400 / 550`
-- `resume`: `2700 / 338`
-- `match`: `1799 / 228`
+- `resume`: `2800 / 338`
+- `match`: `2600 / 320`
 
 这样既保留了 resume 扩量带来的格式多样性，又避免训练时被 resume 单任务压过。
 

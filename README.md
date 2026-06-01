@@ -434,13 +434,13 @@ bash scripts/data/build_current_data_pools.sh
 - `data/eval/resume_train_pool_from_sft.jsonl`: `3200`
 - `data/eval/resume_train_pool_bootstrap.jsonl`: `2600`
 - `data/eval/resume_train_pool_combined.jsonl`: `3137`
-- `data/eval/match_train_pool_combined.jsonl`: `2256`
+- `data/eval/match_train_pool_combined.jsonl`: `4896`
 
 当前统一就绪报告结论：
 
 - `JD`: `data/sft_jd_quality/` 已达到当前训练门槛，规模为 `4400 / 550 / 550`
 - `resume`: 已达到当前训练门槛，规模为 `38408 / 4850 / 4890`
-- `match`: 已达到当前训练门槛，规模为 `1799 / 228 / 229`
+- `match`: 已达到当前训练门槛，规模为 `3917 / 486 / 493`
 
 也就是说，从数量、JSON 合法性、重复 ID、跨 split 内容去重和字段空值率这几个工程门槛看，当前已经具备做一轮小规模增量 SFT 的条件。训练前仍建议抽样复核 `data/sft_jd_quality/` 的 `quality_weak` 层，因为这部分不是纯官网 strict 样本。
 
@@ -470,17 +470,17 @@ bash scripts/data/report_pool_profiles.sh
 - `data/sft_resume/train.jsonl`: `38408`
 - `data/sft_resume/valid.jsonl`: `4850`
 - `data/sft_resume/test.jsonl`: `4890`
-- `data/sft_match/train.jsonl`: `1799`
-- `data/sft_match/valid.jsonl`: `228`
-- `data/sft_match/test.jsonl`: `229`
-- `data/sft_multitask/train.jsonl`: `8899`
-- `data/sft_multitask/valid.jsonl`: `1116`
+- `data/sft_match/train.jsonl`: `3917`
+- `data/sft_match/valid.jsonl`: `486`
+- `data/sft_match/test.jsonl`: `493`
+- `data/sft_multitask/train.jsonl`: `9800`
+- `data/sft_multitask/valid.jsonl`: `1208`
 
 当前默认 14B SFT 配置使用 `data/sft_multitask/`，而不是直接把 4.8 万条 resume 全量混入训练。多任务采样配比在 [configs/dataset_registry.yaml](/share/home/lifr/workspace/code/job-match-tune/configs/dataset_registry.yaml) 中维护：
 
 - `JD`: `4400 / 550`
-- `resume`: `2700 / 338`
-- `match`: `1799 / 228`
+- `resume`: `2800 / 338`
+- `match`: `2600 / 320`
 
 重建多任务训练集：
 
@@ -832,11 +832,12 @@ bash scripts/data/build_match_sft_dataset.sh
 
 - `data/eval/match_manual_eval_seed.jsonl`: `64`
 - `data/eval/match_manual_train_pool.jsonl`: `128`
-- `data/sft_match/train.jsonl`: `97`
-- `data/sft_match/valid.jsonl`: `12`
-- `data/sft_match/test.jsonl`: `19`
+- `data/eval/match_train_pool_combined.jsonl`: `4896`
+- `data/sft_match/train.jsonl`: `3917`
+- `data/sft_match/valid.jsonl`: `486`
+- `data/sft_match/test.jsonl`: `493`
 
-这批 `match` 数据目前仍然是高质量人工种子扩写后的 bootstrap 集，适合先打通 `match` 训练和评估链路，不适合被误认为正式规模数据。
+这批 `match` 数据由人工种子、规则配对 synthetic 样本和可用公开 pair 合并而来；当前默认 synthetic 配置使用 `1200` 个 JD、每个 JD `2` 个正样本和 `2` 个负样本。
 
 Resume 专项增量训练：
 

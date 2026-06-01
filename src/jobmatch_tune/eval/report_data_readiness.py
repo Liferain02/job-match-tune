@@ -12,8 +12,8 @@ from jobmatch_tune.utils.io import read_jsonl, write_text
 READINESS_THRESHOLDS = {
     "jd": {"train": 4400, "valid": 550, "test": 550, "pool": 8000},
     "resume": {"train": 10000, "valid": 1000, "test": 1000, "pool": 3000},
-    "match": {"train": 1500, "valid": 200, "test": 200, "pool": 2000},
-    "multitask": {"train": 8800, "valid": 1100, "test": 0, "pool": 9900},
+    "match": {"train": 3000, "valid": 400, "test": 400, "pool": 4500},
+    "multitask": {"train": 9700, "valid": 1200, "test": 0, "pool": 10900},
 }
 
 MAX_JD_HIGH_RISK_RATE = 0.05

@@ -633,9 +633,14 @@ JD 解析 -> 简历解析 -> JD 和简历匹配度分析
 
 当前 match SFT 数据规模：
 
-- `data/sft_match/train.jsonl = 1799`
-- `data/sft_match/valid.jsonl = 228`
-- `data/sft_match/test.jsonl = 229`
+- `data/sft_match/train.jsonl = 3917`
+- `data/sft_match/valid.jsonl = 486`
+- `data/sft_match/test.jsonl = 493`
+
+最近一次扩量把 synthetic match 生成从 `720` 个 JD 提升到 `1200` 个 JD，并把每个 JD 的负样本从 `1` 个提升到 `2` 个。重建后：
+
+- `data/eval/match_train_pool_combined.jsonl = 4896`
+- 覆盖 `高匹配 / 较匹配 / 基本匹配 / 低匹配`
 
 ---
 
@@ -652,20 +657,20 @@ JD 解析 -> 简历解析 -> JD 和简历匹配度分析
 
 当前默认配比：
 
-- JD：50%
-- resume：30%
-- match：20%
+- JD：约 45%
+- resume：约 29%
+- match：约 27%
 
 当前输出：
 
-- `data/sft_multitask/train.jsonl = 8899`
-- `data/sft_multitask/valid.jsonl = 1116`
+- `data/sft_multitask/train.jsonl = 9800`
+- `data/sft_multitask/valid.jsonl = 1208`
 
 训练样本分布：
 
 - JD：`4400 / 550`
-- resume：`2700 / 338`
-- match：`1799 / 228`
+- resume：`2800 / 338`
+- match：`2600 / 320`
 
 这样做的目的：
 

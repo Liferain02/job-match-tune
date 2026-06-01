@@ -510,9 +510,9 @@ JD 解析 -> 简历解析 -> JD 和简历匹配度分析
 
 当前 match SFT 数据：
 
-- `data/sft_match/train.jsonl`: `1799`
-- `data/sft_match/valid.jsonl`: `228`
-- `data/sft_match/test.jsonl`: `229`
+- `data/sft_match/train.jsonl`: `3917`
+- `data/sft_match/valid.jsonl`: `486`
+- `data/sft_match/test.jsonl`: `493`
 
 ---
 
@@ -664,8 +664,8 @@ bash scripts/data/report_data_readiness.sh
 | --- | ---: | ---: | ---: | ---: |
 | JD | 4400 | 550 | 550 | 37796 |
 | 简历 | 38408 | 4850 | 4890 | 3137 |
-| 匹配 | 1799 | 228 | 229 | 2256 |
-| 多任务 SFT | 8899 | 1116 | 0 | 10015 |
+| 匹配 | 3917 | 486 | 493 | 4896 |
+| 多任务 SFT | 9800 | 1208 | 0 | 11008 |
 
 readiness 当前检查：
 
@@ -690,8 +690,8 @@ JD 当前字段空值率：
 多任务 SFT 当前不直接全量混合三条数据线，而是通过 `configs/dataset_registry.yaml` 做采样：
 
 - `JD`: `4400 / 550`
-- `resume`: `2700 / 338`
-- `match`: `1799 / 228`
+- `resume`: `2800 / 338`
+- `match`: `2600 / 320`
 
 这样可以避免 `resume` 扩到 48148 条后在训练中压过 JD 和 match。
 
@@ -705,7 +705,7 @@ JD 当前字段空值率：
 2. 对 JD 做清洗、去重、规则抽取和分层筛选。
 3. 构建 5500 条 JD 质量 SFT 数据。
 4. 构建 48148 条简历解析 SFT 数据。
-5. 构建 2256 条匹配分析 SFT 数据。
+5. 构建 4896 条匹配分析 SFT 数据。
 6. 对三条数据线做 readiness 审计。
 7. 在 14B QLoRA 路线上继续训练。
 8. 通过 API 和前端提供可演示能力。

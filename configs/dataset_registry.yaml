@@ -12,12 +12,12 @@ multitask_sft:
     resume:
       train_file: data/sft_resume/train.jsonl
       valid_file: data/sft_resume/valid.jsonl
-      train_samples: 2700
+      train_samples: 2800
       valid_samples: 338
-      weight: 0.3
+      weight: 0.29
     match:
       train_file: data/sft_match/train.jsonl
       valid_file: data/sft_match/valid.jsonl
-      train_samples: 1799
-      valid_samples: 228
-      weight: 0.2
+      train_samples: 2600
+      valid_samples: 320
+      weight: 0.24

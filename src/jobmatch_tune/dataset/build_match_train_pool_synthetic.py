@@ -155,8 +155,8 @@ def main() -> None:
     parser.add_argument("--out", default="data/eval/match_train_pool_synthetic.jsonl")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--positive-per-jd", type=int, default=2)
-    parser.add_argument("--negatives-per-jd", type=int, default=1)
-    parser.add_argument("--max-jd-rows", type=int, default=720)
+    parser.add_argument("--negatives-per-jd", type=int, default=2)
+    parser.add_argument("--max-jd-rows", type=int, default=1200)
     args = parser.parse_args()
 
     jd_rows = list(read_jsonl(args.jd_input))
