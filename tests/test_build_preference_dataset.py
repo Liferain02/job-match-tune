@@ -22,8 +22,9 @@ def test_build_preference_row_uses_gold_and_prediction():
     assert built is not None
     assert built["id"] == "sample_1"
     assert built["task_type"] == "jd_parse"
-    assert json.loads(built["chosen"])["岗位方向"] == "后端开发"
-    assert json.loads(built["rejected"])["岗位方向"] == "AI应用开发"
+    assert built["prompt"][0]["role"] == "system"
+    assert json.loads(built["chosen"][0]["content"])["岗位方向"] == "后端开发"
+    assert json.loads(built["rejected"][0]["content"])["岗位方向"] == "AI应用开发"
 
 
 def test_build_preference_row_skips_identical_outputs():

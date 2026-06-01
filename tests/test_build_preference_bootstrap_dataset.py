@@ -30,4 +30,6 @@ def test_build_bootstrap_preference_creates_distinct_rejected_answer():
 
     assert built["source_id"] == "jd_1"
     assert built["meta"]["provenance"] == "synthetic_structured_hard_negative"
-    assert json.loads(built["chosen"]) != json.loads(built["rejected"])
+    assert built["prompt"] == row["messages"][:-1]
+    assert built["chosen"][0]["role"] == "assistant"
+    assert json.loads(built["chosen"][0]["content"]) != json.loads(built["rejected"][0]["content"])

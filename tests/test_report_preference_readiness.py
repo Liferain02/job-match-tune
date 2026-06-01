@@ -41,3 +41,20 @@ def test_preference_readiness_detects_cross_split_prompt(tmp_path: Path):
 
     assert report["cross_split_prompt_hashes"] == 1
     assert report["format_ready"] is False
+
+
+def test_preference_readiness_accepts_conversational_format(tmp_path: Path):
+    train = tmp_path / "train.jsonl"
+    valid = tmp_path / "valid.jsonl"
+    holdout = tmp_path / "holdout.jsonl"
+    row = _preference("jd_1", "train prompt")
+    row["prompt"] = [{"role": "user", "content": "train prompt"}]
+    row["chosen"] = [{"role": "assistant", "content": row["chosen"]}]
+    row["rejected"] = [{"role": "assistant", "content": row["rejected"]}]
+    train.write_text(json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
+    valid.write_text("", encoding="utf-8")
+    holdout.write_text("", encoding="utf-8")
+
+    report = audit_preference_files(str(train), str(valid), str(holdout))
+
+    assert report["invalid_rows"] == 0

@@ -93,13 +93,15 @@ def build_bootstrap_preference(row: dict[str, Any]) -> dict[str, Any]:
         strategy, corruption = CORRUPTIONS[(start + offset) % len(CORRUPTIONS)]
         rejected_obj = corruption(chosen_obj)
         if rejected_obj is not None and rejected_obj != chosen_obj:
+            chosen = json.dumps(chosen_obj, ensure_ascii=False, sort_keys=True)
+            rejected = json.dumps(rejected_obj, ensure_ascii=False, sort_keys=True)
             return {
                 "id": f"{row_id}_{strategy}",
                 "source_id": row_id,
                 "task_type": row.get("task_type", "jd_parse"),
-                "prompt": "\n\n".join(str(message.get("content") or "") for message in messages[:-1]),
-                "chosen": json.dumps(chosen_obj, ensure_ascii=False, sort_keys=True),
-                "rejected": json.dumps(rejected_obj, ensure_ascii=False, sort_keys=True),
+                "prompt": copy.deepcopy(messages[:-1]),
+                "chosen": [{"role": "assistant", "content": chosen}],
+                "rejected": [{"role": "assistant", "content": rejected}],
                 "meta": {
                     "provenance": "synthetic_structured_hard_negative",
                     "rejection_strategy": strategy,

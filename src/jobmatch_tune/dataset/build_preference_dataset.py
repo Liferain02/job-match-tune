@@ -20,6 +20,19 @@ def build_prompt_text(task: str, text: str) -> str:
     return f"{SYSTEM_PROMPT}\n\n{user_text}"
 
 
+def build_prompt_messages(task: str, text: str) -> list[dict[str, str]]:
+    if task == "jd_parse":
+        user_text = jd_parse_prompt(text)
+    elif task == "resume_parse":
+        user_text = resume_parse_prompt(text)
+    else:
+        raise ValueError(f"Unsupported task: {task}")
+    return [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_text},
+    ]
+
+
 def build_preference_row(row: dict[str, Any]) -> dict[str, Any] | None:
     label = row.get("label") or {}
     parsed = row.get("parsed")
@@ -39,9 +52,9 @@ def build_preference_row(row: dict[str, Any]) -> dict[str, Any] | None:
     return {
         "id": row["id"],
         "task_type": task,
-        "prompt": build_prompt_text(task, text),
-        "chosen": chosen,
-        "rejected": rejected,
+        "prompt": build_prompt_messages(task, text),
+        "chosen": [{"role": "assistant", "content": chosen}],
+        "rejected": [{"role": "assistant", "content": rejected}],
     }
 
 
@@ -101,7 +114,7 @@ def main() -> None:
             built = build_preference_row(row)
             if built is None:
                 continue
-            dedup_key = (built["id"], built["rejected"])
+            dedup_key = (built["id"], json.dumps(built["rejected"], ensure_ascii=False, sort_keys=True))
             if dedup_key in seen_pairs:
                 continue
             seen_pairs.add(dedup_key)

@@ -381,3 +381,105 @@ eval_rewards/margins = 0.002404
 ```
 
 1-step smoke 的 reward margin 为 0；4-step smoke 已能拉开 chosen / rejected，说明 DPO 数据格式、adapter 续训和 preference 链路可用。该结果只用于验证链路，正式收益要等 SFT A/B 完成后，在选定 adapter 上重新训练和评估。
+
+## 9. 正式 14B SFT A/B 结果
+
+两条正式 SFT 均使用 9800 条多任务训练样本和 320 条采样验证样本，完成 613 个 optimizer step。
+
+| 分支 | 训练耗时 | train loss | eval loss | eval token accuracy |
+| --- | ---: | ---: | ---: | ---: |
+| DFT without packing | 8050.39s | 0.001084 | 0.000198 | 0.9717 |
+| NLL | 8029.27s | 0.049181 | 0.006650 | 0.9979 |
+
+DFT 和 NLL 的损失定义不同，loss 不能直接横向比较。
+
+### JD 人工 holdout
+
+DFT、NLL 和旧 adapter 在 50 条无泄漏 JD holdout 上结果一致：
+
+```text
+json_valid_rate = 0.98
+岗位方向 exact_match = 0.9592
+核心职责 / 必备技能 / 加分项 F1 = 1.0
+经验要求 / 学历要求 exact_match = 1.0
+```
+
+剩余两条边界错例应补充同分布 hard case，但不能直接回灌人工 holdout：
+
+1. 客户端开发被判为后端开发。
+2. 算法工程被判为 AI 应用开发。
+
+### resume 人工评估
+
+正式 SFT 后，教育、技能、实习、项目和目标岗位字段均达到 `1.0`。优势标签仍有表达形式差异：模型经常输出“熟悉模型平台、算力调度和容器化部署”一类合并句。
+
+新增通用后处理：
+
+1. 按顿号、逗号、“和”、“与”拆分标签。
+2. 去除“熟悉”、“具备”、“擅长”、“关注”、“有”、“能独立完成”等表达包装。
+3. 去除标签末尾标点和“能力强”、“能力”、“覆盖全面”。
+4. 仅压缩标签空白，不对业务语义做样本级特判。
+
+离线复算结果：
+
+```text
+教育背景 / 核心技能 / 实习经历 / 项目经历 F1 = 1.0
+目标岗位 exact_match = 1.0
+优势标签 F1 = 0.8354
+```
+
+剩余 11 条差异属于语义粒度差异，例如“交互体验”与“交互体验优化”、“评测”与“模型评测”。这些样本应进入后续标注和增量 SFT，不应继续堆字符串替换规则。
+
+## 10. DPO conversational preference 修复
+
+第一次正式 DPO 启动时，TRL 输出大量 prompt tokenization mismatch 警告。根因是 preference 使用纯字符串：
+
+```text
+prompt + chosen
+prompt + rejected
+```
+
+Qwen tokenizer 在部分 JSON 边界会发生重分词，TRL 按 `len(prompt_ids)` 截取 completion 时存在边界不确定性。
+
+本轮将 preference 改为 TRL 官方支持的 conversational 格式：
+
+```json
+{
+  "prompt": [{"role": "system", "content": "..."}, {"role": "user", "content": "..."}],
+  "chosen": [{"role": "assistant", "content": "..."}],
+  "rejected": [{"role": "assistant", "content": "..."}]
+}
+```
+
+同时更新：
+
+1. bootstrap preference 构造器。
+2. API 错例 preference 构造器。
+3. readiness 审计器，兼容旧字符串和新 conversational 格式。
+4. 单元测试。
+
+重建后仍有：
+
+```text
+train = 4400
+valid = 550
+invalid_rows = 0
+holdout_overlap = 0
+ready_for_dpo = true
+```
+
+16 条训练样本、16 条验证样本的 conversational DPO smoke 已完成，原边界警告消失：
+
+```text
+train_runtime = 46.56s
+train_loss = 0.6931
+eval_loss = 0.6931
+```
+
+正式 DPO 使用 NLL adapter 作为暂定起点，输出到：
+
+```text
+outputs/checkpoints/qwen3-14b-jobmatch-nll-dpo-chat-20260602
+```
+
+DPO 完成后仍需重新运行 JD、resume 和 match 评测。当前 preference 主要来自 JD 结构化 hard negative，因此必须确认多任务能力没有回退。

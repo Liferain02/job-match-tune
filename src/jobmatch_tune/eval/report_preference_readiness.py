@@ -21,6 +21,22 @@ def _holdout_ids(path: str) -> set[str]:
     return {str(row.get("id") or "") for row in read_jsonl(file_path)}
 
 
+def _preference_text(value: Any) -> str:
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, list):
+        return json.dumps(value, ensure_ascii=False, sort_keys=True)
+    return ""
+
+
+def _completion_content(value: Any) -> str:
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, list) and len(value) == 1 and isinstance(value[0], dict):
+        return str(value[0].get("content") or "").strip()
+    return ""
+
+
 def audit_preference_files(train_path: str, valid_path: str, holdout_path: str) -> dict[str, Any]:
     holdout_ids = _holdout_ids(holdout_path)
     split_counts: Counter[str] = Counter()
@@ -43,9 +59,9 @@ def audit_preference_files(train_path: str, valid_path: str, holdout_path: str) 
             try:
                 row_id = str(row["id"])
                 source_id = str(row.get("source_id") or row_id)
-                prompt = str(row["prompt"]).strip()
-                chosen = str(row["chosen"]).strip()
-                rejected = str(row["rejected"]).strip()
+                prompt = _preference_text(row["prompt"])
+                chosen = _completion_content(row["chosen"])
+                rejected = _completion_content(row["rejected"])
                 if not prompt or not chosen or not rejected:
                     raise ValueError("missing preference text")
                 json.loads(chosen)
