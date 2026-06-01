@@ -33,6 +33,20 @@ def test_risk_reasons_flags_quality_weak_missing_fields() -> None:
     assert risk_score(reasons) >= 4
 
 
+def test_risk_reasons_flags_field_boundary_leakage() -> None:
+    row = _row(
+        "后端开发工程师",
+        '{"岗位方向":"后端开发","核心职责":["负责服务开发。任职要求：本科及以上，熟悉Java。"],'
+        '"必备技能":["Java"],"学历要求":"本科","经验要求":"3年"}',
+        tier="strict",
+    )
+
+    reasons = risk_reasons(row)
+
+    assert "responsibility_contains_requirement_marker" in reasons
+    assert risk_score(reasons) >= 3
+
+
 def test_build_risk_report_counts_high_risk_samples() -> None:
     rows = [
         _row(

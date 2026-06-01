@@ -4,6 +4,7 @@ import json
 
 from jobmatch_tune.dataset.build_jd_quality_sft_dataset import (
     _with_quality_score_meta,
+    _sanitize_normalized_row,
     build_quality_profile,
     build_quality_rows,
     build_quality_weak_rows,
@@ -94,6 +95,19 @@ def test_build_quality_weak_rows_sanitizes_degree_only_experience_and_repairs_di
     assert sample["meta"]["quality_tier"] == "quality_weak"
     assert assistant["岗位方向"] == "后端开发"
     assert assistant["经验要求"] == ""
+
+
+def test_sanitize_normalized_row_repairs_responsibility_requirement_boundary() -> None:
+    row = _strict_row("s1")
+    row["sections"] = {
+        "responsibilities": "负责服务开发。任职要求：本科及以上，熟悉 Java。",
+        "requirements": "",
+    }
+
+    sanitized = _sanitize_normalized_row(row)
+
+    assert sanitized["sections"]["responsibilities"] == "负责服务开发。"
+    assert "任职要求" in sanitized["sections"]["requirements"]
 
 
 def test_build_quality_profile_reports_tiers_and_empty_rates() -> None:

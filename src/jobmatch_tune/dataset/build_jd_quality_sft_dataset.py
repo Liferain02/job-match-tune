@@ -20,6 +20,7 @@ from jobmatch_tune.dataset.build_sft_dataset import (
     split_samples,
 )
 from jobmatch_tune.dataset.jd_quality_risk import HIGH_RISK_THRESHOLD, is_high_risk, risk_reasons, risk_score
+from jobmatch_tune.dataset.jd_quality_risk import REQUIREMENT_MARKERS, RESPONSIBILITY_MARKERS
 from jobmatch_tune.preprocess.normalize_jd import normalize_jd_row
 from jobmatch_tune.utils.io import write_text
 from jobmatch_tune.utils.io import read_jsonl, write_jsonl
@@ -124,6 +125,33 @@ def _clean_experience(value: Any) -> str:
     return text
 
 
+def _repair_section_boundary(sections: dict[str, Any]) -> dict[str, str]:
+    repaired = {key: str(value or "").strip() for key, value in sections.items()}
+    responsibilities = repaired.get("responsibilities", "")
+    requirements = repaired.get("requirements", "")
+    for marker in REQUIREMENT_MARKERS:
+        if marker in responsibilities:
+            before, after = responsibilities.split(marker, 1)
+            repaired["responsibilities"] = before.strip(" ：:;；\n")
+            leaked_requirement = f"{marker}：{after.strip(' ：:;；')}".strip()
+            repaired["requirements"] = "\n".join(
+                value for value in [requirements, leaked_requirement] if value
+            ).strip()
+            break
+    requirements = repaired.get("requirements", "")
+    responsibilities = repaired.get("responsibilities", "")
+    for marker in RESPONSIBILITY_MARKERS:
+        if marker in requirements:
+            before, after = requirements.split(marker, 1)
+            repaired["requirements"] = before.strip(" ：:;；\n")
+            leaked_responsibility = f"{marker}：{after.strip(' ：:;；')}".strip()
+            repaired["responsibilities"] = "\n".join(
+                value for value in [responsibilities, leaked_responsibility] if value
+            ).strip()
+            break
+    return {key: value for key, value in repaired.items() if value}
+
+
 def _repair_direction_from_title(title: str, current: str) -> str:
     lowered = title.lower()
     if "ai infra" in lowered or "训练平台" in title or "推理平台" in title or "算力平台" in title:
@@ -161,6 +189,7 @@ def _sanitize_normalized_row(row: dict[str, Any]) -> dict[str, Any]:
         labels["岗位方向"] = _repair_direction_from_title(title, direction)
     row = dict(row)
     row["labels"] = labels
+    row["sections"] = _repair_section_boundary(row.get("sections") or {})
     return row
 
 
@@ -234,7 +263,7 @@ def build_quality_rows(
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     selected: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
-    strict_selected = [row for row in strict_rows if is_high_trust_strong_row(row)]
+    strict_selected = [_sanitize_normalized_row(row) for row in strict_rows if is_high_trust_strong_row(row)]
     strict_selected = _tag_rows(
         strict_selected,
         "strict",

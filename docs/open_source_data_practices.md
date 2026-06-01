@@ -182,15 +182,15 @@ resume 扩量后达到 `48148` 条，如果直接和 JD、match 混合训练，�
 
 当前 JD quality 分层：
 
-- `strict`: `3200`
-- `strict_plus`: `273`
-- `quality_weak`: `1527`
+- `strict`: `3203`
+- `strict_plus`: `272`
+- `quality_weak`: `1525`
 - `bootstrap`: `0`
 
 当前质量画像：
 
-- `quality_score_avg`: `79.78`
-- `risk_score_counts`: `0=912, 1=2471, 2=1303, 3=314`
+- `quality_score_avg`: `80.11`
+- `risk_score_counts`: `0=944, 1=2523, 2=1261, 3=272`
 
 同时新增按层级抽样的人工复核种子集：
 
@@ -261,6 +261,18 @@ bash scripts/data/build_jd_quality_review_set.sh \
 
 - `balanced`：默认策略，每个 tier 随机抽样，适合看整体分布。
 - `lowest-score`：每个 tier 先按 `quality_score` 升序，再按 `quality_risk_score` 降序抽样，适合优先修低质量样本。
+
+低分样本暴露出一个高频问题：`核心职责` 中混入 `任职要求 / 技能要求`。这一轮已经把边界修复前移到 JD quality 构建阶段：
+
+- 如果 `responsibilities` 内出现要求类 marker，会切出并合并到 `requirements`。
+- 如果 `requirements` 内出现职责类 marker，会切回 `responsibilities`。
+- 风险审计增加 `responsibility_contains_requirement_marker` 和 `requirement_contains_responsibility_marker`。
+
+重建后：
+
+- `oversized_single_responsibility`: 从 `220` 降到 `110`
+- `responsibility_contains_requirement_marker`: `15`
+- `high_risk_samples`: `0`
 
 ## 3. 当前仍应继续优化的方向
 

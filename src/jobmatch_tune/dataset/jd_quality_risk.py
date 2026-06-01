@@ -25,6 +25,8 @@ WEAK_SOURCE_PREFIXES = ("hf_", "github_")
 RISK_WEIGHTS = {
     "invalid_assistant_json": 5,
     "suspicious_title_keyword": 4,
+    "responsibility_contains_requirement_marker": 3,
+    "requirement_contains_responsibility_marker": 3,
     "quality_weak_missing_core_field": 3,
     "empty_responsibilities": 2,
     "oversized_single_responsibility": 2,
@@ -36,6 +38,24 @@ RISK_WEIGHTS = {
 }
 
 HIGH_RISK_THRESHOLD = 4
+
+REQUIREMENT_MARKERS = (
+    "任职要求",
+    "岗位要求",
+    "职位要求",
+    "任职资格",
+    "能力要求",
+    "技能要求",
+    "专业要求",
+)
+
+RESPONSIBILITY_MARKERS = (
+    "岗位职责",
+    "工作职责",
+    "职位描述",
+    "工作内容",
+    "职责描述",
+)
 
 
 def assistant_json(row: dict[str, Any]) -> dict[str, Any] | None:
@@ -97,8 +117,14 @@ def risk_reasons(row: dict[str, Any]) -> list[str]:
         reasons.append("empty_education")
     if not assistant.get("经验要求"):
         reasons.append("empty_experience")
-    if len(assistant.get("核心职责") or []) == 1:
-        first = str((assistant.get("核心职责") or [""])[0])
+    responsibilities = [str(item) for item in (assistant.get("核心职责") or [])]
+    requirements_text = str(assistant.get("任职要求") or "")
+    if any(marker in "\n".join(responsibilities) for marker in REQUIREMENT_MARKERS):
+        reasons.append("responsibility_contains_requirement_marker")
+    if requirements_text and any(marker in requirements_text for marker in RESPONSIBILITY_MARKERS):
+        reasons.append("requirement_contains_responsibility_marker")
+    if len(responsibilities) == 1:
+        first = responsibilities[0]
         if len(first) > 500:
             reasons.append("oversized_single_responsibility")
     if tier == "quality_weak" and (not assistant.get("学历要求") or not assistant.get("必备技能")):

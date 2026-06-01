@@ -440,9 +440,9 @@ strict_plus 是 strict 和弱标注之间的过渡层。
 
 最近一次重建后的分层统计：
 
-- `strict = 3200`
-- `strict_plus = 273`
-- `quality_weak = 1527`
+- `strict = 3203`
+- `strict_plus = 272`
+- `quality_weak = 1525`
 - `bootstrap = 0`
 
 ### 11.4 高风险 JD 过滤
@@ -495,10 +495,22 @@ strict_plus 是 strict 和弱标注之间的过渡层。
 
 当前质量画像：
 
-- `quality_score_avg = 79.78`
-- `risk_score_counts = 0:912, 1:2471, 2:1303, 3:314`
+- `quality_score_avg = 80.11`
+- `risk_score_counts = 0:944, 1:2523, 2:1261, 3:272`
 
 这一步参考的是 Data-Juicer / DataFlow 一类数据处理框架的可追溯思路：训练样本不只是文本，还要带上来源、准入原因和质量信号。
+
+随后又根据低分样本复核发现的职责/要求粘连问题，把 section 边界修复前移到 JD quality 构建阶段：
+
+1. `核心职责` 中出现 `任职要求 / 技能要求 / 任职资格` 等 marker 时，自动切出并合并到要求文本。
+2. 要求文本中出现 `岗位职责 / 工作职责` 等 marker 时，自动切回职责文本。
+3. 风险审计增加字段边界泄漏原因，用于继续追踪漏修样本。
+
+重建后：
+
+- `oversized_single_responsibility` 从 `220` 降到 `110`
+- `responsibility_contains_requirement_marker = 15`
+- `high_risk_samples = 0`
 
 ### 11.6 低分样本复核集
 
