@@ -15,6 +15,15 @@ TEXT_FIELDS = ["匹配等级"]
 BOOL_FIELDS = ["岗位方向匹配", "学历匹配", "经验匹配"]
 
 
+def _diagnostic(result: dict[str, Any]) -> dict[str, Any]:
+    if result.get("ok"):
+        return {}
+    return {
+        "error": result.get("error"),
+        "raw_output": result.get("raw_output"),
+    }
+
+
 def run_predictions(
     rows: list[dict[str, Any]],
     model_name: str,
@@ -43,6 +52,8 @@ def run_predictions(
                     "jd_ok": jd_result.get("ok", False),
                     "resume_ok": resume_result.get("ok", False),
                     "analysis_ok": False,
+                    "jd_diagnostic": _diagnostic(jd_result),
+                    "resume_diagnostic": _diagnostic(resume_result),
                     "rule_result": {},
                     "analysis": {},
                 }
@@ -72,6 +83,9 @@ def run_predictions(
                 "jd_ok": jd_result.get("ok", False),
                 "resume_ok": resume_result.get("ok", False),
                 "analysis_ok": analysis_result.get("ok", False),
+                "jd_diagnostic": _diagnostic(jd_result),
+                "resume_diagnostic": _diagnostic(resume_result),
+                "analysis_diagnostic": _diagnostic(analysis_result),
                 "rule_result": rule_result,
                 "analysis": analysis_result.get("data") or {},
             }

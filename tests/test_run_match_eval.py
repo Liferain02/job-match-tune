@@ -1,5 +1,5 @@
 from jobmatch_tune.eval import run_match_eval
-from jobmatch_tune.eval.run_match_eval import build_report, evaluate_rows
+from jobmatch_tune.eval.run_match_eval import _diagnostic, build_report, evaluate_rows
 
 
 def test_evaluate_rows_basic():
@@ -119,3 +119,11 @@ def test_run_predictions_reuses_loaded_model(monkeypatch):
     assert len(load_calls) == 1
     assert [call[2] for call in predict_calls] == ["jd_parse", "resume_parse", "match"]
     assert predictions[0]["analysis_ok"] is True
+
+
+def test_diagnostic_keeps_failed_generation_details():
+    assert _diagnostic({"ok": True, "raw_output": "{}"}) == {}
+    assert _diagnostic({"ok": False, "error": "invalid json", "raw_output": "bad"}) == {
+        "error": "invalid json",
+        "raw_output": "bad",
+    }
