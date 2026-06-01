@@ -7,6 +7,7 @@ from jobmatch_tune.eval.report_data_readiness import (
     build_multitask_report,
     build_report,
     build_task_report,
+    count_holdout_overlap,
     _float_or_default,
 )
 
@@ -45,6 +46,8 @@ def test_build_report_summarizes_not_ready_tasks():
                 read_json_file.side_effect = [
                     {"tier_counts": {"strict": 1}},
                     {"high_risk_rate": 0.01},
+                    {},
+                    {},
                 ]
                 report = build_report()
     assert report["summary"]["all_ready_for_training"] is False
@@ -118,3 +121,12 @@ def test_build_multitask_report_requires_all_tasks(tmp_path: Path):
 
     assert report["has_required_mix"] is True
     assert report["ready_for_sft"] is True
+
+
+def test_count_holdout_overlap_normalizes_jd_parse_suffix(tmp_path: Path):
+    train = tmp_path / "train.jsonl"
+    holdout = tmp_path / "holdout.jsonl"
+    train.write_text(json.dumps({"id": "jd_1_jd_parse"}) + "\n", encoding="utf-8")
+    holdout.write_text(json.dumps({"source_id": "jd_1"}) + "\n", encoding="utf-8")
+
+    assert count_holdout_overlap([str(train)], str(holdout)) == 1

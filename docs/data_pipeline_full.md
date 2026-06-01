@@ -500,7 +500,7 @@ bash scripts/data/rebuild_data_pipeline.sh
 - `data/sft_jd_quality/train.jsonl`: `4400`
 - `data/sft_jd_quality/valid.jsonl`: `550`
 - `data/sft_jd_quality/test.jsonl`: `550`
-- 分层来源：`strict=3200, strict_plus=260, quality_weak=2040, bootstrap=0`
+- 分层来源：`strict=3150, strict_plus=260, bootstrap=2, quality_weak=2088`
 
 扩容探测结论：
 

@@ -38,7 +38,7 @@ def load_model(model_name: str, adapter: str | None, load_4bit: bool):
         )
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
-        torch_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
+        dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
         device_map="auto",
         trust_remote_code=True,
         quantization_config=quantization_config,
@@ -48,18 +48,16 @@ def load_model(model_name: str, adapter: str | None, load_4bit: bool):
     return tokenizer, model
 
 
-def predict(
-    model_name: str,
+def predict_loaded(
+    tokenizer,
+    model,
     task: str,
     text: str,
     *,
     resume_text: str = "",
     rule_result: str = "",
-    adapter: str | None = None,
-    load_4bit: bool = False,
     max_new_tokens: int = 1024,
 ) -> dict:
-    tokenizer, model = load_model(model_name, adapter, load_4bit)
     messages = build_prompt(task, text, resume_text=resume_text, rule_result=rule_result)
     prompt = tokenizer.apply_chat_template(
         messages,
@@ -79,6 +77,29 @@ def predict(
     generated = output_ids[0][inputs["input_ids"].shape[-1] :]
     raw = tokenizer.decode(generated, skip_special_tokens=True)
     return parse_json_output(raw, context_text=text)
+
+
+def predict(
+    model_name: str,
+    task: str,
+    text: str,
+    *,
+    resume_text: str = "",
+    rule_result: str = "",
+    adapter: str | None = None,
+    load_4bit: bool = False,
+    max_new_tokens: int = 1024,
+) -> dict:
+    tokenizer, model = load_model(model_name, adapter, load_4bit)
+    return predict_loaded(
+        tokenizer,
+        model,
+        task,
+        text,
+        resume_text=resume_text,
+        rule_result=rule_result,
+        max_new_tokens=max_new_tokens,
+    )
 
 
 def main() -> None:

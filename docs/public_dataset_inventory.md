@@ -29,14 +29,14 @@
 1. `OhMyKing/FairCV`
    - 类型：中文模拟简历
    - 规模：100K<n<1M，仓库存储约 6.86 GB
-   - 当前状态：已确认可用，并已补本地导入器入口
+   - 当前状态：已接入轻量采样入口，当前拉取 1000 条进入 resume 候选池
    - 风险：字段口径和当前 schema 需要映射，且包含偏见研究变量
    - 链接：<https://huggingface.co/datasets/OhMyKing/FairCV>
 
 2. `PassbyGrocer/resume-ner`
    - 类型：中文简历 NER
    - 规模：train 3821 / validation 463 / test 477
-   - 当前状态：已确认可用，并已补本地导入器入口
+   - 当前状态：已下载 train parquet，共 3821 条；进入外部语料审计，不直接混入 resume_parse SFT
    - 风险：是 token classification，不是完整 JSON 结构化标签
    - 链接：<https://huggingface.co/datasets/PassbyGrocer/resume-ner>
 
@@ -58,6 +58,8 @@
 ## 当前仓库中的导入入口
 
 - Resume：
+  - [download_public_resume_samples.py](/share/home/lifr/workspace/code/job-match-tune/src/jobmatch_tune/dataset/download_public_resume_samples.py)
+  - [download_public_resume_samples.sh](/share/home/lifr/workspace/code/job-match-tune/scripts/data/download_public_resume_samples.sh)
   - [configs/public_resume_sources.yaml](/share/home/lifr/workspace/code/job-match-tune/configs/public_resume_sources.yaml)
   - [import_public_resume_data.py](/share/home/lifr/workspace/code/job-match-tune/src/jobmatch_tune/dataset/import_public_resume_data.py)
   - [import_public_resume_exports.sh](/share/home/lifr/workspace/code/job-match-tune/scripts/data/import_public_resume_exports.sh)

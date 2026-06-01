@@ -5,7 +5,7 @@ import json
 from typing import Any
 
 from jobmatch_tune.eval.metrics import precision_recall_f1, text_exact_match
-from jobmatch_tune.inference.predict import predict
+from jobmatch_tune.inference.predict import load_model, predict_loaded
 from jobmatch_tune.match.rule_engine import compute_match_rule_result
 from jobmatch_tune.utils.io import read_jsonl, write_text
 
@@ -22,15 +22,15 @@ def run_predictions(
     load_4bit: bool,
     max_new_tokens: int,
 ) -> list[dict[str, Any]]:
+    tokenizer, model = load_model(model_name, adapter, load_4bit)
     results = []
     for row in rows:
-        jd_result = predict(model_name, "jd_parse", row["jd_text"], adapter=adapter, load_4bit=load_4bit, max_new_tokens=max_new_tokens)
-        resume_result = predict(
-            model_name,
+        jd_result = predict_loaded(tokenizer, model, "jd_parse", row["jd_text"], max_new_tokens=max_new_tokens)
+        resume_result = predict_loaded(
+            tokenizer,
+            model,
             "resume_parse",
             row["resume_text"],
-            adapter=adapter,
-            load_4bit=load_4bit,
             max_new_tokens=max_new_tokens,
         )
 
@@ -55,14 +55,13 @@ def run_predictions(
             jd_text=row["jd_text"],
             resume_text=row["resume_text"],
         )
-        analysis_result = predict(
-            model_name,
+        analysis_result = predict_loaded(
+            tokenizer,
+            model,
             "match",
             row["jd_text"],
             resume_text=row["resume_text"],
             rule_result=json.dumps(rule_result, ensure_ascii=False),
-            adapter=adapter,
-            load_4bit=load_4bit,
             max_new_tokens=max_new_tokens,
         )
         results.append(

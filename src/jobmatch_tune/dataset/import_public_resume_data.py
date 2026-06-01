@@ -125,6 +125,10 @@ def build_resume_ner_row(
     mapping = source.get("mapping") or {}
     tokens = get_path_value(row, mapping.get("tokens", ""))
     tags = get_path_value(row, mapping.get("tags", ""))
+    if hasattr(tokens, "tolist"):
+        tokens = tokens.tolist()
+    if hasattr(tags, "tolist"):
+        tags = tags.tolist()
     if not isinstance(tokens, list) or not tokens:
         return None
     if not isinstance(tags, list):
@@ -171,6 +175,9 @@ def main() -> None:
 
     all_rows: list[dict[str, Any]] = []
     for source in load_sources(args.manifest):
+        if not Path(source["path"]).exists():
+            print(f"{source['name']}: skipped missing file {source['path']}")
+            continue
         rows = read_rows(source["path"])
         converted = convert_rows(source, rows)
         all_rows.extend(converted)

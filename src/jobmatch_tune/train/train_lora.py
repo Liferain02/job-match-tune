@@ -60,7 +60,7 @@ def main() -> None:
     model_kwargs = {
         "trust_remote_code": True,
         "device_map": "auto",
-        "torch_dtype": torch.bfloat16 if config.get("bf16", True) else torch.float16,
+        "dtype": torch.bfloat16 if config.get("bf16", True) else torch.float16,
         "quantization_config": quantization_config,
     }
     performance_cfg = config.get("performance", {})
@@ -113,11 +113,12 @@ def main() -> None:
         or config["gradient_accumulation_steps"],
         num_train_epochs=args.num_train_epochs or config["num_train_epochs"],
         learning_rate=args.learning_rate or float(config["learning_rate"]),
-        warmup_ratio=config.get("warmup_ratio", 0.03),
+        warmup_steps=config.get("warmup_steps", 0),
         weight_decay=config.get("weight_decay", 0.0),
         lr_scheduler_type=config.get("lr_scheduler_type", "cosine"),
         logging_steps=config.get("logging_steps", 10),
         save_steps=config.get("save_steps", 100),
+        save_total_limit=config.get("save_total_limit", 2),
         eval_steps=config.get("eval_steps", 100),
         eval_strategy="steps",
         bf16=config.get("bf16", True),
@@ -142,7 +143,13 @@ def main() -> None:
         peft_config=peft_config,
         formatting_func=formatting_func,
     )
-    trainer.train()
+    train_result = trainer.train()
+    trainer.log_metrics("train", train_result.metrics)
+    trainer.save_metrics("train", train_result.metrics)
+    eval_metrics = trainer.evaluate()
+    trainer.log_metrics("eval", eval_metrics)
+    trainer.save_metrics("eval", eval_metrics)
+    trainer.save_state()
     trainer.save_model(output_dir)
 
 

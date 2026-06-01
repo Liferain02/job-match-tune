@@ -62,9 +62,22 @@ QUALITY_TIER_BASE_SCORE = {
     "bootstrap": 60,
 }
 
+EXPERIENCE_SUPPLEMENT_LIMIT = 250
+
 
 def _row_id(row: dict[str, Any]) -> str:
     return str(row.get("id") or "")
+
+
+def _load_excluded_ids(path: str) -> set[str]:
+    file_path = Path(path)
+    if not file_path.exists():
+        return set()
+    excluded = set()
+    for row in read_jsonl(file_path):
+        source_id = str(row.get("source_id") or row.get("id") or "")
+        excluded.add(source_id.removesuffix("_jd_parse"))
+    return excluded
 
 
 def _append_unique(
@@ -74,10 +87,12 @@ def _append_unique(
     *,
     limit: int,
     max_risk_score: int | None = None,
+    excluded_ids: set[str] | None = None,
 ) -> None:
+    excluded_ids = excluded_ids or set()
     for row in rows:
         row_id = _row_id(row)
-        if not row_id or row_id in seen_ids:
+        if not row_id or row_id in seen_ids or row_id.removesuffix("_jd_parse") in excluded_ids:
             continue
         if max_risk_score is not None and is_high_risk(
             build_jd_parse_sample(row),
@@ -101,6 +116,18 @@ def _with_quality_meta(row: dict[str, Any], tier: str, reason: str) -> dict[str,
 
 def _tag_rows(rows: list[dict[str, Any]], tier: str, reason: str) -> list[dict[str, Any]]:
     return [_with_quality_meta(row, tier, reason) for row in rows]
+
+
+def _rank_quality_candidates(rows: list[dict[str, Any]], seed: int) -> list[dict[str, Any]]:
+    ranked = rows[:]
+    random.Random(seed).shuffle(ranked)
+    ranked.sort(
+        key=lambda row: (
+            not bool(str((row.get("labels") or {}).get("经验要求") or "").strip()),
+            risk_score(risk_reasons(build_jd_parse_sample(row))),
+        )
+    )
+    return ranked
 
 
 def _with_quality_score_meta(row: dict[str, Any]) -> dict[str, Any]:
@@ -260,6 +287,7 @@ def build_quality_rows(
     target_total: int,
     seed: int,
     max_risk_score: int | None = HIGH_RISK_THRESHOLD - 1,
+    excluded_ids: set[str] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     selected: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
@@ -269,9 +297,16 @@ def build_quality_rows(
         "strict",
         "high_trust_zh_tech_structured",
     )
-    _append_unique(selected, strict_selected, seen_ids, limit=target_total, max_risk_score=max_risk_score)
+    _append_unique(
+        selected,
+        strict_selected,
+        seen_ids,
+        limit=target_total,
+        max_risk_score=max_risk_score,
+        excluded_ids=excluded_ids,
+    )
 
-    stats = {"strict": len(selected), "strict_plus": 0, "quality_weak": 0, "bootstrap": 0}
+    stats = {"strict": len(selected), "strict_plus": 0, "bootstrap_experience": 0, "quality_weak": 0, "bootstrap": 0}
     if len(selected) >= target_total:
         return selected[:target_total], stats
 
@@ -283,8 +318,38 @@ def build_quality_rows(
         "candidate_pool_structured_direction_education",
     )
     before = len(selected)
-    _append_unique(selected, strict_plus_rows, seen_ids, limit=target_total, max_risk_score=max_risk_score)
+    _append_unique(
+        selected,
+        strict_plus_rows,
+        seen_ids,
+        limit=target_total,
+        max_risk_score=max_risk_score,
+        excluded_ids=excluded_ids,
+    )
     stats["strict_plus"] = len(selected) - before
+    if len(selected) >= target_total:
+        return selected[:target_total], stats
+
+    bootstrap_rows = build_bootstrap_rows(candidate_rows, schema)
+    bootstrap_experience_rows = [
+        row for row in bootstrap_rows if str((row.get("labels") or {}).get("经验要求") or "").strip()
+    ]
+    bootstrap_experience_rows = _tag_rows(
+        bootstrap_experience_rows,
+        "bootstrap",
+        "bootstrap_repairable_experience_complete",
+    )
+    bootstrap_experience_rows = _rank_quality_candidates(bootstrap_experience_rows, seed)
+    before = len(selected)
+    _append_unique(
+        selected,
+        bootstrap_experience_rows,
+        seen_ids,
+        limit=min(target_total, len(selected) + EXPERIENCE_SUPPLEMENT_LIMIT),
+        max_risk_score=max_risk_score,
+        excluded_ids=excluded_ids,
+    )
+    stats["bootstrap_experience"] = len(selected) - before
     if len(selected) >= target_total:
         return selected[:target_total], stats
 
@@ -295,22 +360,35 @@ def build_quality_rows(
         "weak_source_direction_skill_education_or_experience",
     )
     rng = random.Random(seed)
-    rng.shuffle(quality_weak_rows)
+    quality_weak_rows = _rank_quality_candidates(quality_weak_rows, seed)
     before = len(selected)
-    _append_unique(selected, quality_weak_rows, seen_ids, limit=target_total, max_risk_score=max_risk_score)
+    _append_unique(
+        selected,
+        quality_weak_rows,
+        seen_ids,
+        limit=target_total,
+        max_risk_score=max_risk_score,
+        excluded_ids=excluded_ids,
+    )
     stats["quality_weak"] = len(selected) - before
     if len(selected) >= target_total:
         return selected[:target_total], stats
 
-    bootstrap_rows = build_bootstrap_rows(candidate_rows, schema)
     bootstrap_rows = _tag_rows(
         bootstrap_rows,
         "bootstrap",
         "bootstrap_repairable_structured",
     )
-    rng.shuffle(bootstrap_rows)
+    bootstrap_rows = _rank_quality_candidates(bootstrap_rows, seed)
     before = len(selected)
-    _append_unique(selected, bootstrap_rows, seen_ids, limit=target_total, max_risk_score=max_risk_score)
+    _append_unique(
+        selected,
+        bootstrap_rows,
+        seen_ids,
+        limit=target_total,
+        max_risk_score=max_risk_score,
+        excluded_ids=excluded_ids,
+    )
     stats["bootstrap"] = len(selected) - before
     return selected[:target_total], stats
 
@@ -367,6 +445,7 @@ def main() -> None:
     parser.add_argument("--schema", default="configs/label_schema.yaml")
     parser.add_argument("--out-dir", default="data/sft_jd_quality")
     parser.add_argument("--profile-out", default="outputs/eval_reports/jd_quality_profile.json")
+    parser.add_argument("--holdout-input", default="data/eval/jd_manual_eval_50.jsonl")
     parser.add_argument("--target-total", type=int, default=5500)
     parser.add_argument("--max-risk-score", type=int, default=HIGH_RISK_THRESHOLD - 1)
     parser.add_argument("--seed", type=int, default=42)
@@ -377,6 +456,7 @@ def main() -> None:
     schema = load_schema(args.schema)
     strict_rows = list(read_jsonl(args.strict_input))
     candidate_rows = list(read_jsonl(args.candidate_input))
+    excluded_ids = _load_excluded_ids(args.holdout_input)
     quality_rows, stats = build_quality_rows(
         strict_rows=strict_rows,
         candidate_rows=candidate_rows,
@@ -384,6 +464,7 @@ def main() -> None:
         target_total=args.target_total,
         seed=args.seed,
         max_risk_score=args.max_risk_score,
+        excluded_ids=excluded_ids,
     )
     if len(quality_rows) < args.target_total:
         raise SystemExit(
@@ -403,6 +484,7 @@ def main() -> None:
     write_text(args.profile_out, json.dumps(profile, ensure_ascii=False, indent=2) + "\n")
     print(f"wrote quality profile to {args.profile_out}")
     print(f"stage_stats={stats}")
+    print(f"excluded_holdout_ids={len(excluded_ids)}")
 
 
 if __name__ == "__main__":

@@ -470,9 +470,9 @@ JD 解析 -> 简历解析 -> JD 和简历匹配度分析
 
 当前简历 SFT 数据：
 
-- `data/sft_resume/train.jsonl`: `38408`
-- `data/sft_resume/valid.jsonl`: `4850`
-- `data/sft_resume/test.jsonl`: `4890`
+- `data/sft_resume/train.jsonl`: `39132`
+- `data/sft_resume/valid.jsonl`: `5083`
+- `data/sft_resume/test.jsonl`: `4952`
 
 ---
 
@@ -663,7 +663,7 @@ bash scripts/data/report_data_readiness.sh
 | 任务 | train | valid | test | combined pool |
 | --- | ---: | ---: | ---: | ---: |
 | JD | 4400 | 550 | 550 | 37796 |
-| 简历 | 38408 | 4850 | 4890 | 3137 |
+| 简历 | 39132 | 5083 | 4952 | 4137 |
 | 匹配 | 3917 | 486 | 493 | 4896 |
 | 多任务 SFT | 9800 | 1208 | 0 | 11008 |
 
@@ -693,7 +693,7 @@ JD 当前字段空值率：
 - `resume`: `2800 / 338`
 - `match`: `2600 / 320`
 
-这样可以避免 `resume` 扩到 48148 条后在训练中压过 JD 和 match。
+这样可以避免 `resume` 扩到 49167 条后在训练中压过 JD 和 match。
 
 ---
 
@@ -704,7 +704,7 @@ JD 当前字段空值率：
 1. 从多个中文招聘官网和公开数据集构建 JD 原始池。
 2. 对 JD 做清洗、去重、规则抽取和分层筛选。
 3. 构建 5500 条 JD 质量 SFT 数据。
-4. 构建 48148 条简历解析 SFT 数据。
+4. 构建 49167 条简历解析 SFT 数据。
 5. 构建 4896 条匹配分析 SFT 数据。
 6. 对三条数据线做 readiness 审计。
 7. 在 14B QLoRA 路线上继续训练。

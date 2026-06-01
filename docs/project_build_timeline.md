@@ -589,9 +589,9 @@ JD 解析 -> 简历解析 -> JD 和简历匹配度分析
 
 当前简历 SFT 数据规模：
 
-- `data/sft_resume/train.jsonl = 38408`
-- `data/sft_resume/valid.jsonl = 4850`
-- `data/sft_resume/test.jsonl = 4890`
+- `data/sft_resume/train.jsonl = 39132`
+- `data/sft_resume/valid.jsonl = 5083`
+- `data/sft_resume/test.jsonl = 4952`
 
 ---
 

@@ -22,4 +22,5 @@ def test_compute_public_resume_report():
     report = compute_report(rows)
     assert report["total_rows"] == 2
     assert report["task_distribution"][0][0] in {"resume_parse", "resume_ner"}
+    assert report["resume_parse_label_coverage"]["target_job"] == 1.0
     assert report["resume_ner_tag_count"] == 2

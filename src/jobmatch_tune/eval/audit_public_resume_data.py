@@ -21,6 +21,7 @@ def compute_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
     internship_count = 0
     project_count = 0
     ner_tag_set = set()
+    resume_parse_rows = 0
 
     for row in rows:
         task = str(row.get("task") or "")
@@ -33,6 +34,7 @@ def compute_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
         if text:
             text_lengths.append(len(text))
         if task == "resume_parse":
+            resume_parse_rows += 1
             label = row.get("label") or {}
             if label.get("目标岗位"):
                 target_job_count += 1
@@ -56,11 +58,11 @@ def compute_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "source_type_distribution": source_type_counter.most_common(),
         "avg_text_length": mean(text_lengths) if text_lengths else 0.0,
         "resume_parse_label_coverage": {
-            "target_job": target_job_count / total if total else 0.0,
-            "education": education_count / total if total else 0.0,
-            "skills": skill_count / total if total else 0.0,
-            "internships": internship_count / total if total else 0.0,
-            "projects": project_count / total if total else 0.0,
+            "target_job": target_job_count / resume_parse_rows if resume_parse_rows else 0.0,
+            "education": education_count / resume_parse_rows if resume_parse_rows else 0.0,
+            "skills": skill_count / resume_parse_rows if resume_parse_rows else 0.0,
+            "internships": internship_count / resume_parse_rows if resume_parse_rows else 0.0,
+            "projects": project_count / resume_parse_rows if resume_parse_rows else 0.0,
         },
         "resume_ner_tag_count": len(ner_tag_set),
         "resume_ner_tags": sorted(ner_tag_set),

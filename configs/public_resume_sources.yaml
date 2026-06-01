@@ -18,7 +18,7 @@ sources:
     language: zh
     source_type: public_text
     tag_scheme: BIO
-    path: data/external/public_resume_exports/resume_ner_train.jsonl
+    path: data/external/public_resume_exports/resume_ner_train.parquet
     mapping:
       tokens: tokens
       tags: ner_tags

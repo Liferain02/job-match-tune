@@ -1,3 +1,4 @@
+from jobmatch_tune.eval import run_match_eval
 from jobmatch_tune.eval.run_match_eval import build_report, evaluate_rows
 
 
@@ -86,3 +87,35 @@ def test_build_report_groups_by_source():
     assert report["overall"]["num_samples"] == 2
     assert "text" in report["by_source_type"]
     assert "ocr_like" in report["by_source_type"]
+
+
+def test_run_predictions_reuses_loaded_model(monkeypatch):
+    load_calls = []
+    predict_calls = []
+
+    def fake_load_model(*args):
+        load_calls.append(args)
+        return "tokenizer", "model"
+
+    def fake_predict_loaded(tokenizer, model, task, text, **kwargs):
+        predict_calls.append((tokenizer, model, task, text, kwargs))
+        return {"ok": True, "data": {"task": task}}
+
+    monkeypatch.setattr(run_match_eval, "load_model", fake_load_model)
+    monkeypatch.setattr(run_match_eval, "predict_loaded", fake_predict_loaded)
+    monkeypatch.setattr(run_match_eval, "compute_match_rule_result", lambda *args, **kwargs: {"匹配等级": "高匹配"})
+
+    rows = [
+        {
+            "id": "match1",
+            "source_type": "text",
+            "jd_text": "Python 后端工程师",
+            "resume_text": "熟悉 Python",
+            "label": {},
+        }
+    ]
+    predictions = run_match_eval.run_predictions(rows, "model", "adapter", True, 64)
+
+    assert len(load_calls) == 1
+    assert [call[2] for call in predict_calls] == ["jd_parse", "resume_parse", "match"]
+    assert predictions[0]["analysis_ok"] is True

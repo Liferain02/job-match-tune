@@ -25,6 +25,8 @@
 
 数据处理参考开源 SFT 项目的对照和本项目落地项见 [docs/open_source_data_practices.md](/share/home/lifr/workspace/code/job-match-tune/docs/open_source_data_practices.md)。
 
+2026-06-01 训练前泄漏审计、公开简历补充和 14B SFT 决策见 [docs/training_readiness_and_sft_2026-06-01.md](/share/home/lifr/workspace/code/job-match-tune/docs/training_readiness_and_sft_2026-06-01.md)。
+
 核心目录：
 
 - `src/jobmatch_tune/`
@@ -433,15 +435,15 @@ bash scripts/data/build_current_data_pools.sh
 - `data/eval/jd_train_pool_weak_structured.jsonl`: `35477`
 - `data/eval/jd_train_pool_combined.jsonl`: `37796`
 - `data/eval/resume_train_pool_synthetic.jsonl`: `3200`
-- `data/eval/resume_train_pool_from_sft.jsonl`: `3200`
+- `data/eval/resume_train_pool_from_sft.jsonl`: `3200`（legacy，不再默认回灌）
 - `data/eval/resume_train_pool_bootstrap.jsonl`: `2600`
-- `data/eval/resume_train_pool_combined.jsonl`: `3137`
+- `data/eval/resume_train_pool_combined.jsonl`: `4137`
 - `data/eval/match_train_pool_combined.jsonl`: `4896`
 
 当前统一就绪报告结论：
 
 - `JD`: `data/sft_jd_quality/` 已达到当前训练门槛，规模为 `4400 / 550 / 550`
-- `resume`: 已达到当前训练门槛，规模为 `38408 / 4850 / 4890`
+- `resume`: 已达到当前训练门槛，规模为 `39132 / 5083 / 4952`
 - `match`: 已达到当前训练门槛，规模为 `3917 / 486 / 493`
 
 也就是说，从数量、JSON 合法性、重复 ID、跨 split 内容去重和字段空值率这几个工程门槛看，当前已经具备做一轮小规模增量 SFT 的条件。训练前仍建议抽样复核 `data/sft_jd_quality/` 的 `quality_weak` 层，因为这部分不是纯官网 strict 样本。
@@ -469,9 +471,9 @@ bash scripts/data/report_pool_profiles.sh
 - `data/sft_jd_bootstrap/train.jsonl`: `1371`
 - `data/sft_jd_bootstrap/valid.jsonl`: `171`
 - `data/sft_jd_bootstrap/test.jsonl`: `172`
-- `data/sft_resume/train.jsonl`: `38408`
-- `data/sft_resume/valid.jsonl`: `4850`
-- `data/sft_resume/test.jsonl`: `4890`
+- `data/sft_resume/train.jsonl`: `39132`
+- `data/sft_resume/valid.jsonl`: `5083`
+- `data/sft_resume/test.jsonl`: `4952`
 - `data/sft_match/train.jsonl`: `3917`
 - `data/sft_match/valid.jsonl`: `486`
 - `data/sft_match/test.jsonl`: `493`
@@ -532,7 +534,7 @@ bash scripts/data/report_jd_quality_risks.sh --sample-limit 200
   - 英文：`51330`
   - 其他 / 未知：`927`
 - 默认 `data/sft/` 现在是严格质量版：`2666 / 333 / 334`。
-- `data/sft_jd_quality/` 是 5500 条 JD 质量集：先取严格官网中文技术岗，再补 strict_plus，最后补 quality_weak；当前分层为 `strict=3200, strict_plus=260, quality_weak=2040, bootstrap=0`。
+- `data/sft_jd_quality/` 是 5500 条 JD 质量集：先取严格官网中文技术岗，再补 strict_plus、少量可修复 bootstrap，最后补 quality_weak；当前分层为 `strict=3150, strict_plus=260, bootstrap=2, quality_weak=2088`。
 - `data/sft_expanded/` 是扩展实验版：`4524 / 565 / 566`。
 - 默认训练不再追求先凑满 2 万，而是优先保留高信任官网中文技术岗。`data/sft_jd_quality/` 可以作为当前 JD SFT 候选主线，但它不是纯 strict：quality_weak 层会要求方向、学历/经验、技能、职责/要求长度，并清理“本科/硕士误入经验字段”等噪声。
 
@@ -717,10 +719,11 @@ bash scripts/dev/download_qwen_models_python.sh 1.7B
 
 ## 偏好优化
 
-从人工评估预测结果生成偏好数据：
+从独立 JD quality 训练集生成结构化 hard-negative 偏好数据，并审计泄漏与格式：
 
 ```bash
-bash scripts/data/build_preference_dataset.sh
+bash scripts/data/build_preference_bootstrap_dataset.sh
+bash scripts/data/report_preference_readiness.sh
 ```
 
 14B DPO 训练：
@@ -732,6 +735,8 @@ bash scripts/train/train_qwen3_14b_dpo.sh
 说明：
 
 - 当前环境中 `trl==1.4.0` 可直接使用 `DPOTrainer`
+- 当前偏好数据规模为 `4400 / 550`，默认不再使用人工 holdout 预测错例，避免评估泄漏
+- `scripts/data/build_preference_dataset.sh` 仅保留给人工复核后的离线错例实验
 - `ORPOTrainer` 当前环境不可直接用，所以仓库先接入了 `DPO`
 - `GRPO` 属于更重的在线后训练，不是当前第一优先级
 - 当前 DPO adapter 评估报告：

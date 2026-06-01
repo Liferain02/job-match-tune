@@ -67,3 +67,23 @@ def test_convert_resume_ner_rows():
     converted = convert_rows(source, rows)
     assert converted[0]["task"] == "resume_ner"
     assert converted[0]["text"] == "张三"
+
+
+def test_convert_resume_ner_rows_accepts_array_like_values():
+    class ArrayLike:
+        def __init__(self, values):
+            self.values = values
+
+        def tolist(self):
+            return self.values
+
+    source = {
+        "name": "resume_ner_demo",
+        "schema": "resume_ner_rows",
+        "path": "demo.parquet",
+        "mapping": {"tokens": "tokens", "tags": "ner_tags"},
+    }
+    converted = convert_rows(source, [{"tokens": ArrayLike(["张", "三"]), "ner_tags": ArrayLike([1, 2])}])
+
+    assert converted[0]["tokens"] == ["张", "三"]
+    assert converted[0]["ner_tags"] == ["1", "2"]

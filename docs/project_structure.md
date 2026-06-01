@@ -80,7 +80,10 @@
     - `report_data_readiness.sh`
     - `report_external_data_status.sh`
     - `rebuild_data_pipeline.sh`
+    - `build_preference_bootstrap_dataset.sh`
     - `build_preference_dataset.sh`
+    - `report_preference_readiness.sh`
+    - `report_resume_sft_profile.sh`
     - `build_multilingual_weak_sft.sh`
 - `scripts/train/`
   - 14B smoke / full / DPO 训练入口

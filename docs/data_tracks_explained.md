@@ -578,7 +578,7 @@ bash scripts/data/report_data_readiness.sh
 截至当前版本，三条线都已通过工程门槛：
 
 - `JD`: `4400 / 550 / 550`，combined pool `37796`
-- `resume`: `38408 / 4850 / 4890`，combined pool `3137`
+- `resume`: `39132 / 5083 / 4952`，combined pool `4137`
 - `match`: `3917 / 486 / 493`，combined pool `4896`
 - `multitask`: `9800 / 1208`，任务配比约为 `JD 45% / resume 29% / match 27%`
 

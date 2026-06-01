@@ -119,8 +119,8 @@ Data-Juicer 和 DataFlow 的共同点是把数据处理拆成可组合 operator�
 
 现在：
 
-- SFT split: `38408 / 4850 / 4890`
-- 总量：`48148`
+- SFT split: `39132 / 5083 / 4952`
+- 总量：`49167`
 - `cross_split_duplicate_hashes = 0`
 
 ### 2.3 readiness 门控增强
@@ -144,7 +144,7 @@ readiness 现在检查：
 
 ### 2.4 多任务训练集 registry
 
-resume 扩量后达到 `48148` 条，如果直接和 JD、match 混合训练，会明显改变任务分布。参考 LLaMA-Factory 的 dataset registry 和 Axolotl 的 dataset 配置思路，本项目新增：
+resume 扩量后达到 `49167` 条，如果直接和 JD、match 混合训练，会明显改变任务分布。参考 LLaMA-Factory 的 dataset registry 和 Axolotl 的 dataset 配置思路，本项目新增：
 
 - [configs/dataset_registry.yaml](/share/home/lifr/workspace/code/job-match-tune/configs/dataset_registry.yaml)
 - [build_multitask_sft_dataset.py](/share/home/lifr/workspace/code/job-match-tune/src/jobmatch_tune/dataset/build_multitask_sft_dataset.py)

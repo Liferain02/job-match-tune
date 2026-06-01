@@ -153,7 +153,10 @@
 - `build_incremental_sft_dataset.py`
   - 拼接增量训练数据
 - `build_preference_dataset.py`
-  - 从人工评估预测结果生成 `prompt / chosen / rejected` 偏好数据
+  - legacy：从人工复核后的预测错例生成 `prompt / chosen / rejected` 偏好数据
+- `build_preference_bootstrap_dataset.py`
+  - 从独立 JD quality train / valid 生成结构化 hard negatives
+  - 默认 preference 主线，避免污染人工 holdout
 
 #### `resume/`
 
@@ -479,10 +482,11 @@ bash scripts/serve/start_api.sh
 
 ### 6.7 偏好优化
 
-先从人工评估预测结果构造 preference dataset：
+先从独立 JD quality 训练集构造结构化 hard-negative preference dataset，再执行泄漏与格式审计：
 
 ```bash
-bash scripts/data/build_preference_dataset.sh
+bash scripts/data/build_preference_bootstrap_dataset.sh
+bash scripts/data/report_preference_readiness.sh
 ```
 
 再执行 14B DPO：
@@ -643,7 +647,8 @@ bash scripts/train/train_qwen3_14b_dpo.sh
 
 在完成 SFT、规则收敛和 14B 服务化之后，又补了一条更贴近当前业界后训练实践的路径：
 
-- 从人工评估预测结果构造偏好数据
+- 默认从独立 JD quality train / valid 构造结构化 hard-negative 偏好数据
+- 人工评估错例只在复核后作为补充，不直接污染 holdout
 - 使用 `TRL DPOTrainer` 做离线 preference tuning
 - 保持与现有 `Qwen3-14B + LoRA` 链路兼容
 
@@ -651,22 +656,24 @@ bash scripts/train/train_qwen3_14b_dpo.sh
 
 ## 9. 当前结果与结论
 
-当前最佳默认方案：
+此前验证过的默认方案：
 
 - `Qwen3-14B`
 - `outputs/checkpoints/qwen3-14b-jobmatch-qlora`
 - `postprocess_json.py` 最新后处理规则
 
-当前已验证的后训练扩展方案：
+此前跑通过的后训练扩展方案：
 
 - `outputs/checkpoints/qwen3-14b-jobmatch-dpo`
 
-人工 holdout 最新结果：
+此前人工 holdout 结果曾达到：
 
 - `岗位方向 exact_match = 1.0`
 - `核心职责 F1 = 1.0`
 - `必备技能 F1 = 1.0`
 - `加分项 F1 = 1.0`
+
+但旧版 JD quality 中有 `44 / 50` 个 holdout 来源重叠，因此这组结果不能作为泛化结论。本轮已经加入 `holdout_overlap = 0` 门控，并重新启动 DFT / NLL SFT A/B。新的无泄漏评估完成后，再更新默认 adapter。
 - `经验要求 exact_match = 1.0`
 - `学历要求 exact_match = 1.0`
 

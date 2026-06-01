@@ -84,7 +84,11 @@ def main() -> None:
     parser.add_argument("--manual-input", default="data/eval/resume_manual_train_pool.jsonl")
     parser.add_argument("--public-input", default="data/external/public_resume_imports.jsonl")
     parser.add_argument("--synthetic-input", default="data/eval/resume_train_pool_synthetic.jsonl")
-    parser.add_argument("--sft-input", default="data/eval/resume_train_pool_from_sft.jsonl")
+    parser.add_argument(
+        "--sft-input",
+        default="",
+        help="Optional legacy materialized SFT input. Disabled by default to avoid recursive template amplification.",
+    )
     parser.add_argument("--bootstrap-input", default="data/eval/resume_train_pool_bootstrap.jsonl")
     parser.add_argument("--out", default="data/eval/resume_train_pool_combined.jsonl")
     args = parser.parse_args()
@@ -92,7 +96,7 @@ def main() -> None:
     manual_rows = list(read_jsonl(args.manual_input))
     public_rows = list(read_jsonl(args.public_input)) if Path(args.public_input).exists() else []
     synthetic_rows = list(read_jsonl(args.synthetic_input)) if Path(args.synthetic_input).exists() else []
-    sft_rows = list(read_jsonl(args.sft_input)) if Path(args.sft_input).exists() else []
+    sft_rows = list(read_jsonl(args.sft_input)) if args.sft_input and Path(args.sft_input).exists() else []
     bootstrap_rows = list(read_jsonl(args.bootstrap_input)) if Path(args.bootstrap_input).exists() else []
     combined = build_combined_rows(manual_rows, public_rows, synthetic_rows, sft_rows, bootstrap_rows)
     write_jsonl(args.out, combined)

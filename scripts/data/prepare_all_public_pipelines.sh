@@ -5,7 +5,7 @@ cd "$(dirname "$0")/../.."
 
 bash scripts/data/prepare_public_jd_pipeline.sh
 
-if [ -f data/external/public_resume_exports/faircv_resume_parse.jsonl ] || [ -f data/external/public_resume_exports/resume_ner_train.jsonl ]; then
+if [ -f data/external/public_resume_exports/faircv_resume_parse.jsonl ] || [ -f data/external/public_resume_exports/resume_ner_train.parquet ]; then
   bash scripts/data/prepare_public_resume_pipeline.sh
 else
   echo "skip resume public pipeline: no public resume export files found"
@@ -18,4 +18,7 @@ else
 fi
 
 bash scripts/data/report_external_data_status.sh
+bash scripts/data/build_preference_bootstrap_dataset.sh
+bash scripts/data/report_preference_readiness.sh
+bash scripts/data/report_resume_sft_profile.sh
 bash scripts/data/report_data_readiness.sh

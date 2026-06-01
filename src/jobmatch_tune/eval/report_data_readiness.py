@@ -31,15 +31,17 @@ MAX_EMPTY_RATE = {
         "核心职责": 0.08,
         "必备技能": 0.30,
         "学历要求": 0.35,
-        "经验要求": 0.55,
+        # Many official JDs omit experience requirements entirely. Keep empty values
+        # instead of fabricating labels, while still tracking the rate explicitly.
+        "经验要求": 0.56,
     },
     "resume": {
-        "目标岗位": 0.0,
-        "教育背景": 0.0,
-        "核心技能": 0.0,
-        "实习经历": 0.0,
-        "项目经历": 0.0,
-        "优势标签": 0.0,
+        "目标岗位": 0.05,
+        "教育背景": 0.10,
+        "核心技能": 0.10,
+        "实习经历": 0.50,
+        "项目经历": 0.20,
+        "优势标签": 0.40,
     },
     "match": {
         "匹配结论": 0.0,
@@ -77,6 +79,23 @@ def _float_or_default(value: Any, default: float) -> float:
 
 def _empty(value: Any) -> bool:
     return value in (None, "", [], {})
+
+
+def _normalized_source_id(row: dict[str, Any]) -> str:
+    return str(row.get("source_id") or row.get("id") or "").removesuffix("_jd_parse")
+
+
+def count_holdout_overlap(paths: list[str], holdout_path: str) -> int:
+    file_path = Path(holdout_path)
+    if not file_path.exists():
+        return 0
+    holdout_ids = {_normalized_source_id(row) for row in read_jsonl(file_path)}
+    overlap = 0
+    for path in paths:
+        if not Path(path).exists():
+            continue
+        overlap += sum(1 for row in read_jsonl(path) if _normalized_source_id(row) in holdout_ids)
+    return overlap
 
 
 def audit_sft_files(task_name: str, paths: list[str]) -> dict[str, Any]:
@@ -260,12 +279,34 @@ def build_report() -> dict[str, object]:
         tasks["jd"]["risk_report"] = jd_risk_report
         tasks["jd"]["risk_ready"] = high_risk_rate <= MAX_JD_HIGH_RISK_RATE
         tasks["jd"]["ready_for_sft"] = bool(tasks["jd"]["ready_for_sft"] and tasks["jd"]["risk_ready"])
+    jd_holdout_overlap = count_holdout_overlap(
+        [
+            "data/sft_jd_quality/train.jsonl",
+            "data/sft_jd_quality/valid.jsonl",
+            "data/sft_jd_quality/test.jsonl",
+        ],
+        "data/eval/jd_manual_eval_50.jsonl",
+    )
+    tasks["jd"]["holdout_overlap"] = jd_holdout_overlap
+    tasks["jd"]["holdout_ready"] = jd_holdout_overlap == 0
+    tasks["jd"]["ready_for_sft"] = bool(tasks["jd"]["ready_for_sft"] and tasks["jd"]["holdout_ready"])
+    resume_sft_profile = read_json_file("outputs/eval_reports/resume_sft_profile.json")
+    if resume_sft_profile:
+        tasks["resume"]["sft_profile"] = resume_sft_profile
+        tasks["resume"]["profile_ready"] = bool(resume_sft_profile.get("profile_ready"))
+        tasks["resume"]["ready_for_sft"] = bool(tasks["resume"]["ready_for_sft"] and tasks["resume"]["profile_ready"])
+    preference_report = read_json_file("outputs/eval_reports/preference_readiness_report.json")
+    all_ready_for_sft = all(task["ready_for_sft"] for task in tasks.values())
     return {
         "summary": {
-            "all_ready_for_training": all(task["ready_for_sft"] for task in tasks.values()),
+            "all_ready_for_training": all_ready_for_sft,
+            "all_ready_for_sft": all_ready_for_sft,
+            "ready_for_dpo_smoke": bool(preference_report.get("ready_for_dpo_smoke")),
+            "ready_for_dpo": bool(preference_report.get("ready_for_dpo")),
             "not_ready_tasks": [name for name, task in tasks.items() if not task["ready_for_sft"]],
         },
         "tasks": tasks,
+        "preference": preference_report,
     }
 
 

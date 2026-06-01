@@ -75,6 +75,23 @@ def test_build_quality_rows_prioritizes_strict_then_enhanced() -> None:
     assert {row["meta"]["quality_tier"] for row in rows} >= {"strict", "strict_plus"}
 
 
+def test_build_quality_rows_excludes_holdout_ids() -> None:
+    schema = {
+        "job_directions": ["后端开发", "算法工程"],
+        "skill_alias": {"Python": ["python"], "SQL": ["sql"], "Linux": ["linux"], "Java": ["java"]},
+    }
+    rows, _ = build_quality_rows(
+        strict_rows=[_strict_row("holdout"), _strict_row("safe")],
+        candidate_rows=[_candidate_row("candidate")],
+        schema=schema,
+        target_total=2,
+        seed=42,
+        excluded_ids={"holdout"},
+    )
+
+    assert {row["id"] for row in rows} == {"safe", "candidate"}
+
+
 def test_build_quality_weak_rows_sanitizes_degree_only_experience_and_repairs_direction() -> None:
     schema = {
         "job_directions": ["后端开发", "前端开发"],
