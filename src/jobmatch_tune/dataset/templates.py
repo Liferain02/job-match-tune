@@ -23,6 +23,7 @@ def resume_parse_prompt(resume_text: str) -> str:
 def match_prompt(jd_text: str, resume_text: str, rule_result: str) -> str:
     return (
         "请根据 JD、简历和规则评分结果生成岗位匹配分析。\n"
-        "只输出 JSON，包含匹配优势、主要短板和简历优化建议，不要编造输入中没有的信息。\n\n"
+        "只输出 JSON，固定包含匹配结论、匹配优势、主要短板、简历优化建议、推荐投递岗位方向五个字段。"
+        "匹配结论是字符串，其余字段是字符串列表。不要增加字段，不要编造输入中没有的信息。\n\n"
         f"JD：\n{jd_text}\n\n简历：\n{resume_text}\n\n规则评分结果：\n{rule_result}"
     )

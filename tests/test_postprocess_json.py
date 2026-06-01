@@ -11,6 +11,22 @@ def test_parse_json_output_repairs_trailing_comma():
     assert result["data"]["技能"] == ["Python"]
 
 
+def test_parse_json_output_repairs_match_conclusion_without_key():
+    result = parse_json_output(
+        '{"匹配优势":["经验背景满足岗位要求"],"主要短板":["学历不足"],'
+        '"简历优化建议":["补充学历说明"],"JD 与简历匹配度较低。"}'
+    )
+    assert result["ok"] is True
+    assert result["data"]["匹配结论"] == "JD 与简历匹配度较低。"
+    assert set(result["data"]) == {"匹配结论", "匹配优势", "主要短板", "简历优化建议", "推荐投递岗位方向"}
+
+
+def test_parse_json_output_does_not_rewrite_valid_list_tail():
+    result = parse_json_output('{"简历优化建议":["补充项目成果","补充量化指标"]}')
+    assert result["ok"] is True
+    assert result["data"]["简历优化建议"] == ["补充项目成果", "补充量化指标"]
+
+
 def test_parse_json_output_deduplicates_lists():
     result = parse_json_output('{"加分项":["LoRA","LoRA","QLoRA"]}')
     assert result["ok"] is True

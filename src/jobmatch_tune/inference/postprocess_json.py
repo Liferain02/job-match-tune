@@ -46,6 +46,7 @@ def repair_json_text(text: str) -> str:
     text = extract_json_text(text)
     text = text.replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
     text = re.sub(r",\s*([}\]])", r"\1", text)
+    text = re.sub(r'(?<=\])\s*,\s*"([^"]+)"\s*\]?\s*}$', r', "匹配结论": "\1"}', text)
     return text
 
 
@@ -137,6 +138,16 @@ def _normalize_resume_fields(data: dict[str, Any], context_text: str) -> dict[st
     projects = _ensure_resume_list(data.get("项目经历"), split_semicolon=True)
     data["项目经历"] = [_ensure_sentence_ending(item) for item in projects]
     return data
+
+
+def _normalize_match_fields(data: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "匹配结论": _normalize_string(data.get("匹配结论")),
+        "匹配优势": _ensure_resume_list(data.get("匹配优势")),
+        "主要短板": _ensure_resume_list(data.get("主要短板")),
+        "简历优化建议": _ensure_resume_list(data.get("简历优化建议")),
+        "推荐投递岗位方向": _ensure_resume_list(data.get("推荐投递岗位方向")),
+    }
 
 
 def _canonicalize_skills(skills: list[str], schema: dict[str, Any]) -> list[str]:
@@ -261,6 +272,8 @@ def normalize_parsed_data(data: Any, context_text: str = "") -> Any:
         return data
     if "目标岗位" in data or "教育背景" in data:
         return _normalize_resume_fields(dict(data), context_text)
+    if "匹配结论" in data or "匹配优势" in data or "主要短板" in data:
+        return _normalize_match_fields(dict(data))
 
     normalized = {key: normalize_parsed_data(value, context_text=context_text) for key, value in data.items()}
     normalized = _split_misplaced_fields(normalized, context_text=context_text)
