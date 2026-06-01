@@ -29,6 +29,7 @@ def main() -> None:
     parser.add_argument("--loss_type", default=None)
     parser.add_argument("--activation_offloading", action="store_true")
     parser.add_argument("--attn_implementation", default=None)
+    parser.add_argument("--resume_from_checkpoint", default=None)
     args = parser.parse_args()
 
     with Path(args.config).open("r", encoding="utf-8") as f:
@@ -143,7 +144,7 @@ def main() -> None:
         peft_config=peft_config,
         formatting_func=formatting_func,
     )
-    train_result = trainer.train()
+    train_result = trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
     trainer.log_metrics("train", train_result.metrics)
     trainer.save_metrics("train", train_result.metrics)
     eval_metrics = trainer.evaluate()

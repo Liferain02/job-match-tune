@@ -55,3 +55,27 @@ def test_compute_match_rule_result_for_gap_candidate() -> None:
     assert result["命中技能"] == []
     assert set(result["缺失技能"]) == {"Java", "MySQL", "Redis"}
     assert result["匹配分数"] < 45
+
+
+def test_compute_match_rule_result_accepts_structured_resume_items() -> None:
+    jd_data = {
+        "岗位方向": "后端开发",
+        "必备技能": "Python",
+        "学历要求": "本科及以上",
+        "经验要求": "2年以上开发经验",
+    }
+    resume_data = {
+        "目标岗位": "后端开发工程师",
+        "教育背景": {"学历": "本科", "专业": "软件工程"},
+        "核心技能": "Python",
+        "实习经历": [{"公司": "示例科技", "内容": "2年 Python 服务开发"}],
+        "项目经历": [{"项目": "订单平台", "内容": "负责 Python API 开发"}],
+    }
+
+    result = compute_match_rule_result(jd_data, resume_data)
+
+    assert result["岗位方向匹配"] is True
+    assert result["学历匹配"] is True
+    assert result["经验匹配"] is True
+    assert result["命中技能"] == ["Python"]
+    assert result["命中项目"]

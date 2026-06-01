@@ -191,6 +191,23 @@ trainer_state.json
 
 这样后续选择 adapter 时不依赖终端滚动日志。
 
+正式 A/B 首轮运行还发现：`1208` 条 multitask valid 在 14B 上全量评估耗时明显。后续默认配置调整为：
+
+```text
+SFT eval_steps = 300
+DPO eval_steps = 100
+```
+
+训练结束时仍执行一次完整最终评估，既保留可比较指标，也减少中间评估占用 GPU 的时间。
+
+SFT 与 DPO 入口同时新增：
+
+```text
+--resume_from_checkpoint
+```
+
+长训练可以从已保存 checkpoint 恢复，不需要因配置优化或节点中断从头重跑。
+
 ## 6. 14B smoke 结果
 
 本轮在 GPU03 上运行：
@@ -241,6 +258,66 @@ DFT 和 NLL 的 loss 定义不同，不能直接用 loss 数值横向比较。�
 4. 跑 match eval。
 5. 选择更稳定的 adapter。
 6. 再做 DPO smoke 和正式 DPO。
+
+### 无泄漏 JD 基线
+
+在正式 A/B 完成前，先用此前的 `outputs/checkpoints/qwen3-14b-jobmatch-qlora` 对排除训练重叠后的 50 条人工 holdout 重新评估：
+
+```text
+json_valid_rate = 0.98
+岗位方向 exact_match = 0.9592
+核心职责 F1 = 1.0
+必备技能 F1 = 1.0
+加分项 F1 = 1.0
+经验要求 exact_match = 1.0
+学历要求 exact_match = 1.0
+```
+
+当前有 2 条 mismatch：
+
+1. `tencent_2005480420615016448_jd_parse`：客户端开发 -> 后端开发
+2. `tencent_2039174621139464192_jd_parse`：算法工程 -> AI应用开发
+
+该结果是后续 DFT、NLL 和 DPO adapter 的同口径基线。
+
+### 旧 adapter 的 resume 基线
+
+用此前的 14B adapter 跑 32 条 resume 人工样本：
+
+```text
+json_valid_rate = 1.0
+核心技能 F1 = 1.0
+教育背景 F1 = 0.0
+实习经历 F1 = 0.0
+项目经历 F1 = 0.0
+优势标签 F1 = 0.4271
+目标岗位 exact_match = 0.0625
+```
+
+主要问题不是 JSON 外壳，而是结构语义：
+
+- 教育、实习和项目字段常输出字符串，而不是 schema 约定的列表。
+- 多条项目经历经常合并为一个字符串。
+- 目标岗位经常附带“工程师”后缀，没有归一化到固定方向类。
+
+这组结果说明新一轮多任务 SFT 必须重点验证 resume 字段类型和岗位方向归一化，而不能只看训练 loss。
+
+match 基线还暴露出规则引擎兼容性问题：resume 经历项可能是对象，旧逻辑直接 `"\n".join(...)` 会抛出 `TypeError`。本轮已统一兼容字符串、对象和列表，并让 match 评估只加载一次 14B 模型。
+
+修复后，旧 adapter 的 64 条 match 基线为：
+
+```text
+jd_resume_parse_success_rate = 1.0
+analysis_json_valid_rate = 1.0
+命中技能 F1 = 0.2869
+缺失技能 F1 = 0.4609
+匹配等级 exact_match = 0.5625
+岗位方向匹配 exact_match = 0.875
+学历匹配 exact_match = 1.0
+经验匹配 exact_match = 1.0
+```
+
+match 主链已经能稳定运行，但技能匹配召回和匹配等级仍有明显优化空间。
 
 ## 8. DPO 使用边界
 

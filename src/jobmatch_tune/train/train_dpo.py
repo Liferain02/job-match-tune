@@ -24,6 +24,7 @@ def main() -> None:
     parser.add_argument("--lora_r", type=int, default=None)
     parser.add_argument("--lora_alpha", type=int, default=None)
     parser.add_argument("--lora_dropout", type=float, default=None)
+    parser.add_argument("--resume_from_checkpoint", default=None)
     args = parser.parse_args()
 
     with Path(args.config).open("r", encoding="utf-8") as f:
@@ -122,7 +123,7 @@ def main() -> None:
         processing_class=tokenizer,
         peft_config=peft_config,
     )
-    train_result = trainer.train()
+    train_result = trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
     trainer.log_metrics("train", train_result.metrics)
     trainer.save_metrics("train", train_result.metrics)
     eval_metrics = trainer.evaluate()

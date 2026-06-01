@@ -25,6 +25,18 @@ def _normalize_skill_key(skill: str) -> str:
     return _normalize_text(skill).lower()
 
 
+def _normalize_items(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, dict):
+        text = " ".join(item for nested in value.values() for item in _normalize_items(nested))
+        return [_normalize_text(text)] if _normalize_text(text) else []
+    if isinstance(value, (list, tuple, set)):
+        return [item for nested in value for item in _normalize_items(nested)]
+    text = _normalize_text(value)
+    return [text] if text else []
+
+
 def _extract_years(text: str) -> int:
     normalized = _normalize_text(text)
     if not normalized:
@@ -56,8 +68,8 @@ def _direction_matches(jd_direction: str, resume_direction: str) -> bool:
 
 
 def _skill_lists(jd_data: dict[str, Any], resume_data: dict[str, Any]) -> tuple[list[str], list[str], list[str]]:
-    jd_skills = merge_unique([_normalize_text(item) for item in jd_data.get("必备技能", []) if _normalize_text(item)])
-    resume_skills = merge_unique([_normalize_text(item) for item in resume_data.get("核心技能", []) if _normalize_text(item)])
+    jd_skills = merge_unique(_normalize_items(jd_data.get("必备技能")))
+    resume_skills = merge_unique(_normalize_items(resume_data.get("核心技能")))
     resume_keys = {_normalize_skill_key(item): item for item in resume_skills}
     matched = [skill for skill in jd_skills if _normalize_skill_key(skill) in resume_keys]
     missing = [skill for skill in jd_skills if _normalize_skill_key(skill) not in resume_keys]
@@ -67,7 +79,7 @@ def _skill_lists(jd_data: dict[str, Any], resume_data: dict[str, Any]) -> tuple[
 def _match_projects(jd_skills: list[str], resume_data: dict[str, Any], jd_direction: str) -> list[str]:
     project_lines = []
     for key in ("项目经历", "实习经历"):
-        project_lines.extend([_normalize_text(item) for item in resume_data.get(key, []) if _normalize_text(item)])
+        project_lines.extend(_normalize_items(resume_data.get(key)))
     if not project_lines:
         return []
     jd_keywords = [item for item in jd_skills if _normalize_text(item)]
@@ -107,12 +119,16 @@ def compute_match_rule_result(
 
     jd_education_rank = _extract_education_rank(jd_data.get("学历要求"))
     resume_education_rank = max(
-        [_extract_education_rank(item) for item in resume_data.get("教育背景", [])] + [_extract_education_rank(resume_text)]
+        [_extract_education_rank(item) for item in _normalize_items(resume_data.get("教育背景"))]
+        + [_extract_education_rank(resume_text)]
     )
     education_match = jd_education_rank == 0 or resume_education_rank >= jd_education_rank
 
     jd_years = _extract_years(jd_data.get("经验要求"))
-    resume_years = max(_extract_years(resume_text), _extract_years("\n".join(resume_data.get("实习经历", []) + resume_data.get("项目经历", []))))
+    experience_text = "\n".join(
+        _normalize_items(resume_data.get("实习经历")) + _normalize_items(resume_data.get("项目经历"))
+    )
+    resume_years = max(_extract_years(resume_text), _extract_years(experience_text))
     experience_match = jd_years == 0 or (resume_years > 0 and resume_years >= jd_years)
 
     score = 0
