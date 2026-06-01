@@ -44,7 +44,7 @@ def test_risk_reasons_flags_field_boundary_leakage() -> None:
     reasons = risk_reasons(row)
 
     assert "responsibility_contains_requirement_marker" in reasons
-    assert risk_score(reasons) >= 3
+    assert risk_score(reasons) >= 4
 
 
 def test_build_risk_report_counts_high_risk_samples() -> None:

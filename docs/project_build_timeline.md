@@ -440,9 +440,9 @@ strict_plus 是 strict 和弱标注之间的过渡层。
 
 最近一次重建后的分层统计：
 
-- `strict = 3203`
-- `strict_plus = 272`
-- `quality_weak = 1525`
+- `strict = 3200`
+- `strict_plus = 260`
+- `quality_weak = 1540`
 - `bootstrap = 0`
 
 ### 11.4 高风险 JD 过滤
@@ -495,8 +495,8 @@ strict_plus 是 strict 和弱标注之间的过渡层。
 
 当前质量画像：
 
-- `quality_score_avg = 80.11`
-- `risk_score_counts = 0:944, 1:2523, 2:1261, 3:272`
+- `quality_score_avg = 80.10`
+- `risk_score_counts = 0:944, 1:2534, 2:1261, 3:261`
 
 这一步参考的是 Data-Juicer / DataFlow 一类数据处理框架的可追溯思路：训练样本不只是文本，还要带上来源、准入原因和质量信号。
 
@@ -508,8 +508,9 @@ strict_plus 是 strict 和弱标注之间的过渡层。
 
 重建后：
 
-- `oversized_single_responsibility` 从 `220` 降到 `110`
-- `responsibility_contains_requirement_marker = 15`
+- `oversized_single_responsibility` 从 `220` 降到 `112`
+- `responsibility_contains_requirement_marker = 0`
+- `requirement_contains_responsibility_marker = 0`
 - `high_risk_samples = 0`
 
 ### 11.6 低分样本复核集

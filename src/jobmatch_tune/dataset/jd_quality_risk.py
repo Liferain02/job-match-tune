@@ -25,8 +25,8 @@ WEAK_SOURCE_PREFIXES = ("hf_", "github_")
 RISK_WEIGHTS = {
     "invalid_assistant_json": 5,
     "suspicious_title_keyword": 4,
-    "responsibility_contains_requirement_marker": 3,
-    "requirement_contains_responsibility_marker": 3,
+    "responsibility_contains_requirement_marker": 4,
+    "requirement_contains_responsibility_marker": 4,
     "quality_weak_missing_core_field": 3,
     "empty_responsibilities": 2,
     "oversized_single_responsibility": 2,

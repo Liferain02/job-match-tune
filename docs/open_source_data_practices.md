@@ -182,15 +182,15 @@ resume 扩量后达到 `48148` 条，如果直接和 JD、match 混合训练，�
 
 当前 JD quality 分层：
 
-- `strict`: `3203`
-- `strict_plus`: `272`
-- `quality_weak`: `1525`
+- `strict`: `3200`
+- `strict_plus`: `260`
+- `quality_weak`: `1540`
 - `bootstrap`: `0`
 
 当前质量画像：
 
-- `quality_score_avg`: `80.11`
-- `risk_score_counts`: `0=944, 1=2523, 2=1261, 3=272`
+- `quality_score_avg`: `80.10`
+- `risk_score_counts`: `0=944, 1=2534, 2=1261, 3=261`
 
 同时新增按层级抽样的人工复核种子集：
 
@@ -270,8 +270,9 @@ bash scripts/data/build_jd_quality_review_set.sh \
 
 重建后：
 
-- `oversized_single_responsibility`: 从 `220` 降到 `110`
-- `responsibility_contains_requirement_marker`: `15`
+- `oversized_single_responsibility`: 从 `220` 降到 `112`
+- `responsibility_contains_requirement_marker`: `0`
+- `requirement_contains_responsibility_marker`: `0`
 - `high_risk_samples`: `0`
 
 ## 3. 当前仍应继续优化的方向
