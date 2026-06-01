@@ -84,9 +84,10 @@ def main() -> None:
     )
     if args.max_train_samples:
         dataset["train"] = dataset["train"].select(range(min(args.max_train_samples, len(dataset["train"]))))
-    if args.max_eval_samples:
+    max_eval_samples = args.max_eval_samples or config.get("max_eval_samples")
+    if max_eval_samples:
         dataset["validation"] = dataset["validation"].select(
-            range(min(args.max_eval_samples, len(dataset["validation"])))
+            range(min(max_eval_samples, len(dataset["validation"])))
         )
 
     training_args = DPOConfig(

@@ -196,9 +196,20 @@ trainer_state.json
 ```text
 SFT eval_steps = 300
 DPO eval_steps = 100
+SFT max_eval_samples = 320
+DPO max_eval_samples = 128
 ```
 
-训练结束时仍执行一次完整最终评估，既保留可比较指标，也减少中间评估占用 GPU 的时间。
+Trainer 验证使用固定抽样集做同口径比较，减少中间评估占用 GPU 的时间。业务质量仍使用独立 JD、resume、match 人工集完整验证。
+
+首轮旧配置运行到 `step=100` 验证阶段后，因全量 `1208` 条 valid 长时间未完成且尚未生成 checkpoint，已经停止并用新配置重启。重启后确认：
+
+```text
+train samples = 9800
+trainer eval samples = 320
+optimizer steps = 613
+单步约 12.9s
+```
 
 SFT 与 DPO 入口同时新增：
 

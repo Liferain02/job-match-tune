@@ -4,6 +4,7 @@ output_dir: outputs/checkpoints/qwen3-14b-jobmatch-dpo
 
 train_file: data/preference/train.jsonl
 valid_file: data/preference/valid.jsonl
+max_eval_samples: 128
 
 max_length: 1024
 per_device_train_batch_size: 1
