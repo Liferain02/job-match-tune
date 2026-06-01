@@ -19,6 +19,8 @@
 
 项目从 0 到当前版本的完整来龙去脉见 [docs/project_end_to_end_story.md](/share/home/lifr/workspace/code/job-match-tune/docs/project_end_to_end_story.md)。
 
+项目从起点、每次关键调整到当前状态的叙事化复盘见 [docs/project_origin_iteration_story.md](/share/home/lifr/workspace/code/job-match-tune/docs/project_origin_iteration_story.md)。
+
 按阶段整理的项目建设全过程见 [docs/project_build_timeline.md](/share/home/lifr/workspace/code/job-match-tune/docs/project_build_timeline.md)。
 
 数据处理参考开源 SFT 项目的对照和本项目落地项见 [docs/open_source_data_practices.md](/share/home/lifr/workspace/code/job-match-tune/docs/open_source_data_practices.md)。
