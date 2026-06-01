@@ -539,6 +539,8 @@ DFT match v2 复算结果：
 
 两条历史失败输出离线复算后均可恢复为合法 match schema。
 
+修复后离线复算，分析 JSON 合法率恢复到 `1.0`，规则字段指标保持不变。
+
 ### JD 人工 holdout 标注修正
 
 taxonomy 扩充后，JD holdout 首次复算出现 3 条技能差异。逐条审计原文后确认都是旧 gold 漏标：
@@ -557,3 +559,54 @@ json_valid_rate = 0.98
 ```
 
 仍只剩原来的两条岗位方向边界错例。旧报告保留用于解释标注口径变化，新版 holdout 用于后续 DPO 对比。
+
+## 11. 正式 DPO 训练结果
+
+最终使用 DFT adapter 作为起点，运行 4400 条 conversational preference、1 epoch、275 个 optimizer step：
+
+```text
+output = outputs/checkpoints/qwen3-14b-jobmatch-dft-dpo-chat-20260602
+train_runtime = 9089.53s
+train_loss = 0.2099
+eval_loss = 0.1749
+eval_rewards/accuracies = 0.9297
+eval_rewards/margins = 3.3643
+```
+
+中间验证：
+
+| step | reward accuracy | reward margin |
+| ---: | ---: | ---: |
+| 100 | 0.9375 | 3.0301 |
+| 200 | 0.9297 | 3.3628 |
+| 275 | 0.9297 | 3.3643 |
+
+chosen 与 rejected 已明显拉开，训练过程未发散。由于 preference 主要来自 JD 结构化 hard negative，最终是否采用 DPO adapter 仍由 JD、resume、match 三路业务复评决定。
+
+### DPO 后业务复评
+
+| 指标 | DFT SFT | DFT + DPO |
+| --- | ---: | ---: |
+| JD JSON 合法率 | 0.98 | 0.98 |
+| JD 岗位方向 exact_match | 0.9592 | 0.9592 |
+| JD 职责 / 技能 / 加分项 F1 | 1.0 | 1.0 |
+| JD 经验 / 学历 exact_match | 1.0 | 1.0 |
+| resume JSON 合法率 | 1.0 | 1.0 |
+| resume 教育 / 技能 / 实习 / 项目 F1 | 1.0 | 1.0 |
+| resume 目标岗位 exact_match | 1.0 | 1.0 |
+| resume 优势标签 F1 | 0.8354 | 0.8354 |
+| match JSON 合法率 | 1.0 | 1.0 |
+| match 命中技能 F1 | 0.8548 | 0.8548 |
+| match 缺失技能 F1 | 0.8945 | 0.8945 |
+| match 匹配等级 exact_match | 0.78125 | 0.78125 |
+| match 岗位方向 exact_match | 0.90625 | 0.90625 |
+
+结论：
+
+1. DPO 成功学习了当前结构化 preference，reward margin 明显增加。
+2. 三路业务指标没有回退。
+3. 当前合成 JD preference 没有带来可测业务增益。
+4. 生产默认仍使用 `outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601`。
+5. `outputs/checkpoints/qwen3-14b-jobmatch-dft-dpo-chat-20260602` 保留为可复现实验产物，不作为默认服务 adapter。
+
+下一轮若继续 DPO，应增加人工偏好和真实 API 错例，尤其是 resume 优势标签语义粒度、match OCR-like 样本和岗位方向边界样本，而不是继续重复训练同一批合成负例。

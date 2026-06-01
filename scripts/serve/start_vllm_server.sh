@@ -2,7 +2,7 @@
 set -euo pipefail
 
 export JOBMATCH_MODEL_PATH="${JOBMATCH_MODEL_PATH:-models/Qwen3-14B}"
-export JOBMATCH_ADAPTER_PATH="${JOBMATCH_ADAPTER_PATH:-outputs/checkpoints/qwen3-14b-jobmatch-qlora}"
+export JOBMATCH_ADAPTER_PATH="${JOBMATCH_ADAPTER_PATH:-outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601}"
 export JOBMATCH_VLLM_HOST="${JOBMATCH_VLLM_HOST:-0.0.0.0}"
 export JOBMATCH_VLLM_PORT="${JOBMATCH_VLLM_PORT:-8010}"
 export JOBMATCH_VLLM_SERVED_MODEL_NAME="${JOBMATCH_VLLM_SERVED_MODEL_NAME:-jobmatch-qwen3-14b}"

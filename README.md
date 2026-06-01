@@ -5,13 +5,13 @@
 ## 当前默认版本
 
 - 基座模型：`models/Qwen3-14B`
-- Adapter：`outputs/checkpoints/qwen3-14b-jobmatch-qlora`
+- Adapter：`outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601`
 - 服务默认入口：
   - API: [src/jobmatch_tune/api/server.py](/share/home/lifr/workspace/code/job-match-tune/src/jobmatch_tune/api/server.py)
   - 启动脚本: [scripts/serve/start_api.sh](/share/home/lifr/workspace/code/job-match-tune/scripts/serve/start_api.sh)
   - vLLM 服务脚本: [scripts/serve/start_vllm_server.sh](/share/home/lifr/workspace/code/job-match-tune/scripts/serve/start_vllm_server.sh)
 - 50 条人工 holdout 最新报告：
-  - [outputs/eval_reports/manual_eval_50_qwen3_14b_v3_report.json](/share/home/lifr/workspace/code/job-match-tune/outputs/eval_reports/manual_eval_50_qwen3_14b_v3_report.json)
+  - [outputs/eval_reports/manual_eval_50_qwen3_14b_dft_dpo_final_20260602_report.json](/share/home/lifr/workspace/code/job-match-tune/outputs/eval_reports/manual_eval_50_qwen3_14b_dft_dpo_final_20260602_report.json)
 
 ## 项目结构
 
@@ -739,8 +739,9 @@ bash scripts/train/train_qwen3_14b_dpo.sh
 - `scripts/data/build_preference_dataset.sh` 仅保留给人工复核后的离线错例实验
 - `ORPOTrainer` 当前环境不可直接用，所以仓库先接入了 `DPO`
 - `GRPO` 属于更重的在线后训练，不是当前第一优先级
-- 当前 DPO adapter 评估报告：
-  - [outputs/eval_reports/manual_eval_50_qwen3_14b_dpo_report.json](/share/home/lifr/workspace/code/job-match-tune/outputs/eval_reports/manual_eval_50_qwen3_14b_dpo_report.json)
+- 正式 DPO 实验产物：`outputs/checkpoints/qwen3-14b-jobmatch-dft-dpo-chat-20260602`
+- 正式 DPO 已学习结构化 preference，但 JD、resume、match 业务指标与 DFT SFT 持平，因此默认服务仍使用 DFT SFT adapter。
+- 完整训练与评测记录见 [docs/training_readiness_and_sft_2026-06-01.md](/share/home/lifr/workspace/code/job-match-tune/docs/training_readiness_and_sft_2026-06-01.md)。
 
 ## 推理与评估
 
@@ -749,7 +750,7 @@ bash scripts/train/train_qwen3_14b_dpo.sh
 ```bash
 python -m jobmatch_tune.inference.predict \
   --model models/Qwen3-14B \
-  --adapter outputs/checkpoints/qwen3-14b-jobmatch-qlora \
+  --adapter outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601 \
   --task jd_parse \
   --input examples/jd_ai_app.txt \
   --load-4bit
@@ -760,7 +761,7 @@ python -m jobmatch_tune.inference.predict \
 ```bash
 python -m jobmatch_tune.inference.predict \
   --model models/Qwen3-14B \
-  --adapter outputs/checkpoints/qwen3-14b-jobmatch-qlora \
+  --adapter outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601 \
   --task match \
   --input examples/jd_ai_app.txt \
   --resume-input examples/resume_llm_app.txt \
@@ -774,7 +775,7 @@ python -m jobmatch_tune.inference.predict \
 PYTHONPATH=src python -m jobmatch_tune.eval.run_manual_eval \
   --dataset data/eval/jd_manual_eval_50.jsonl \
   --model models/Qwen3-14B \
-  --adapter outputs/checkpoints/qwen3-14b-jobmatch-qlora \
+  --adapter outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601 \
   --out outputs/eval_reports/manual_eval_50_qwen3_14b_v3_report.json \
   --predictions-out outputs/eval_reports/manual_eval_50_qwen3_14b_v3_predictions.jsonl \
   --load-4bit
@@ -788,7 +789,7 @@ bash scripts/data/build_resume_eval_dataset.sh
 PYTHONPATH=src python -m jobmatch_tune.eval.run_manual_eval \
   --dataset data/eval/resume_manual_eval_seed.jsonl \
   --model models/Qwen3-14B \
-  --adapter outputs/checkpoints/qwen3-14b-jobmatch-qlora \
+  --adapter outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601 \
   --out outputs/eval_reports/resume_manual_eval_seed_report.json \
   --predictions-out outputs/eval_reports/resume_manual_eval_seed_predictions.jsonl \
   --load-4bit
@@ -802,7 +803,7 @@ bash scripts/data/build_match_eval_dataset.sh
 bash scripts/data/run_match_eval.sh \
   --dataset data/eval/match_manual_eval_seed.jsonl \
   --model models/Qwen3-14B \
-  --adapter outputs/checkpoints/qwen3-14b-jobmatch-qlora \
+  --adapter outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601 \
   --out outputs/eval_reports/match_eval_report.json \
   --predictions-out outputs/eval_reports/match_eval_predictions.jsonl \
   --load-4bit
@@ -896,7 +897,7 @@ bash scripts/data/resume_normalize.sh \
 bash scripts/data/run_resume_pipeline_eval.sh \
   --dataset data/eval/resume_manual_eval_text_seed.jsonl \
   --model models/Qwen3-14B \
-  --adapter outputs/checkpoints/qwen3-14b-jobmatch-qlora \
+  --adapter outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601 \
   --out outputs/eval_reports/resume_pipeline_text_report.json \
   --predictions-out outputs/eval_reports/resume_pipeline_text_predictions.jsonl \
   --load-4bit
@@ -908,7 +909,7 @@ OCR-like 对照评估：
 bash scripts/data/run_resume_pipeline_eval.sh \
   --dataset data/eval/resume_manual_eval_ocr_seed.jsonl \
   --model models/Qwen3-14B \
-  --adapter outputs/checkpoints/qwen3-14b-jobmatch-qlora \
+  --adapter outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601 \
   --out outputs/eval_reports/resume_pipeline_ocr_report.json \
   --predictions-out outputs/eval_reports/resume_pipeline_ocr_predictions.jsonl \
   --load-4bit

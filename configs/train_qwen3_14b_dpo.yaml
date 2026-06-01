@@ -1,6 +1,6 @@
 model_name_or_path: models/Qwen3-14B
-adapter_path: outputs/checkpoints/qwen3-14b-jobmatch-qlora
-output_dir: outputs/checkpoints/qwen3-14b-jobmatch-dpo
+adapter_path: outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601
+output_dir: outputs/checkpoints/qwen3-14b-jobmatch-dft-dpo
 
 train_file: data/preference/train.jsonl
 valid_file: data/preference/valid.jsonl

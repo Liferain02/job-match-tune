@@ -167,7 +167,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", default="data/eval/match_manual_eval_seed.jsonl")
     parser.add_argument("--model", default="models/Qwen3-14B")
-    parser.add_argument("--adapter", default="outputs/checkpoints/qwen3-14b-jobmatch-qlora")
+    parser.add_argument("--adapter", default="outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601")
     parser.add_argument("--out", default="outputs/eval_reports/match_eval_report.json")
     parser.add_argument("--predictions-out", default="outputs/eval_reports/match_eval_predictions.jsonl")
     parser.add_argument("--load-4bit", action="store_true")

@@ -22,7 +22,7 @@ from jobmatch_tune.resume.normalize import normalize_ingest_row
 
 
 DEFAULT_MODEL_PATH = "models/Qwen3-14B"
-DEFAULT_ADAPTER_PATH = "outputs/checkpoints/qwen3-14b-jobmatch-qlora"
+DEFAULT_ADAPTER_PATH = "outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601"
 DEFAULT_VLLM_BASE_URL = "http://127.0.0.1:8010/v1"
 DEFAULT_VLLM_MODEL = "jobmatch-lora"
 

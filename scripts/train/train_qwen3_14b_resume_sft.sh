@@ -9,7 +9,7 @@ export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 
 PYTHONPATH=src python -m jobmatch_tune.train.train_lora \
   --config configs/train_qwen3_14b_qlora.yaml \
-  --adapter_path outputs/checkpoints/qwen3-14b-jobmatch-qlora \
+  --adapter_path outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601 \
   --train_file data/sft_resume/train.jsonl \
   --valid_file data/sft_resume/valid.jsonl \
   --output_dir outputs/checkpoints/qwen3-14b-resume-qlora \
