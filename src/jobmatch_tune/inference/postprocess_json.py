@@ -84,6 +84,38 @@ def _ensure_string_list(value: Any) -> list[str]:
     return [item for item in items if item]
 
 
+def _ensure_resume_list(value: Any, *, split_semicolon: bool = False) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, dict):
+        parts = [_normalize_string(item) for item in value.values() if _normalize_string(item)]
+        return ["，".join(parts)] if parts else []
+    if isinstance(value, list):
+        return merge_unique(
+            [item for nested in value for item in _ensure_resume_list(nested, split_semicolon=split_semicolon)]
+        )
+    text = _normalize_string(value)
+    if not text:
+        return []
+    parts = re.split(r"[；;]\s*" if split_semicolon else r"\n+", text)
+    return merge_unique([part.strip() for part in parts if part.strip()])
+
+
+def _ensure_sentence_ending(text: str) -> str:
+    return text if re.search(r"[。！？.!?]$", text) else f"{text}。"
+
+
+def _normalize_resume_fields(data: dict[str, Any], context_text: str) -> dict[str, Any]:
+    direction = _normalize_string(data.get("目标岗位"))
+    if direction:
+        data["目标岗位"] = canonicalize_job_direction(direction, context_text or direction, load_label_schema())
+    for field in ("教育背景", "核心技能", "实习经历", "优势标签"):
+        data[field] = _ensure_resume_list(data.get(field))
+    projects = _ensure_resume_list(data.get("项目经历"), split_semicolon=True)
+    data["项目经历"] = [_ensure_sentence_ending(item) for item in projects]
+    return data
+
+
 def _canonicalize_skills(skills: list[str], schema: dict[str, Any]) -> list[str]:
     canonical_map = {}
     for canonical, aliases in schema.get("skill_alias", {}).items():
@@ -204,6 +236,8 @@ def normalize_parsed_data(data: Any, context_text: str = "") -> Any:
         return deduplicate_list([normalize_parsed_data(item, context_text=context_text) for item in data])
     if not isinstance(data, dict):
         return data
+    if "目标岗位" in data or "教育背景" in data:
+        return _normalize_resume_fields(dict(data), context_text)
 
     normalized = {key: normalize_parsed_data(value, context_text=context_text) for key, value in data.items()}
     normalized = _split_misplaced_fields(normalized, context_text=context_text)

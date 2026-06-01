@@ -190,3 +190,32 @@ def test_parse_json_output_moves_requirement_fields_out_of_responsibilities():
     assert "熟悉Python和LangChain" in result["data"]["任职要求"]
     assert "Python" in result["data"]["必备技能"]
     assert "LangChain" in result["data"]["必备技能"]
+
+
+def test_parse_json_output_normalizes_resume_schema():
+    result = parse_json_output(
+        '{"目标岗位":"AI 应用开发工程师","教育背景":"本科，计算机科学与技术",'
+        '"核心技能":["Python","RAG"],"实习经历":"参与知识库开发。",'
+        '"项目经历":"搭建检索链路；接入业务系统","优势标签":"LLM应用落地"}'
+    )
+    assert result["ok"] is True
+    assert result["data"] == {
+        "目标岗位": "AI应用开发",
+        "教育背景": ["本科，计算机科学与技术"],
+        "核心技能": ["Python", "RAG"],
+        "实习经历": ["参与知识库开发。"],
+        "项目经历": ["搭建检索链路。", "接入业务系统。"],
+        "优势标签": ["LLM应用落地"],
+    }
+
+
+def test_parse_json_output_normalizes_structured_resume_items():
+    result = parse_json_output(
+        '{"目标岗位":"后端开发工程师","教育背景":{"学历":"本科","专业":"软件工程"},'
+        '"核心技能":"Python","实习经历":[{"公司":"示例科技","内容":"参与服务开发"}],'
+        '"项目经历":[{"名称":"订单平台","内容":"负责 API 开发"}]}'
+    )
+    assert result["ok"] is True
+    assert result["data"]["教育背景"] == ["本科，软件工程"]
+    assert result["data"]["实习经历"] == ["示例科技，参与服务开发"]
+    assert result["data"]["项目经历"] == ["订单平台，负责 API 开发。"]
