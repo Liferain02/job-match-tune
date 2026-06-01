@@ -500,6 +500,30 @@ strict_plus 是 strict 和弱标注之间的过渡层。
 
 这一步参考的是 Data-Juicer / DataFlow 一类数据处理框架的可追溯思路：训练样本不只是文本，还要带上来源、准入原因和质量信号。
 
+### 11.6 低分样本复核集
+
+有了 `quality_score` 之后，项目新增了低分优先复核集：
+
+- `data/eval/jd_quality_low_score_review_seed.jsonl`
+
+生成命令：
+
+```bash
+bash scripts/data/build_jd_quality_review_set.sh \
+  --strategy lowest-score \
+  --per-tier 50 \
+  --out data/eval/jd_quality_low_score_review_seed.jsonl
+```
+
+这份文件每个 tier 抽 `50` 条低分样本，共 `150` 条。它主要用来人工检查：
+
+- 职责和要求是否粘在一起。
+- 弱公开源是否有字段缺失。
+- `quality_weak` 是否真的可以进入训练。
+- 岗位方向是否被标题或技能误导。
+
+这一步把数据处理从“生成训练集”继续推进到“生成可操作的人工复核任务”。
+
 ---
 
 ## 12. 简历解析链路

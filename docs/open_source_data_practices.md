@@ -198,6 +198,21 @@ resume 扩量后达到 `48148` 条，如果直接和 JD、match 混合训练，�
 
 默认每个层级抽 `20` 条，共 `60` 条，便于重点复核 `quality_weak`。
 
+在样本级质量分数落地后，又新增了低分优先复核集：
+
+- [data/eval/jd_quality_low_score_review_seed.jsonl](/share/home/lifr/workspace/code/job-match-tune/data/eval/jd_quality_low_score_review_seed.jsonl)
+
+生成方式：
+
+```bash
+bash scripts/data/build_jd_quality_review_set.sh \
+  --strategy lowest-score \
+  --per-tier 50 \
+  --out data/eval/jd_quality_low_score_review_seed.jsonl
+```
+
+这份复核集每个 tier 取 `50` 条低分样本，共 `150` 条。它的用途不是训练，而是优先暴露职责粘连、弱源字段缺失、低分 quality_weak 等最容易污染训练的数据。
+
 ### 2.6 JD quality 风险审计
 
 在质量画像之外，项目新增了风险审计：
@@ -241,6 +256,11 @@ resume 扩量后达到 `48148` 条，如果直接和 JD、match 混合训练，�
 2. 后续训练可以按质量分数做采样或加权。
 3. 线上 bad case 可以追溯到样本来源和准入原因。
 4. 多任务混合时可以继续保留 JD 样本的质量来源。
+
+复核集构建脚本现在支持两种策略：
+
+- `balanced`：默认策略，每个 tier 随机抽样，适合看整体分布。
+- `lowest-score`：每个 tier 先按 `quality_score` 升序，再按 `quality_risk_score` 降序抽样，适合优先修低质量样本。
 
 ## 3. 当前仍应继续优化的方向
 
