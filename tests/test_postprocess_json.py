@@ -226,3 +226,12 @@ def test_parse_json_output_keeps_canonical_resume_direction():
         result = parse_json_output(f'{{"目标岗位":"{direction}","教育背景":[]}}')
         assert result["ok"] is True
         assert result["data"]["目标岗位"] == direction
+
+
+def test_parse_json_output_normalizes_resume_strength_tags():
+    result = parse_json_output(
+        '{"目标岗位":"后端开发","教育背景":[],'
+        '"优势标签":["熟悉稳定性工程、自动化运维和监控体系。","具备 API 设计能力"]}'
+    )
+    assert result["ok"] is True
+    assert result["data"]["优势标签"] == ["稳定性工程", "自动化运维", "监控体系", "API设计"]

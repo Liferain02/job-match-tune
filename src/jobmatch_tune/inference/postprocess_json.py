@@ -105,6 +105,19 @@ def _ensure_sentence_ending(text: str) -> str:
     return text if re.search(r"[。！？.!?]$", text) else f"{text}。"
 
 
+def _normalize_resume_tags(value: Any) -> list[str]:
+    tags = []
+    for item in _ensure_resume_list(value):
+        parts = re.split(r"[、,，]|(?:和|与)", item)
+        for part in parts:
+            tag = re.sub(r"^(?:熟悉|具备|擅长|关注|有|能独立完成)", "", part).strip()
+            tag = re.sub(r"(?:能力强|能力|覆盖全面|[。！？.!?])+$", "", tag).strip()
+            tag = re.sub(r"\s+", "", tag)
+            if tag:
+                tags.append(tag)
+    return merge_unique(tags)
+
+
 def _canonicalize_resume_direction(direction: str, context_text: str) -> str:
     compact = re.sub(r"\s+", "", direction).lower()
     for canonical in load_label_schema().get("job_directions", []):
@@ -118,8 +131,9 @@ def _normalize_resume_fields(data: dict[str, Any], context_text: str) -> dict[st
     direction = _normalize_string(data.get("目标岗位"))
     if direction:
         data["目标岗位"] = _canonicalize_resume_direction(direction, context_text)
-    for field in ("教育背景", "核心技能", "实习经历", "优势标签"):
+    for field in ("教育背景", "核心技能", "实习经历"):
         data[field] = _ensure_resume_list(data.get(field))
+    data["优势标签"] = _normalize_resume_tags(data.get("优势标签"))
     projects = _ensure_resume_list(data.get("项目经历"), split_semicolon=True)
     data["项目经历"] = [_ensure_sentence_ending(item) for item in projects]
     return data
