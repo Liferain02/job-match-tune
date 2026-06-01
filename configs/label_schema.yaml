@@ -51,3 +51,77 @@ skill_alias:
     - lora
   QLoRA:
     - qlora
+  FastAPI:
+    - fastapi
+  TypeScript:
+    - typescript
+  React:
+    - react
+  Vite:
+    - vite
+  ECharts:
+    - echarts
+  Go:
+    - golang
+  Linux:
+    - linux
+  Shell:
+    - shell
+    - bash
+  Docker:
+    - docker
+  Kubernetes:
+    - kubernetes
+    - k8s
+  Prometheus:
+    - prometheus
+  Grafana:
+    - grafana
+  Kafka:
+    - kafka
+  Flink:
+    - flink
+  Spark:
+    - spark
+  Airflow:
+    - airflow
+  SQL:
+    - sql
+  Hive:
+    - hive
+  CUDA:
+    - cuda
+  NCCL:
+    - nccl
+  MPI:
+    - mpi
+  Selenium:
+    - selenium
+  Pytest:
+    - pytest
+  JMeter:
+    - jmeter
+  Ansible:
+    - ansible
+  TCP/IP:
+    - tcp/ip
+  OSPF:
+    - ospf
+  BGP:
+    - bgp
+  CAN:
+    - can
+  STM32:
+    - stm32
+  C++:
+    - cpp
+  C:
+    - c
+  C语言:
+    - c 语言
+  Cadence:
+    - cadence
+  EMC:
+    - emc
+  示波器: []
+  电源设计: []

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import yaml
 
-from jobmatch_tune.preprocess.jd_field_rules import infer_job_direction
+from jobmatch_tune.preprocess.jd_field_rules import extract_skills_from_text, infer_job_direction
 
 
 def _schema() -> dict:
@@ -258,6 +258,26 @@ def test_infer_job_direction_accepts_vehicle_control_title() -> None:
         schema,
     )
     assert direction == "汽车软件/智驾研发"
+
+
+def test_extract_skills_from_text_supports_cross_domain_taxonomy() -> None:
+    skills = extract_skills_from_text(
+        "熟悉 Go、Linux、Kubernetes、Prometheus、CUDA、MPI、TCP/IP、BGP 和示波器。",
+        _schema(),
+    )
+    assert skills == ["Go", "Linux", "Kubernetes", "Prometheus", "CUDA", "MPI", "TCP/IP", "BGP", "示波器"]
+
+
+def test_extract_skills_from_text_uses_ascii_boundaries() -> None:
+    skills = extract_skills_from_text(
+        "负责 Golang 服务和 Cadence 电路设计，掌握 C 语言及 C++。",
+        _schema(),
+    )
+    assert "Go" in skills
+    assert "Cadence" in skills
+    assert "C语言" in skills
+    assert "C++" in skills
+    assert "C" not in skills
 
 
 def test_infer_job_direction_rejects_business_project_manager_title() -> None:

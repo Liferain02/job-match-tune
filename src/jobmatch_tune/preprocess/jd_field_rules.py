@@ -231,12 +231,23 @@ def extract_experience_requirement_from_meta(meta: dict[str, Any] | None) -> str
 
 def extract_skills_from_text(text: str, schema: dict[str, Any]) -> list[str]:
     found = []
-    lower_text = text.lower()
     for canonical, aliases in schema.get("skill_alias", {}).items():
         candidates = [canonical, *aliases]
-        if any(candidate.lower() in lower_text for candidate in candidates):
+        if any(_contains_skill_candidate(text, str(candidate)) for candidate in candidates):
             found.append(canonical)
     return found
+
+
+def _contains_skill_candidate(text: str, candidate: str) -> bool:
+    candidate = candidate.strip()
+    if not candidate:
+        return False
+    if re.search(r"[A-Za-z0-9+#._/-]", candidate):
+        if candidate.lower() == "c":
+            return bool(re.search(r"(?<![A-Za-z0-9])c(?![A-Za-z0-9+]|\s*语言)", text, flags=re.I))
+        pattern = rf"(?<![A-Za-z0-9]){re.escape(candidate)}(?![A-Za-z0-9])"
+        return bool(re.search(pattern, text, flags=re.I))
+    return candidate in text
 
 
 def infer_job_direction(title: str, text: str, schema: dict[str, Any]) -> str:

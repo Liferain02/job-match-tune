@@ -476,10 +476,42 @@ train_loss = 0.6931
 eval_loss = 0.6931
 ```
 
-正式 DPO 使用 NLL adapter 作为暂定起点，输出到：
+### match A/B 与最终选择
+
+64 条 match 人工样本的 A/B 结果：
+
+| 指标 | DFT | NLL |
+| --- | ---: | ---: |
+| JD / resume 解析成功率 | 1.0 | 1.0 |
+| 分析 JSON 合法率 | 1.0 | 1.0 |
+| 命中技能 F1 | 0.2869 | 0.2791 |
+| 缺失技能 F1 | 0.4609 | 0.4375 |
+| 匹配等级 exact_match | 0.53125 | 0.515625 |
+| 岗位方向匹配 exact_match | 0.90625 | 0.875 |
+| 学历 / 经验匹配 exact_match | 1.0 | 1.0 |
+
+JD 和 resume 指标打平，DFT 在 match 各项指标上稳定略优，因此最终选择 DFT adapter 作为正式 DPO 起点。
+
+正式 DPO 输出到：
 
 ```text
-outputs/checkpoints/qwen3-14b-jobmatch-nll-dpo-chat-20260602
+outputs/checkpoints/qwen3-14b-jobmatch-dft-dpo-chat-20260602
 ```
 
 DPO 完成后仍需重新运行 JD、resume 和 match 评测。当前 preference 主要来自 JD 结构化 hard negative，因此必须确认多任务能力没有回退。
+
+### match 技能 taxonomy 扩充
+
+match 技能指标偏低的直接原因是 `configs/label_schema.yaml` 的技能白名单过窄。旧 schema 主要覆盖 AI 应用和少量后端技能，导致跨领域技能在 JD 后处理阶段被过滤。
+
+本轮补充：
+
+- 前端：`TypeScript`、`React`、`Vite`、`ECharts`
+- 后端与云原生：`FastAPI`、`Go`、`Linux`、`Docker`、`Kubernetes`、`Prometheus`、`Grafana`
+- 数据与中间件：`Kafka`、`Flink`、`Spark`、`Airflow`、`SQL`、`Hive`
+- HPC：`CUDA`、`NCCL`、`MPI`
+- 测试与运维：`Selenium`、`Pytest`、`JMeter`、`Ansible`
+- 网络：`TCP/IP`、`OSPF`、`BGP`
+- 嵌入式与硬件：`CAN`、`STM32`、`C`、`C++`、`C语言`、`Cadence`、`EMC`、`示波器`、`电源设计`
+
+同时将技能提取从简单子串改成 ASCII 边界匹配，避免新增 `C`、`Go`、`SQL` 后产生误报。
