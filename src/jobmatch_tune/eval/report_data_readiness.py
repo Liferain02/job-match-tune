@@ -295,18 +295,34 @@ def build_report() -> dict[str, object]:
         tasks["resume"]["sft_profile"] = resume_sft_profile
         tasks["resume"]["profile_ready"] = bool(resume_sft_profile.get("profile_ready"))
         tasks["resume"]["ready_for_sft"] = bool(tasks["resume"]["ready_for_sft"] and tasks["resume"]["profile_ready"])
+    resume_privacy_report = read_json_file("outputs/eval_reports/resume_privacy_readiness_report.json")
+    if resume_privacy_report:
+        tasks["resume"]["privacy_report"] = resume_privacy_report
+        tasks["resume"]["privacy_ready"] = bool(resume_privacy_report.get("ready_for_resume_training"))
+        tasks["resume"]["ready_for_sft"] = bool(tasks["resume"]["ready_for_sft"] and tasks["resume"]["privacy_ready"])
     preference_report = read_json_file("outputs/eval_reports/preference_readiness_report.json")
+    product_preference_report = read_json_file(
+        "outputs/eval_reports/preference_product_bootstrap_readiness_report.json"
+    )
     all_ready_for_sft = all(task["ready_for_sft"] for task in tasks.values())
+    ready_for_dpo = bool(preference_report.get("ready_for_dpo"))
+    ready_for_dpo_smoke = bool(preference_report.get("ready_for_dpo_smoke"))
+    ready_for_product_dpo = bool(product_preference_report.get("ready_for_dpo"))
+    ready_for_product_dpo_smoke = bool(product_preference_report.get("ready_for_dpo_smoke"))
+    all_ready_for_training = all_ready_for_sft and ready_for_dpo and ready_for_product_dpo
     return {
         "summary": {
-            "all_ready_for_training": all_ready_for_sft,
+            "all_ready_for_training": all_ready_for_training,
             "all_ready_for_sft": all_ready_for_sft,
-            "ready_for_dpo_smoke": bool(preference_report.get("ready_for_dpo_smoke")),
-            "ready_for_dpo": bool(preference_report.get("ready_for_dpo")),
+            "ready_for_dpo_smoke": ready_for_dpo_smoke,
+            "ready_for_dpo": ready_for_dpo,
+            "ready_for_product_dpo_smoke": ready_for_product_dpo_smoke,
+            "ready_for_product_dpo": ready_for_product_dpo,
             "not_ready_tasks": [name for name, task in tasks.items() if not task["ready_for_sft"]],
         },
         "tasks": tasks,
         "preference": preference_report,
+        "product_preference": product_preference_report,
     }
 
 

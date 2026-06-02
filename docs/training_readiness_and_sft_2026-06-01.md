@@ -265,6 +265,33 @@ MAX_REGRESSION=0.005
 3. 与默认 adapter 对比无关键字段回退。
 4. 对真实简历样例的 API / 前端上传链路能稳定返回结构化结果。
 
+## 7. 训练前总门禁
+
+2026-06-02 后，训练前不再只看单个数据集规模，而是使用统一入口：
+
+```bash
+bash scripts/data/report_training_readiness.sh
+```
+
+该脚本会依次生成：
+
+| 报告 | 作用 |
+| --- | --- |
+| `resume_sft_profile.json` | 检查 resume SFT 的 source group、扩写倍数和 bootstrap 占比 |
+| `resume_privacy_readiness_report.json` | 检查 resume SFT 中是否仍有手机号、邮箱、姓名等 PII |
+| `preference_readiness_report.json` | 检查 JD DPO preference 数据是否可用于 DPO |
+| `preference_product_bootstrap_readiness_report.json` | 检查 JD / resume / match 产品链路 DPO 数据是否可用 |
+| `data_readiness_report.json` | 汇总 JD、resume、match、multitask、DPO、隐私门禁 |
+
+最终只看一个结论：
+
+```text
+outputs/eval_reports/data_readiness_report.json
+summary.all_ready_for_training
+```
+
+只有它为 `true`，才允许进入正式 SFT / DPO。这个口径参考了 Data-Juicer 一类数据治理项目的做法：数据规模、字段质量、隐私、holdout 泄漏和 preference 格式必须同时过线，训练脚本才有意义。
+
 ## 6. 14B smoke 结果
 
 本轮在 GPU03 上运行：

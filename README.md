@@ -122,6 +122,21 @@ bash scripts/data/report_resume_privacy_readiness.sh \
 
 只有 `ready_for_resume_training=true`，才继续训练。
 
+一键生成训练前总门禁：
+
+```bash
+bash scripts/data/report_training_readiness.sh
+```
+
+最终看：
+
+```text
+outputs/eval_reports/data_readiness_report.json
+summary.all_ready_for_training
+```
+
+只有 `summary.all_ready_for_training=true`，才允许继续正式 SFT / DPO。
+
 ## SFT / DPO
 
 当前主 SFT 数据：

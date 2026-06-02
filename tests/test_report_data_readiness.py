@@ -48,12 +48,76 @@ def test_build_report_summarizes_not_ready_tasks():
                     {"high_risk_rate": 0.01},
                     {},
                     {},
+                    {},
+                    {},
                 ]
                 report = build_report()
     assert report["summary"]["all_ready_for_training"] is False
     assert "match" in report["summary"]["not_ready_tasks"]
     assert report["tasks"]["jd"]["quality_profile"]["tier_counts"] == {"strict": 1}
     assert report["tasks"]["jd"]["risk_ready"] is True
+
+
+def test_build_report_requires_resume_privacy_and_product_preference():
+    with patch("jobmatch_tune.eval.report_data_readiness.count_jsonl") as mocked:
+        mocked.side_effect = [
+            4400, 550, 550, 8000,  # jd
+            10000, 1000, 1000, 3000,  # resume
+            3000, 400, 400, 4500,  # match
+            9700, 1200,  # multitask
+        ]
+        with patch("jobmatch_tune.eval.report_data_readiness.audit_sft_files") as audit:
+            audit.return_value = {
+                "invalid_json": 0,
+                "duplicate_ids": 0,
+                "cross_split_duplicate_hashes": 0,
+                "field_quality_ok": True,
+            }
+            with patch("jobmatch_tune.eval.report_data_readiness.count_holdout_overlap", return_value=0):
+                with patch("jobmatch_tune.eval.report_data_readiness.read_json_file") as read_json_file:
+                    read_json_file.side_effect = [
+                        {},
+                        {},
+                        {"profile_ready": True},
+                        {"ready_for_resume_training": True},
+                        {"ready_for_dpo": True, "ready_for_dpo_smoke": True},
+                        {"ready_for_dpo": True, "ready_for_dpo_smoke": True},
+                    ]
+                    report = build_report()
+    assert report["summary"]["all_ready_for_training"] is True
+    assert report["summary"]["ready_for_product_dpo"] is True
+    assert report["tasks"]["resume"]["privacy_ready"] is True
+
+
+def test_build_report_blocks_training_when_resume_privacy_fails():
+    with patch("jobmatch_tune.eval.report_data_readiness.count_jsonl") as mocked:
+        mocked.side_effect = [
+            4400, 550, 550, 8000,
+            10000, 1000, 1000, 3000,
+            3000, 400, 400, 4500,
+            9700, 1200,
+        ]
+        with patch("jobmatch_tune.eval.report_data_readiness.audit_sft_files") as audit:
+            audit.return_value = {
+                "invalid_json": 0,
+                "duplicate_ids": 0,
+                "cross_split_duplicate_hashes": 0,
+                "field_quality_ok": True,
+            }
+            with patch("jobmatch_tune.eval.report_data_readiness.count_holdout_overlap", return_value=0):
+                with patch("jobmatch_tune.eval.report_data_readiness.read_json_file") as read_json_file:
+                    read_json_file.side_effect = [
+                        {},
+                        {},
+                        {"profile_ready": True},
+                        {"ready_for_resume_training": False},
+                        {"ready_for_dpo": True, "ready_for_dpo_smoke": True},
+                        {"ready_for_dpo": True, "ready_for_dpo_smoke": True},
+                    ]
+                    report = build_report()
+    assert report["summary"]["all_ready_for_training"] is False
+    assert report["summary"]["not_ready_tasks"] == ["resume"]
+    assert report["tasks"]["resume"]["privacy_ready"] is False
 
 
 def test_zero_high_risk_rate_stays_zero():
