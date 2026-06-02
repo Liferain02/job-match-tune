@@ -690,6 +690,22 @@ ready_for_dpo = true
 ```text
 configs/train_qwen3_14b_product_dpo.yaml
 scripts/train/train_qwen3_14b_product_dpo.sh
+scripts/train/train_qwen3_14b_product_dpo_smoke.sh
+scripts/eval/run_product_adapter_suite.sh
 ```
 
 这一路 DPO 与上一轮 JD-only DPO 的区别是：它直接覆盖最终用户会使用的 `JD 解析 / 简历解析 / 人岗匹配分析` 三个任务，且不污染人工 holdout。
+
+已完成 smoke 验证：
+
+```text
+output_dir = outputs/checkpoints/qwen3-14b-jobmatch-product-dpo-smoke
+max_train_samples = 8
+max_eval_samples = 4
+train_loss = 0.6894
+eval_loss = 0.6481
+eval_rewards/accuracies = 0.75
+eval_rewards/margins = 0.09361
+```
+
+smoke 只证明训练链路可运行，不能作为上线 adapter。正式训练后必须运行 `scripts/eval/run_product_adapter_suite.sh`，并与当前默认 DFT adapter 的 JD / resume / match 三路指标对比，确认无回退后再切换服务默认 adapter。

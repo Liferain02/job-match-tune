@@ -122,6 +122,20 @@ bash scripts/data/report_preference_readiness.sh \
 bash scripts/train/train_qwen3_14b_product_dpo.sh
 ```
 
+训练后跑三路产品评测：
+
+```bash
+ADAPTER_PATH=outputs/checkpoints/qwen3-14b-jobmatch-product-dpo \
+TAG=product_dpo \
+bash scripts/eval/run_product_adapter_suite.sh
+```
+
+如果只是验证训练链路：
+
+```bash
+bash scripts/train/train_qwen3_14b_product_dpo_smoke.sh
+```
+
 ## 数据链路
 
 初始化数据库：
