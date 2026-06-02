@@ -217,6 +217,14 @@ outputs/eval_reports/product_regression_${TAG}_vs_${BASELINE_TAG}_report.json
 bash scripts/train/train_qwen3_14b_product_dpo_smoke.sh
 ```
 
+每次 SFT / DPO 启动时，训练入口都会在 `output_dir` 写入：
+
+```text
+run_manifest.json
+```
+
+该文件记录 git commit、训练配置 hash、train/valid 数据行数和 hash、readiness summary、CLI 覆盖参数和 CUDA 设备。后续比较 adapter 效果时，应把 `run_manifest.json`、`train_metrics.json`、`eval_metrics.json` 和产品评测报告一起看。
+
 ## 数据链路
 
 初始化数据库：

@@ -39,6 +39,19 @@ def main() -> None:
     model_name = args.model_name_or_path or config["model_name_or_path"]
     adapter_path = args.adapter_path or config.get("adapter_path")
     output_dir = args.output_dir or config["output_dir"]
+    train_file = args.train_file or config["train_file"]
+    valid_file = args.valid_file or config["valid_file"]
+
+    from jobmatch_tune.train.run_manifest import write_run_manifest
+
+    write_run_manifest(
+        stage="dpo",
+        config_path=args.config,
+        output_dir=output_dir,
+        train_file=train_file,
+        valid_file=valid_file,
+        cli_args=vars(args),
+    )
 
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     if tokenizer.pad_token is None:
@@ -78,8 +91,8 @@ def main() -> None:
     dataset = load_dataset(
         "json",
         data_files={
-            "train": args.train_file or config["train_file"],
-            "validation": args.valid_file or config["valid_file"],
+            "train": train_file,
+            "validation": valid_file,
         },
     )
     if args.max_train_samples:

@@ -315,7 +315,39 @@ bash scripts/data/assert_training_readiness.sh
 SKIP_TRAINING_READINESS_GATE=1 bash scripts/train/train_qwen3_14b_multitask_sft.sh
 ```
 
-## 6. 14B smoke 结果
+## 8. 训练运行 manifest
+
+2026-06-02 后，SFT / DPO 训练入口会在 `output_dir` 写入：
+
+```text
+run_manifest.json
+```
+
+该文件包含：
+
+| 字段 | 含义 |
+| --- | --- |
+| `stage` | `sft` 或 `dpo` |
+| `git` | commit、branch、dirty 状态 |
+| `config` | 配置路径与 sha256 |
+| `datasets` | train / valid 路径、行数、sha256 |
+| `readiness` | `data_readiness_report.json` 的 summary 与 hash |
+| `environment` | `CUDA_VISIBLE_DEVICES` 等环境信息 |
+| `cli_args` | 命令行覆盖参数 |
+
+这个 manifest 解决的问题是：checkpoint 本身无法说明它到底用了哪批数据、哪份配置、哪个 readiness 状态。后续比较 SFT / DPO 效果时，至少要同时保存：
+
+```text
+run_manifest.json
+train_metrics.json
+eval_metrics.json
+product_readiness_*.json
+product_regression_*.json
+```
+
+这也是成熟开源训练项目常见的 provenance 做法：模型效果必须能追溯到数据、配置和代码版本。
+
+## 9. 14B smoke 结果
 
 本轮在 GPU03 上运行：
 
@@ -347,7 +379,7 @@ eval_mean_token_accuracy = 0.8339
 
 DFT 和 NLL 的 loss 定义不同，不能直接用 loss 数值横向比较。正式训练仍然保留 NLL 基线，用人工评估和任务级指标比较。
 
-## 7. 正式训练策略
+## 10. 正式训练策略
 
 本轮正式启动两条 14B SFT A/B：
 
@@ -447,7 +479,7 @@ analysis_json_valid_rate = 1.0
 
 match 主链已经能稳定运行，但技能匹配召回和匹配等级仍有明显优化空间。
 
-## 8. DPO 使用边界
+## 11. DPO 使用边界
 
 DPO 不应该替代 SFT，也不应该在 preference 数据为空时启动。
 
@@ -478,7 +510,7 @@ eval_rewards/margins = 0.002404
 
 1-step smoke 的 reward margin 为 0；4-step smoke 已能拉开 chosen / rejected，说明 DPO 数据格式、adapter 续训和 preference 链路可用。该结果只用于验证链路，正式收益要等 SFT A/B 完成后，在选定 adapter 上重新训练和评估。
 
-## 9. 正式 14B SFT A/B 结果
+## 12. 正式 14B SFT A/B 结果
 
 两条正式 SFT 均使用 9800 条多任务训练样本和 320 条采样验证样本，完成 613 个 optimizer step。
 
@@ -560,7 +592,7 @@ json_valid_rate = 1.0
 
 唯一剩余错例是 `resume_eval_023` 漏掉“稳定性验证”。这属于模型召回不足或训练样本覆盖不足，不应通过后处理凭空补字段；下一步应补同类“测试开发 / 稳定性验证”简历 hard case 后再做小规模增量 SFT。
 
-## 10. DPO conversational preference 修复
+## 13. DPO conversational preference 修复
 
 第一次正式 DPO 启动时，TRL 输出大量 prompt tokenization mismatch 警告。根因是 preference 使用纯字符串：
 
@@ -690,7 +722,7 @@ json_valid_rate = 0.98
 
 仍只剩原来的两条岗位方向边界错例。旧报告保留用于解释标注口径变化，新版 holdout 用于后续 DPO 对比。
 
-## 11. 正式 DPO 训练结果
+## 14. 正式 DPO 训练结果
 
 最终使用 DFT adapter 作为起点，运行 4400 条 conversational preference、1 epoch、275 个 optimizer step：
 
@@ -742,7 +774,7 @@ chosen 与 rejected 已明显拉开，训练过程未发散。由于 preference 
 
 下一轮若继续 DPO，应增加人工偏好和真实 API 错例，尤其是 resume 优势标签语义粒度、match OCR-like 样本和岗位方向边界样本，而不是继续重复训练同一批合成负例。
 
-## 13. 产品链路 DPO 数据优化
+## 15. 产品链路 DPO 数据优化
 
 2026-06-02 继续优化 DPO 数据，不再把最终人工 holdout 直接写入训练偏好集。一次临时尝试从最终评测预测构造 `data/preference_product/`，readiness 报告显示 `holdout_overlap=50`，因此该方向被否决。
 
