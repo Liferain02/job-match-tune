@@ -292,6 +292,29 @@ summary.all_ready_for_training
 
 只有它为 `true`，才允许进入正式 SFT / DPO。这个口径参考了 Data-Juicer 一类数据治理项目的做法：数据规模、字段质量、隐私、holdout 泄漏和 preference 格式必须同时过线，训练脚本才有意义。
 
+正式训练脚本已经接入自动 gate：
+
+```text
+scripts/train/train_qwen3_14b_full.sh
+scripts/train/train_qwen3_14b_multitask_sft.sh
+scripts/train/train_qwen3_14b_resume_sft.sh
+scripts/train/train_qwen3_14b_dpo.sh
+scripts/train/train_qwen3_14b_product_dpo.sh
+```
+
+这些脚本会先运行：
+
+```bash
+bash scripts/data/report_training_readiness.sh
+bash scripts/data/assert_training_readiness.sh
+```
+
+如果 `summary.all_ready_for_training=false`，脚本会在加载模型和占用 GPU 前退出。只有调试脚本本身时，才使用：
+
+```bash
+SKIP_TRAINING_READINESS_GATE=1 bash scripts/train/train_qwen3_14b_multitask_sft.sh
+```
+
 ## 6. 14B smoke 结果
 
 本轮在 GPU03 上运行：

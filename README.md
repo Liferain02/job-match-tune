@@ -137,6 +137,12 @@ summary.all_ready_for_training
 
 只有 `summary.all_ready_for_training=true`，才允许继续正式 SFT / DPO。
 
+正式训练脚本会自动执行该门禁；如果门禁失败，脚本会在占用 GPU 前退出。只有在调试脚本本身时才建议显式跳过：
+
+```bash
+SKIP_TRAINING_READINESS_GATE=1 bash scripts/train/train_qwen3_14b_multitask_sft.sh
+```
+
 ## SFT / DPO
 
 当前主 SFT 数据：
