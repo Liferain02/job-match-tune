@@ -709,3 +709,26 @@ eval_rewards/margins = 0.09361
 ```
 
 smoke 只证明训练链路可运行，不能作为上线 adapter。正式训练后必须运行 `scripts/eval/run_product_adapter_suite.sh`，并与当前默认 DFT adapter 的 JD / resume / match 三路指标对比，确认无回退后再切换服务默认 adapter。
+
+2026-06-02 新增产品 readiness gate：
+
+```text
+src/jobmatch_tune/eval/report_product_readiness.py
+scripts/eval/report_product_readiness.sh
+```
+
+它会检查 JD / resume / match 三路共 22 个指标。当前默认 DFT/DPO final 报告通过 gate：
+
+```text
+ready_for_user = true
+num_checks = 22
+num_failed_checks = 0
+```
+
+正式 product DPO 后，`run_product_adapter_suite.sh` 会自动生成：
+
+```text
+outputs/eval_reports/product_readiness_${TAG}_report.json
+```
+
+只有该报告 `ready_for_user=true`，且关键指标不低于当前默认 DFT adapter 时，才允许把 product DPO adapter 切为服务默认版本。

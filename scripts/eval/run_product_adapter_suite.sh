@@ -39,3 +39,9 @@ PYTHONPATH=src python -m jobmatch_tune.eval.run_match_eval \
   --predictions-out "outputs/eval_reports/match_eval_${TAG}_predictions.jsonl" \
   --max-new-tokens "$MAX_NEW_TOKENS" \
   $LOAD_4BIT_FLAG
+
+PYTHONPATH=src python -m jobmatch_tune.eval.report_product_readiness \
+  --jd-report "outputs/eval_reports/manual_eval_50_${TAG}_report.json" \
+  --resume-report "outputs/eval_reports/resume_pipeline_eval_${TAG}_report.json" \
+  --match-report "outputs/eval_reports/match_eval_${TAG}_report.json" \
+  --out "outputs/eval_reports/product_readiness_${TAG}_report.json"

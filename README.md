@@ -130,6 +130,14 @@ TAG=product_dpo \
 bash scripts/eval/run_product_adapter_suite.sh
 ```
 
+该脚本会额外生成：
+
+```text
+outputs/eval_reports/product_readiness_${TAG}_report.json
+```
+
+只有 `ready_for_user=true` 且不低于当前默认 DFT adapter 指标时，才建议切换默认服务 adapter。
+
 如果只是验证训练链路：
 
 ```bash
