@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from jobmatch_tune.resume.ingest import ingest_resume
+from jobmatch_tune.resume.privacy import detect_resume_pii, summarize_pii
 from jobmatch_tune.utils.io import write_text
 
 
@@ -21,6 +22,7 @@ def build_resume_sample_report(
     required = required_sections or DEFAULT_REQUIRED_SECTIONS
     ingest_row = ingest_resume(Path(path))
     sections = ingest_row.get("sections") or {}
+    privacy = summarize_pii(detect_resume_pii(str(ingest_row.get("clean_text") or "")))
     found_sections = sorted(sections.keys())
     missing_sections = [section for section in required if section not in sections]
     text_char_count = int(ingest_row.get("text_char_count") or len(ingest_row.get("clean_text") or ""))
@@ -61,6 +63,7 @@ def build_resume_sample_report(
         "page_count": ingest_row.get("page_count", 0),
         "text_char_count": text_char_count,
         "sections_found": found_sections,
+        "privacy": privacy,
         "required_sections": required,
         "num_checks": len(checks),
         "num_failed_checks": len(failed),

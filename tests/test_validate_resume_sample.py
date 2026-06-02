@@ -12,5 +12,8 @@ def test_user_resume_pdf_sample_is_ready_for_file_parse():
     assert report["extraction_method"] == "pypdf"
     assert report["text_char_count"] >= 2000
     assert set(report["required_sections"]).issubset(report["sections_found"])
+    assert report["privacy"]["has_pii"] is True
+    assert report["privacy"]["counts"]["phone"] >= 1
+    assert report["privacy"]["counts"]["email"] >= 1
     assert "clean_text" not in report
     assert "raw_text" not in report

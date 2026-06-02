@@ -277,6 +277,22 @@ bash scripts/eval/validate_resume_sample.sh \
 
 输出报告只包含元信息和检查结果，不包含 `raw_text / clean_text`，避免把个人手机号、邮箱、经历正文等隐私信息扩散到评测日志。
 
+隐私审计与脱敏入口：
+
+```bash
+bash scripts/data/resume_privacy_audit.sh \
+  --input docs/个人简历-李福润.pdf \
+  --report-out outputs/eval_reports/resume_privacy_sample_report.json \
+  --out outputs/eval_reports/resume_privacy_sample_sanitized.jsonl
+```
+
+这一步会：
+
+- 统计手机号、邮箱、微信、QQ、年龄、疑似姓名等 PII 命中数
+- 生成脱敏后的 JSONL
+- 保留项目经历、教育经历、技能等训练相关语义
+- 不把未脱敏原文写入训练数据目录
+
 当前这份 PDF 的定位：
 
 | 项目 | 口径 |

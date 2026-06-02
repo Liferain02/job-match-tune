@@ -101,6 +101,17 @@ bash scripts/eval/validate_resume_sample.sh \
 
 该报告只包含 PDF 类型、抽取方式、字符数、分块完整性等元信息，不输出简历全文。该 PDF 用作私有产品 smoke 样例，不进入 SFT / DPO 训练集。
 
+对真实简历做隐私审计和脱敏：
+
+```bash
+bash scripts/data/resume_privacy_audit.sh \
+  --input docs/个人简历-李福润.pdf \
+  --report-out outputs/eval_reports/resume_privacy_sample_report.json \
+  --out outputs/eval_reports/resume_privacy_sample_sanitized.jsonl
+```
+
+后续真实简历只有经过授权、脱敏、标注和 train/valid/holdout 切分后，才允许进入 SFT / DPO 数据池。
+
 ## SFT / DPO
 
 当前主 SFT 数据：
