@@ -16,7 +16,7 @@ import {
   matchFiles,
   matchBatch,
 } from "./services/api.js";
-import { prettyJson, splitBatchText } from "./utils/text.js";
+import { buildMarkdownReport, prettyJson, splitBatchText } from "./utils/text.js";
 
 function createOverviewItems(state) {
   if (state.requestMode === "batch") {
@@ -332,6 +332,25 @@ export default {
       }
     }
 
+    function downloadReport() {
+      if (!state.lastPayload) {
+        setStatus("暂无报告", "error");
+        return;
+      }
+      const markdown = buildMarkdownReport(state.lastPayload, state.task, state.requestMode);
+      const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const fileName = `jobmatch-${state.task}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.md`;
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setStatus("报告已下载", "ok");
+    }
+
     onMounted(() => {
       refreshStatus();
     });
@@ -352,6 +371,7 @@ export default {
       handleJdFileChange,
       handleResumeFileChange,
       copyJson,
+      downloadReport,
     };
   },
   template: `
@@ -406,6 +426,7 @@ export default {
           :request-mode="state.requestMode"
           @set-view="state.activeView = $event"
           @copy-json="copyJson"
+          @download-report="downloadReport"
         />
       </section>
     </main>

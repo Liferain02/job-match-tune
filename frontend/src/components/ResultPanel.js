@@ -8,7 +8,7 @@ export default {
     task: { type: String, required: true },
     requestMode: { type: String, required: true },
   },
-  emits: ["set-view", "copy-json"],
+  emits: ["set-view", "copy-json", "download-report"],
   computed: {
     isBatch() {
       return this.requestMode === "batch";
@@ -34,6 +34,7 @@ export default {
             <button class="result-tab" :class="{ active: activeView === 'structured' }" type="button" @click="$emit('set-view', 'structured')">结构化</button>
             <button class="result-tab" :class="{ active: activeView === 'raw' }" type="button" @click="$emit('set-view', 'raw')">原始 JSON</button>
           </div>
+          <button class="button secondary compact" type="button" :disabled="!structuredPayload" @click="$emit('download-report')">下载报告</button>
           <button class="button secondary compact" type="button" @click="$emit('copy-json')">复制 JSON</button>
         </div>
       </div>
