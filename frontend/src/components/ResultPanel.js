@@ -85,6 +85,42 @@ export default {
             <section class="result-card compact"><span class="card-label">匹配分数</span><strong>{{ parseData.rule_result?.['匹配分数'] ?? '-' }}</strong></section>
             <section class="result-card compact"><span class="card-label">岗位方向匹配</span><strong>{{ parseData.rule_result?.['岗位方向匹配'] ? '是' : '否' }}</strong></section>
             <section class="result-card compact"><span class="card-label">学历 / 经验</span><strong>{{ parseData.rule_result?.['学历匹配'] ? '学历匹配' : '学历缺口' }} / {{ parseData.rule_result?.['经验匹配'] ? '经验匹配' : '经验缺口' }}</strong></section>
+            <section class="result-card span-two">
+              <div class="card-head"><span class="card-label">JD 结构化解析</span></div>
+              <div class="nested-result-grid">
+                <div class="nested-metric"><span>岗位方向</span><strong>{{ parseData.jd_parse?.['岗位方向'] || '-' }}</strong></div>
+                <div class="nested-metric"><span>经验要求</span><strong>{{ parseData.jd_parse?.['经验要求'] || '-' }}</strong></div>
+                <div class="nested-metric"><span>学历要求</span><strong>{{ parseData.jd_parse?.['学历要求'] || '-' }}</strong></div>
+              </div>
+              <div class="subsection">
+                <span class="card-label">必备技能</span>
+                <div class="chip-list"><span v-for="item in parseData.jd_parse?.['必备技能'] || []" :key="item" class="chip">{{ item }}</span></div>
+              </div>
+              <div class="subsection">
+                <span class="card-label">核心职责</span>
+                <ul class="bullet-list"><li v-for="item in parseData.jd_parse?.['核心职责'] || []" :key="item">{{ item }}</li></ul>
+              </div>
+            </section>
+            <section class="result-card span-two">
+              <div class="card-head"><span class="card-label">简历结构化解析</span></div>
+              <div class="nested-result-grid">
+                <div class="nested-metric"><span>目标岗位</span><strong>{{ parseData.resume_parse?.['目标岗位'] || '-' }}</strong></div>
+                <div class="nested-metric"><span>教育背景</span><strong>{{ (parseData.resume_parse?.['教育背景'] || []).length }}</strong></div>
+                <div class="nested-metric"><span>项目经历</span><strong>{{ (parseData.resume_parse?.['项目经历'] || []).length }}</strong></div>
+              </div>
+              <div class="subsection">
+                <span class="card-label">核心技能</span>
+                <div class="chip-list"><span v-for="item in parseData.resume_parse?.['核心技能'] || []" :key="item" class="chip">{{ item }}</span></div>
+              </div>
+              <div class="subsection">
+                <span class="card-label">优势标签</span>
+                <div class="chip-list"><span v-for="item in parseData.resume_parse?.['优势标签'] || []" :key="item" class="chip">{{ item }}</span></div>
+              </div>
+              <div class="subsection">
+                <span class="card-label">项目经历</span>
+                <ul class="bullet-list"><li v-for="item in parseData.resume_parse?.['项目经历'] || []" :key="item">{{ item }}</li></ul>
+              </div>
+            </section>
             <section class="result-card"><div class="card-head"><span class="card-label">命中技能</span></div><div class="chip-list"><span v-for="item in parseData.rule_result?.['命中技能'] || []" :key="item" class="chip">{{ item }}</span></div></section>
             <section class="result-card"><div class="card-head"><span class="card-label">缺失技能</span></div><div class="chip-list"><span v-for="item in parseData.rule_result?.['缺失技能'] || []" :key="item" class="chip">{{ item }}</span></div></section>
             <section class="result-card"><div class="card-head"><span class="card-label">匹配优势</span></div><ul class="bullet-list"><li v-for="item in parseData.analysis?.['匹配优势'] || []" :key="item">{{ item }}</li></ul></section>

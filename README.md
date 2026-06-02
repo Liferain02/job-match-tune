@@ -86,7 +86,7 @@ bash scripts/serve/start_frontend.sh
 
 - JD 解析：粘贴 JD 文本，或上传 `.txt/.md/.docx/.pdf/图片` JD 文件。
 - 简历解析：粘贴简历文本，或上传 `.txt/.md/.docx/.pdf/图片` 简历文件。
-- 人岗匹配：JD 和简历均支持文本或文件，文件与文本可以混用。
+- 人岗匹配：JD 和简历均支持文本或文件，文件与文本可以混用；结果页会同时展示 JD 结构化、简历结构化和匹配分析。
 
 扫描版 PDF 或图片文件需要 OCR 文本。前端提供可选 OCR 文本框；如果没有 OCR，API 会返回 `needs_ocr=true`。
 

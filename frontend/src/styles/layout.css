@@ -236,6 +236,7 @@
   .service-meta,
   .match-file-grid,
   .dual-input-grid,
+  .nested-result-grid,
   .result-grid {
     grid-template-columns: 1fr;
   }

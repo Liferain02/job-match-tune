@@ -216,6 +216,41 @@ textarea {
   margin-bottom: 12px;
 }
 
+.nested-result-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.nested-metric {
+  min-height: 76px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+}
+
+.nested-metric span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.nested-metric strong {
+  display: block;
+  margin-top: 8px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.subsection {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
 .chip-list {
   display: flex;
   flex-wrap: wrap;
