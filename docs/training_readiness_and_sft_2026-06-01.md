@@ -219,6 +219,52 @@ SFT 与 DPO 入口同时新增：
 
 长训练可以从已保存 checkpoint 恢复，不需要因配置优化或节点中断从头重跑。
 
+## 6. 产品 adapter 晋级门禁
+
+2026-06-02 继续对齐开源训练项目后，新增一层“候选 adapter vs 默认 adapter”的回归门禁。
+
+原因是：
+
+1. TRL 的 DPO 数据格式强调同一 `prompt` 下的 `chosen / rejected` 偏好对，训练指标包括 reward accuracy、reward margin 等，但这些指标不能单独证明产品字段质量。
+2. Axolotl / LLaMA-Factory 一类成熟项目通常把训练配置、数据格式、评测拆开管理；adapter 是否可上线，需要独立业务评测，而不是只看训练 loss。
+3. 本项目的最终用户链路是 JD 解析、简历解析、人岗匹配。新 DPO adapter 可能总体过阈值，但在“岗位方向 / 命中技能 / 匹配等级”等关键字段上比当前默认版本回退。
+
+因此当前晋级规则改为两段式：
+
+```bash
+ADAPTER_PATH=outputs/checkpoints/qwen3-14b-jobmatch-product-dpo \
+TAG=product_dpo \
+BASELINE_TAG=qwen3_14b_dft_dpo_final_20260602 \
+bash scripts/eval/run_product_adapter_suite.sh
+```
+
+该命令会生成：
+
+```text
+outputs/eval_reports/product_readiness_product_dpo_report.json
+outputs/eval_reports/product_regression_product_dpo_vs_qwen3_14b_dft_dpo_final_20260602_report.json
+```
+
+只有同时满足以下条件才允许切默认服务 adapter：
+
+| 条件 | 含义 |
+| --- | --- |
+| `ready_for_user=true` | 候选 adapter 达到 JD、resume、match 三路绝对产品阈值 |
+| `ready_to_promote=true` | 候选 adapter 相对默认 adapter 无超过 `MAX_REGRESSION` 的关键指标回退 |
+
+默认容忍度：
+
+```text
+MAX_REGRESSION=0.005
+```
+
+这意味着后续扩数据、SFT、DPO 的目标不是“训练一定成功”，而是：
+
+1. 数据质量报告更好。
+2. 产品评测绝对指标过线。
+3. 与默认 adapter 对比无关键字段回退。
+4. 对真实简历样例的 API / 前端上传链路能稳定返回结构化结果。
+
 ## 6. 14B smoke 结果
 
 本轮在 GPU03 上运行：

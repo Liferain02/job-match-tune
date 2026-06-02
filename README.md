@@ -137,7 +137,27 @@ bash scripts/eval/run_product_adapter_suite.sh
 outputs/eval_reports/product_readiness_${TAG}_report.json
 ```
 
-只有 `ready_for_user=true` 且不低于当前默认 DFT adapter 指标时，才建议切换默认服务 adapter。
+如果要判断新 adapter 能否替换当前默认版本，需要加基线对比：
+
+```bash
+ADAPTER_PATH=outputs/checkpoints/qwen3-14b-jobmatch-product-dpo \
+TAG=product_dpo \
+BASELINE_TAG=qwen3_14b_dft_dpo_final_20260602 \
+bash scripts/eval/run_product_adapter_suite.sh
+```
+
+这会额外生成：
+
+```text
+outputs/eval_reports/product_regression_${TAG}_vs_${BASELINE_TAG}_report.json
+```
+
+切换默认服务 adapter 的标准是：
+
+1. `product_readiness_${TAG}_report.json` 中 `ready_for_user=true`。
+2. `product_regression_${TAG}_vs_${BASELINE_TAG}_report.json` 中 `ready_to_promote=true`。
+
+也就是说，新 SFT/DPO adapter 既要达到绝对产品阈值，也不能相对当前默认 adapter 在 JD、简历、匹配三路关键字段上发生超过容忍度的回退。
 
 如果只是验证训练链路：
 
