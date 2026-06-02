@@ -51,6 +51,11 @@ def test_redact_resume_pii_masks_name_near_contact_block():
     assert "RAG 系统" in redacted
 
 
+def test_detect_resume_pii_does_not_treat_role_short_line_as_name():
+    text = "## 目标岗位\n后端开发\n## 核心技能\nJava Spring Redis"
+    assert detect_resume_pii(text) == []
+
+
 def test_redact_resume_metadata_masks_name_in_file_name():
     assert redact_resume_metadata("个人简历-李四.pdf") == "个人简历-[姓名].pdf"
     assert redact_resume_metadata("张三简历.pdf") == "[姓名]简历.pdf"

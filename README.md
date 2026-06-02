@@ -112,6 +112,16 @@ bash scripts/data/resume_privacy_audit.sh \
 
 后续真实简历只有经过授权、脱敏、标注和 train/valid/holdout 切分后，才允许进入 SFT / DPO 数据池。
 
+训练前检查 resume SFT 数据是否仍含 PII：
+
+```bash
+bash scripts/data/report_resume_privacy_readiness.sh \
+  --inputs data/sft_resume/train.jsonl data/sft_resume/valid.jsonl data/sft_resume/test.jsonl \
+  --out outputs/eval_reports/resume_privacy_readiness_report.json
+```
+
+只有 `ready_for_resume_training=true`，才继续训练。
+
 ## SFT / DPO
 
 当前主 SFT 数据：

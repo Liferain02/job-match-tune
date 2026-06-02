@@ -9,7 +9,7 @@ from jobmatch_tune.dataset.build_resume_sft_dataset import (
 def _row():
     return {
         "id": "resume_eval_001",
-        "text": "姓名：张三\n目标岗位：AI 应用开发工程师",
+        "text": "姓名：张三\n电话：13812345678\n邮箱：candidate@example.com\n目标岗位：AI 应用开发工程师",
         "label": {
             "目标岗位": "AI应用开发",
             "教育背景": ["本科，计算机科学与技术"],
@@ -34,6 +34,21 @@ def test_build_resume_sample_contains_resume_prompt():
     assert sample["source_group"] == row["id"]
     assert "请解析以下简历" in sample["messages"][1]["content"]
     assert "目标岗位" in sample["messages"][2]["content"]
+
+
+def test_build_resume_sample_uses_redacted_resume_text():
+    from jobmatch_tune.resume.privacy import redact_resume_pii
+
+    row = _row()
+    rendered_text = redact_resume_pii(row["text"])
+    sample = build_resume_sample(row, "original", rendered_text)
+    user_prompt = sample["messages"][1]["content"]
+    assert "张三" not in user_prompt
+    assert "13812345678" not in user_prompt
+    assert "candidate@example.com" not in user_prompt
+    assert "[姓名]" in user_prompt
+    assert "[手机号]" in user_prompt
+    assert "[邮箱]" in user_prompt
 
 
 def test_split_grouped_samples_keeps_groups_together():

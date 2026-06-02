@@ -8,6 +8,7 @@ from collections import defaultdict
 from typing import Any
 
 from jobmatch_tune.dataset.templates import SYSTEM_PROMPT, resume_parse_prompt
+from jobmatch_tune.resume.privacy import redact_resume_pii
 from jobmatch_tune.utils.io import read_jsonl, write_jsonl
 
 
@@ -391,7 +392,7 @@ def main() -> None:
     samples: list[dict[str, Any]] = []
     for row in rows:
         for variant_name, builder in VARIANT_BUILDERS:
-            rendered_text = builder(row).strip()
+            rendered_text = redact_resume_pii(builder(row)).strip()
             if not rendered_text:
                 continue
             samples.append(build_resume_sample(row, variant_name, rendered_text))

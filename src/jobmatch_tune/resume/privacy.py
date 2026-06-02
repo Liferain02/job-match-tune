@@ -50,7 +50,8 @@ def detect_resume_pii(text: str) -> list[PiiFinding]:
         previous_line = lines[index - 1] if index > 0 else ""
         next_line = lines[index + 1] if index + 1 < len(lines) else ""
         near_private_context = bool(PRIVATE_CONTEXT_RE.search(previous_line + "\n" + next_line))
-        if match and (index < 12 or near_private_context):
+        explicit_name_field = stripped.startswith("姓名")
+        if match and (explicit_name_field or near_private_context):
             findings.append(PiiFinding(kind="name", value=match.group(1)))
     return findings
 
@@ -70,10 +71,9 @@ def redact_resume_pii(text: str) -> str:
         previous_line = source_lines[index - 1] if index > 0 else ""
         next_line = source_lines[index + 1] if index + 1 < len(source_lines) else ""
         near_private_context = bool(PRIVATE_CONTEXT_RE.search(previous_line + "\n" + next_line))
-        if (
-            match
-            and (index < 12 or near_private_context)
-            and not any(token in stripped for token in ["教育", "实习", "项目", "技能"])
+        explicit_name_field = stripped.startswith("姓名")
+        if match and (explicit_name_field or near_private_context) and not any(
+            token in stripped for token in ["教育", "实习", "项目", "技能"]
         ):
             lines.append(line.replace(match.group(1), "[姓名]"))
         else:

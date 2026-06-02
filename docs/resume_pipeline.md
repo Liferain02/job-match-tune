@@ -293,6 +293,28 @@ bash scripts/data/resume_privacy_audit.sh \
 - 保留项目经历、教育经历、技能等训练相关语义
 - 不把未脱敏原文写入训练数据目录
 
+训练前隐私 readiness：
+
+```bash
+bash scripts/data/report_resume_privacy_readiness.sh \
+  --inputs data/sft_resume/train.jsonl data/sft_resume/valid.jsonl data/sft_resume/test.jsonl \
+  --out outputs/eval_reports/resume_privacy_readiness_report.json
+```
+
+这一步扫描 SFT JSONL 中的 `messages / text / sections`，如果仍有手机号、邮箱、微信、QQ、年龄、疑似姓名等 PII，报告中的：
+
+```text
+ready_for_resume_training=false
+```
+
+后续真实简历扩充流程应固定为：
+
+```text
+resume_ingest -> resume_privacy_audit -> 标注/质检 -> 构建 SFT/DPO -> report_resume_privacy_readiness
+```
+
+只有 `ready_for_resume_training=true`，才允许进入训练脚本。
+
 当前这份 PDF 的定位：
 
 | 项目 | 口径 |
