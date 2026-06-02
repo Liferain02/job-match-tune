@@ -91,6 +91,16 @@ bash scripts/serve/start_frontend.sh
 
 扫描版 PDF 或图片文件需要 OCR 文本。前端提供可选 OCR 文本框；如果没有 OCR，API 会返回 `needs_ocr=true`。
 
+验证标准 PDF 简历上传前置解析：
+
+```bash
+bash scripts/eval/validate_resume_sample.sh \
+  --input docs/个人简历-李福润.pdf \
+  --out outputs/eval_reports/resume_sample_validation_report.json
+```
+
+该报告只包含 PDF 类型、抽取方式、字符数、分块完整性等元信息，不输出简历全文。该 PDF 用作私有产品 smoke 样例，不进入 SFT / DPO 训练集。
+
 ## SFT / DPO
 
 当前主 SFT 数据：

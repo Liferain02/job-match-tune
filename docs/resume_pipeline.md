@@ -256,7 +256,41 @@ bash scripts/data/resume_normalize.sh \
 
 ---
 
-## 8. 当前数据与训练现状
+## 8. 真实 PDF 简历验收样例
+
+`docs/个人简历-李福润.pdf` 是当前项目里的标准 PDF 简历样例。它的用途是产品链路验收，不是训练数据。
+
+使用方式：
+
+```bash
+bash scripts/eval/validate_resume_sample.sh \
+  --input docs/个人简历-李福润.pdf \
+  --out outputs/eval_reports/resume_sample_validation_report.json
+```
+
+验收内容：
+
+- PDF 是否能被 `pypdf` 识别为 `text_pdf`
+- 是否不需要 OCR
+- 可抽文本长度是否达到下限
+- 是否识别到 `education / skills / internships / projects` 四类关键分块
+
+输出报告只包含元信息和检查结果，不包含 `raw_text / clean_text`，避免把个人手机号、邮箱、经历正文等隐私信息扩散到评测日志。
+
+当前这份 PDF 的定位：
+
+| 项目 | 口径 |
+| --- | --- |
+| 是否进入 SFT | 否 |
+| 是否进入 DPO | 否 |
+| 是否作为 holdout | 可以作为私有产品 smoke，不作为公开人工评估集 |
+| 是否输出全文 | 否 |
+
+这样做的原因是：真实用户简历非常适合暴露上传、PDF 抽取、分块和 API 链路问题，但不应直接混入训练集。后续如果需要用真实简历提升训练效果，应先做匿名化、授权确认、字段标注和 train/valid/holdout 切分，再进入数据池。
+
+---
+
+## 9. 当前数据与训练现状
 
 目前 `resume_parse` 已经有：
 
@@ -282,7 +316,7 @@ bash scripts/data/resume_normalize.sh \
 
 ---
 
-## 9. 下一步
+## 10. 下一步
 
 最合理的顺序：
 
@@ -306,7 +340,7 @@ bash scripts/data/resume_normalize.sh \
 
 ---
 
-## 10. 当前可执行评估入口
+## 11. 当前可执行评估入口
 
 文本简历 pipeline 评估：
 
