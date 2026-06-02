@@ -5,10 +5,7 @@ import json
 from collections import defaultdict
 from typing import Any
 
-import torch
-
 from jobmatch_tune.eval.run_manual_eval import evaluate_predictions
-from jobmatch_tune.inference.predict import build_prompt, load_model
 from jobmatch_tune.inference.postprocess_json import parse_json_output
 from jobmatch_tune.resume.normalize import normalize_resume_eval_row
 from jobmatch_tune.utils.io import read_jsonl, write_text
@@ -21,6 +18,10 @@ def run_predictions(
     load_4bit: bool,
     max_new_tokens: int,
 ) -> list[dict[str, Any]]:
+    import torch
+
+    from jobmatch_tune.inference.predict import build_prompt, load_model
+
     tokenizer, model = load_model(model_name, adapter, load_4bit)
     results = []
     for row in rows:

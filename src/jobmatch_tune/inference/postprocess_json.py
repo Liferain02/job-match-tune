@@ -3,9 +3,9 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
-from functools import lru_cache
 
 import yaml
 
@@ -69,6 +69,24 @@ def load_label_schema() -> dict[str, Any]:
         return yaml.safe_load(f)
 
 
+@lru_cache(maxsize=1)
+def load_resume_strength_aliases() -> dict[str, str]:
+    config_path = Path(__file__).resolve().parents[3] / "configs" / "resume_strength_alias.yaml"
+    if not config_path.exists():
+        return {}
+    with config_path.open("r", encoding="utf-8") as f:
+        config = yaml.safe_load(f) or {}
+    alias_map = {}
+    for canonical, aliases in (config.get("aliases") or {}).items():
+        canonical_key = re.sub(r"\s+", "", str(canonical)).lower()
+        alias_map[canonical_key] = str(canonical)
+        for alias in aliases or []:
+            alias_key = re.sub(r"\s+", "", str(alias)).lower()
+            if alias_key:
+                alias_map[alias_key] = str(canonical)
+    return alias_map
+
+
 def _normalize_string(value: Any) -> str:
     if value is None:
         return ""
@@ -107,6 +125,7 @@ def _ensure_sentence_ending(text: str) -> str:
 
 
 def _normalize_resume_tags(value: Any) -> list[str]:
+    alias_map = load_resume_strength_aliases()
     tags = []
     for item in _ensure_resume_list(value):
         parts = re.split(r"[、,，]|(?:和|与)", item)
@@ -115,7 +134,7 @@ def _normalize_resume_tags(value: Any) -> list[str]:
             tag = re.sub(r"(?:能力强|能力|覆盖全面|[。！？.!?])+$", "", tag).strip()
             tag = re.sub(r"\s+", "", tag)
             if tag:
-                tags.append(tag)
+                tags.append(alias_map.get(tag.lower(), tag))
     return merge_unique(tags)
 
 

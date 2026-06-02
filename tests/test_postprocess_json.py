@@ -251,3 +251,20 @@ def test_parse_json_output_normalizes_resume_strength_tags():
     )
     assert result["ok"] is True
     assert result["data"]["优势标签"] == ["稳定性工程", "自动化运维", "监控体系", "API设计"]
+
+
+def test_parse_json_output_canonicalizes_resume_strength_aliases():
+    result = parse_json_output(
+        '{"目标岗位":"AI应用开发","教育背景":[],'
+        '"优势标签":["具备 LLM 应用落地经验","关注交互体验和性能优化",'
+        '"自动化测试框架建设和质量保障经验","高并发场景优化"]}'
+    )
+    assert result["ok"] is True
+    assert result["data"]["优势标签"] == [
+        "LLM应用落地",
+        "交互体验优化",
+        "性能优化",
+        "自动化测试框架",
+        "质量保障",
+        "高并发优化",
+    ]

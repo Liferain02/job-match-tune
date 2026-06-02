@@ -430,6 +430,40 @@ json_valid_rate = 0.98
 
 剩余 11 条差异属于语义粒度差异，例如“交互体验”与“交互体验优化”、“评测”与“模型评测”。这些样本应进入后续标注和增量 SFT，不应继续堆字符串替换规则。
 
+### resume 优势标签口径归一化补充
+
+2026-06-02 在不重新训练、不修改 gold 的前提下，新增 `configs/resume_strength_alias.yaml`，把优势标签中稳定出现的同义表达迁移到配置化口径表：
+
+- “LLM应用落地经验” -> “LLM应用落地”
+- “交互体验” -> “交互体验优化”
+- “基础设施稳定性建设” -> “稳定性建设”
+- “自动化测试框架建设” -> “自动化测试框架”
+- “高并发场景优化” -> “高并发优化”
+
+这不是样本级补丁，而是把“能力标签应该短、稳定、可枚举”的标注口径显式化。后续新增简历 gold 或训练数据时，应先维护这张表，再重建 `data/sft/`。
+
+使用最新后处理重放已保存预测：
+
+```bash
+PYTHONPATH=src python -m jobmatch_tune.eval.replay_generation_predictions \
+  --predictions outputs/eval_reports/resume_pipeline_eval_qwen3_14b_dft_dpo_final_20260602_predictions.jsonl \
+  --out outputs/eval_reports/resume_pipeline_eval_qwen3_14b_dft_dpo_final_20260602_replay_report.json
+```
+
+重放结果：
+
+```text
+json_valid_rate = 1.0
+教育背景 / 核心技能 / 实习经历 / 项目经历 F1 = 1.0
+目标岗位 exact_match = 1.0
+优势标签 precision = 1.0
+优势标签 recall = 0.9896
+优势标签 F1 = 0.99375
+剩余 mismatch = 1
+```
+
+唯一剩余错例是 `resume_eval_023` 漏掉“稳定性验证”。这属于模型召回不足或训练样本覆盖不足，不应通过后处理凭空补字段；下一步应补同类“测试开发 / 稳定性验证”简历 hard case 后再做小规模增量 SFT。
+
 ## 10. DPO conversational preference 修复
 
 第一次正式 DPO 启动时，TRL 输出大量 prompt tokenization mismatch 警告。根因是 preference 使用纯字符串：
@@ -595,6 +629,7 @@ chosen 与 rejected 已明显拉开，训练过程未发散。由于 preference 
 | resume 教育 / 技能 / 实习 / 项目 F1 | 1.0 | 1.0 |
 | resume 目标岗位 exact_match | 1.0 | 1.0 |
 | resume 优势标签 F1 | 0.8354 | 0.8354 |
+| resume 优势标签 F1（最新口径重放） | 0.99375 | 0.99375 |
 | match JSON 合法率 | 1.0 | 1.0 |
 | match 命中技能 F1 | 0.8548 | 0.8548 |
 | match 缺失技能 F1 | 0.8945 | 0.8945 |

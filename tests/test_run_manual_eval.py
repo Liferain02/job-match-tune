@@ -1,4 +1,5 @@
 from jobmatch_tune.eval.run_manual_eval import evaluate_predictions
+from jobmatch_tune.eval.replay_generation_predictions import replay_predictions
 
 
 def test_evaluate_predictions_for_jd_parse():
@@ -60,3 +61,28 @@ def test_evaluate_predictions_for_resume_parse():
     assert report["json_valid_rate"] == 1.0
     assert report["field_metrics"]["目标岗位"]["exact_match"] == 1.0
     assert report["field_metrics"]["核心技能"]["f1"] == 1.0
+
+
+def test_replay_predictions_reapplies_latest_postprocess():
+    rows = [
+        {
+            "id": "resume1",
+            "task": "resume_parse",
+            "text": "优势标签：具备 LLM 应用落地经验",
+            "prediction": (
+                '{"目标岗位":"AI应用开发","教育背景":[],"优势标签":["具备 LLM 应用落地经验"]}'
+            ),
+            "label": {
+                "目标岗位": "AI应用开发",
+                "教育背景": [],
+                "核心技能": [],
+                "实习经历": [],
+                "项目经历": [],
+                "优势标签": ["LLM应用落地"],
+            },
+            "parsed": {"优势标签": ["LLM应用落地经验"]},
+            "ok": True,
+        }
+    ]
+    replayed = replay_predictions(rows)
+    assert replayed[0]["parsed"]["优势标签"] == ["LLM应用落地"]
