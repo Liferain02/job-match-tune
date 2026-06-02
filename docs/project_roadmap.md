@@ -82,22 +82,24 @@
   - prompt 已有
   - schema 已有
   - API 入口已有
-  - 已补人工评估集种子和通用人工评估脚本
-  - 但还没有成熟训练数据链路
+  - 已有人工评估集、训练池、SFT 数据和文件上传解析入口
+  - 优势标签已增加配置化口径归一化
 
 ### 初步成型
 
 - `match` task
 - rule-based 匹配引擎
 - `POST /api/match`
+- `POST /api/match_files`
 - 前端匹配工作台
 - `match` 人工评估入口
+- match SFT 数据和产品链路 DPO bootstrap 数据
 
-### 未成型
+### 继续优化项
 
-- `resume_parse` 专用训练集
-- 更大规模的 `match` 评估集
-- `match` 偏好训练数据
+- 继续扩充 resume / match 人工评估 hard cases
+- 继续降低 match 匹配等级和岗位方向边界误差
+- 使用 `data/preference_product_bootstrap/` 做产品链路 DPO 实验，并与当前 DFT 服务版本 A/B
 
 ---
 

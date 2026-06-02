@@ -10,6 +10,12 @@
   - API: [src/jobmatch_tune/api/server.py](/share/home/lifr/workspace/code/job-match-tune/src/jobmatch_tune/api/server.py)
   - 启动脚本: [scripts/serve/start_api.sh](/share/home/lifr/workspace/code/job-match-tune/scripts/serve/start_api.sh)
   - vLLM 服务脚本: [scripts/serve/start_vllm_server.sh](/share/home/lifr/workspace/code/job-match-tune/scripts/serve/start_vllm_server.sh)
+- 当前产品能力：
+  - `POST /api/parse`：JD / 简历文本结构化解析
+  - `POST /api/jd_file_parse`：上传 JD 文件并结构化解析
+  - `POST /api/resume_file_parse`：上传简历文件并结构化解析
+  - `POST /api/match`：JD 文本 + 简历文本匹配分析
+  - `POST /api/match_files`：JD / 简历文本或文件混用的一次性匹配分析
 - 50 条人工 holdout 最新报告：
   - [outputs/eval_reports/manual_eval_50_qwen3_14b_dft_dpo_final_20260602_report.json](/share/home/lifr/workspace/code/job-match-tune/outputs/eval_reports/manual_eval_50_qwen3_14b_dft_dpo_final_20260602_report.json)
 
@@ -60,6 +66,60 @@ pip install -e . --no-build-isolation
 
 ```bash
 ssh -n gpu03 nvidia-smi
+```
+
+## 服务与前端
+
+启动 API：
+
+```bash
+bash scripts/serve/start_api.sh
+```
+
+启动前端：
+
+```bash
+bash scripts/serve/start_frontend.sh
+```
+
+前端支持三类工作流：
+
+- JD 解析：粘贴 JD 文本，或上传 `.txt/.md/.docx/.pdf/图片` JD 文件。
+- 简历解析：粘贴简历文本，或上传 `.txt/.md/.docx/.pdf/图片` 简历文件。
+- 人岗匹配：JD 和简历均支持文本或文件，文件与文本可以混用。
+
+扫描版 PDF 或图片文件需要 OCR 文本。前端提供可选 OCR 文本框；如果没有 OCR，API 会返回 `needs_ocr=true`。
+
+## SFT / DPO
+
+当前主 SFT 数据：
+
+```bash
+bash scripts/data/rebuild_data_pipeline.sh
+```
+
+当前产品链路 DPO 候选数据：
+
+```bash
+bash scripts/data/build_product_preference_bootstrap_dataset.sh
+bash scripts/data/report_preference_readiness.sh \
+  --train data/preference_product_bootstrap/train.jsonl \
+  --valid data/preference_product_bootstrap/valid.jsonl \
+  --out outputs/eval_reports/preference_product_bootstrap_readiness_report.json
+```
+
+当前审计结果：
+
+- train: `9800`
+- valid: `1208`
+- 覆盖任务：`jd_parse / resume_parse / match`
+- `ready_for_dpo=true`
+- `holdout_overlap=0`
+
+产品链路 DPO 训练入口：
+
+```bash
+bash scripts/train/train_qwen3_14b_product_dpo.sh
 ```
 
 ## 数据链路

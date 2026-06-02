@@ -7,12 +7,14 @@ export default {
     singleText: { type: String, required: true },
     jdText: { type: String, required: true },
     resumeText: { type: String, required: true },
+    jdOcrText: { type: String, required: true },
     resumeOcrText: { type: String, required: true },
     inputStats: { type: String, required: true },
     taskHint: { type: String, required: true },
     batchTipVisible: { type: Boolean, required: true },
     modelPath: { type: String, required: true },
     adapterPath: { type: String, required: true },
+    selectedJdFileName: { type: String, default: "" },
     selectedFileName: { type: String, default: "" },
   },
   emits: [
@@ -22,13 +24,21 @@ export default {
     "update:singleText",
     "update:jdText",
     "update:resumeText",
+    "update:jdOcrText",
     "update:resumeOcrText",
+    "jd-file-change",
     "resume-file-change",
     "fill-example",
   ],
   computed: {
+    showJdFile() {
+      return this.task === "jd_parse" && this.requestMode === "single";
+    },
     showResumeFile() {
       return this.task === "resume_parse" && this.requestMode === "single";
+    },
+    showMatchFileInputs() {
+      return this.task === "match" && this.requestMode === "single";
     },
     showMatchInputs() {
       return this.task === "match";
@@ -85,6 +95,24 @@ export default {
         </label>
       </template>
 
+      <section v-if="showJdFile" class="file-upload-panel">
+        <label class="field field-compact">
+          <span>JD 文件</span>
+          <input type="file" accept=".txt,.md,.docx,.pdf,.png,.jpg,.jpeg,.webp,.bmp" @change="$emit('jd-file-change', $event)" />
+          <small v-if="selectedJdFileName" class="field-note">已选择：{{ selectedJdFileName }}</small>
+        </label>
+        <label class="field field-compact">
+          <span>JD OCR 文本（可选）</span>
+          <textarea
+            class="compact-textarea small-textarea"
+            spellcheck="false"
+            placeholder="扫描版 PDF 或图片 JD 如果已经有 OCR 文本，可以直接粘贴到这里。"
+            :value="jdOcrText"
+            @input="$emit('update:jdOcrText', $event.target.value)"
+          ></textarea>
+        </label>
+      </section>
+
       <section v-if="showResumeFile" class="file-upload-panel">
         <label class="field field-compact">
           <span>简历文件</span>
@@ -111,6 +139,37 @@ export default {
         <label class="field field-compact">
           <span>简历文本</span>
           <textarea class="compact-textarea" spellcheck="false" :value="resumeText" @input="$emit('update:resumeText', $event.target.value)"></textarea>
+        </label>
+      </section>
+
+      <section v-if="showMatchFileInputs" class="match-file-grid">
+        <label class="field field-compact">
+          <span>JD 文件（可选）</span>
+          <input type="file" accept=".txt,.md,.docx,.pdf,.png,.jpg,.jpeg,.webp,.bmp" @change="$emit('jd-file-change', $event)" />
+          <small v-if="selectedJdFileName" class="field-note">已选择：{{ selectedJdFileName }}</small>
+        </label>
+        <label class="field field-compact">
+          <span>简历文件（可选）</span>
+          <input type="file" accept=".txt,.md,.docx,.pdf,.png,.jpg,.jpeg,.webp,.bmp" @change="$emit('resume-file-change', $event)" />
+          <small v-if="selectedFileName" class="field-note">已选择：{{ selectedFileName }}</small>
+        </label>
+        <label class="field field-compact">
+          <span>JD OCR 文本（可选）</span>
+          <textarea
+            class="compact-textarea small-textarea"
+            spellcheck="false"
+            :value="jdOcrText"
+            @input="$emit('update:jdOcrText', $event.target.value)"
+          ></textarea>
+        </label>
+        <label class="field field-compact">
+          <span>简历 OCR 文本（可选）</span>
+          <textarea
+            class="compact-textarea small-textarea"
+            spellcheck="false"
+            :value="resumeOcrText"
+            @input="$emit('update:resumeOcrText', $event.target.value)"
+          ></textarea>
         </label>
       </section>
 

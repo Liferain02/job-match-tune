@@ -3,28 +3,50 @@ from __future__ import annotations
 import argparse
 import json
 import random
-from typing import Any
 from pathlib import Path
+from typing import Any
 
-from jobmatch_tune.dataset.templates import SYSTEM_PROMPT, jd_parse_prompt, resume_parse_prompt
+from jobmatch_tune.dataset.build_match_sft_dataset import build_analysis_from_label
+from jobmatch_tune.dataset.templates import (
+    SYSTEM_PROMPT,
+    jd_parse_prompt,
+    match_prompt,
+    resume_parse_prompt,
+)
 from jobmatch_tune.utils.io import read_jsonl, write_jsonl
 
 
-def build_prompt_text(task: str, text: str) -> str:
+def build_prompt_text(
+    task: str,
+    text: str,
+    *,
+    resume_text: str = "",
+    rule_result: dict[str, Any] | str | None = None,
+) -> str:
     if task == "jd_parse":
         user_text = jd_parse_prompt(text)
     elif task == "resume_parse":
         user_text = resume_parse_prompt(text)
+    elif task == "match":
+        user_text = match_prompt(text, resume_text, _json_text(rule_result or {}))
     else:
         raise ValueError(f"Unsupported task: {task}")
     return f"{SYSTEM_PROMPT}\n\n{user_text}"
 
 
-def build_prompt_messages(task: str, text: str) -> list[dict[str, str]]:
+def build_prompt_messages(
+    task: str,
+    text: str,
+    *,
+    resume_text: str = "",
+    rule_result: dict[str, Any] | str | None = None,
+) -> list[dict[str, str]]:
     if task == "jd_parse":
         user_text = jd_parse_prompt(text)
     elif task == "resume_parse":
         user_text = resume_parse_prompt(text)
+    elif task == "match":
+        user_text = match_prompt(text, resume_text, _json_text(rule_result or {}))
     else:
         raise ValueError(f"Unsupported task: {task}")
     return [
@@ -33,12 +55,62 @@ def build_prompt_messages(task: str, text: str) -> list[dict[str, str]]:
     ]
 
 
+def _json_text(value: Any) -> str:
+    if isinstance(value, str):
+        return value
+    return json.dumps(value, ensure_ascii=False, sort_keys=True)
+
+
+def _build_match_preference_row(row: dict[str, Any]) -> dict[str, Any] | None:
+    label = row.get("label") or {}
+    if not label:
+        return None
+    chosen_obj = build_analysis_from_label(label)
+    rejected_obj = row.get("analysis") or {}
+    if not rejected_obj:
+        rejected_obj = build_analysis_from_label(row.get("rule_result") or {})
+    chosen = json.dumps(chosen_obj, ensure_ascii=False, sort_keys=True)
+    rejected = json.dumps(rejected_obj, ensure_ascii=False, sort_keys=True)
+    if not rejected_obj or chosen == rejected:
+        return None
+    return {
+        "id": row["id"],
+        "task_type": "match",
+        "prompt": build_prompt_messages(
+            "match",
+            row.get("jd_text", ""),
+            resume_text=row.get("resume_text", ""),
+            rule_result=_gold_match_rule_result(label),
+        ),
+        "chosen": [{"role": "assistant", "content": chosen}],
+        "rejected": [{"role": "assistant", "content": rejected}],
+        "meta": {
+            "provenance": "match_eval_prediction_mismatch",
+            "rejection_strategy": "match_analysis_mismatch",
+        },
+    }
+
+
+def _gold_match_rule_result(label: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "匹配等级": label.get("匹配等级", ""),
+        "岗位方向匹配": label.get("岗位方向匹配", False),
+        "学历匹配": label.get("学历匹配", False),
+        "经验匹配": label.get("经验匹配", False),
+        "命中技能": label.get("命中技能", []),
+        "缺失技能": label.get("缺失技能", []),
+    }
+
+
 def build_preference_row(row: dict[str, Any]) -> dict[str, Any] | None:
     label = row.get("label") or {}
     parsed = row.get("parsed")
     raw_prediction = row.get("prediction") or ""
     task = row.get("task", "jd_parse")
     text = row.get("text", "")
+
+    if task == "match" or ("jd_text" in row and "resume_text" in row and "rule_result" in row):
+        return _build_match_preference_row(row)
 
     chosen = json.dumps(label, ensure_ascii=False, sort_keys=True)
     if parsed:
@@ -55,6 +127,10 @@ def build_preference_row(row: dict[str, Any]) -> dict[str, Any] | None:
         "prompt": build_prompt_messages(task, text),
         "chosen": [{"role": "assistant", "content": chosen}],
         "rejected": [{"role": "assistant", "content": rejected}],
+        "meta": {
+            "provenance": "eval_prediction_mismatch",
+            "rejection_strategy": "prediction_mismatch",
+        },
     }
 
 
@@ -79,7 +155,11 @@ def load_prediction_paths(inputs: list[str]) -> list[Path]:
     return unique
 
 
-def split_rows(rows: list[dict[str, Any]], valid_ratio: float, seed: int) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def split_rows(
+    rows: list[dict[str, Any]],
+    valid_ratio: float,
+    seed: int,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     rng = random.Random(seed)
     shuffled = rows[:]
     rng.shuffle(shuffled)
@@ -114,7 +194,8 @@ def main() -> None:
             built = build_preference_row(row)
             if built is None:
                 continue
-            dedup_key = (built["id"], json.dumps(built["rejected"], ensure_ascii=False, sort_keys=True))
+            rejected_text = json.dumps(built["rejected"], ensure_ascii=False, sort_keys=True)
+            dedup_key = (built["id"], rejected_text)
             if dedup_key in seen_pairs:
                 continue
             seen_pairs.add(dedup_key)

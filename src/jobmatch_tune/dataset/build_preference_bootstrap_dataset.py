@@ -10,7 +10,6 @@ from typing import Any
 
 from jobmatch_tune.utils.io import read_jsonl, write_jsonl
 
-
 DIRECTION_FALLBACKS = {
     "前端开发": "后端开发",
     "后端开发": "前端开发",
@@ -41,7 +40,8 @@ def _change_direction(label: dict[str, Any]) -> dict[str, Any] | None:
     if not direction:
         return None
     rejected = copy.deepcopy(label)
-    rejected["岗位方向"] = DIRECTION_FALLBACKS.get(direction, "后端开发" if direction != "后端开发" else "算法工程")
+    fallback = "后端开发" if direction != "后端开发" else "算法工程"
+    rejected["岗位方向"] = DIRECTION_FALLBACKS.get(direction, fallback)
     return rejected
 
 
@@ -75,7 +75,65 @@ def _mix_education_into_experience(label: dict[str, Any]) -> dict[str, Any] | No
     return rejected
 
 
-CORRUPTIONS: list[tuple[str, Callable[[dict[str, Any]], dict[str, Any] | None]]] = [
+def _drop_resume_strength(label: dict[str, Any]) -> dict[str, Any] | None:
+    strengths = list(label.get("优势标签") or [])
+    if not strengths:
+        return None
+    rejected = copy.deepcopy(label)
+    rejected["优势标签"] = strengths[:-1]
+    return rejected
+
+
+def _drop_resume_project(label: dict[str, Any]) -> dict[str, Any] | None:
+    projects = list(label.get("项目经历") or [])
+    if not projects:
+        return None
+    rejected = copy.deepcopy(label)
+    rejected["项目经历"] = projects[:-1]
+    return rejected
+
+
+def _mix_resume_education_into_skills(label: dict[str, Any]) -> dict[str, Any] | None:
+    education = list(label.get("教育背景") or [])
+    if not education:
+        return None
+    rejected = copy.deepcopy(label)
+    skills = list(rejected.get("核心技能") or [])
+    skills.append(education[0])
+    rejected["核心技能"] = skills
+    return rejected
+
+
+def _drop_match_gap(label: dict[str, Any]) -> dict[str, Any] | None:
+    gaps = list(label.get("主要短板") or [])
+    if not gaps:
+        return None
+    rejected = copy.deepcopy(label)
+    rejected["主要短板"] = gaps[:-1]
+    return rejected
+
+
+def _swap_match_strength_gap(label: dict[str, Any]) -> dict[str, Any] | None:
+    strengths = list(label.get("匹配优势") or [])
+    gaps = list(label.get("主要短板") or [])
+    if not strengths or not gaps:
+        return None
+    rejected = copy.deepcopy(label)
+    rejected["匹配优势"] = gaps
+    rejected["主要短板"] = strengths
+    return rejected
+
+
+def _drop_match_suggestion(label: dict[str, Any]) -> dict[str, Any] | None:
+    suggestions = list(label.get("简历优化建议") or [])
+    if not suggestions:
+        return None
+    rejected = copy.deepcopy(label)
+    rejected["简历优化建议"] = suggestions[:-1]
+    return rejected
+
+
+JD_CORRUPTIONS: list[tuple[str, Callable[[dict[str, Any]], dict[str, Any] | None]]] = [
     ("unexpected_field", _add_unexpected_field),
     ("direction_mismatch", _change_direction),
     ("responsibility_drop", _drop_responsibility),
@@ -83,14 +141,44 @@ CORRUPTIONS: list[tuple[str, Callable[[dict[str, Any]], dict[str, Any] | None]]]
     ("education_experience_mix", _mix_education_into_experience),
 ]
 
+RESUME_CORRUPTIONS: list[tuple[str, Callable[[dict[str, Any]], dict[str, Any] | None]]] = [
+    ("unexpected_field", _add_unexpected_field),
+    ("resume_strength_drop", _drop_resume_strength),
+    ("resume_project_drop", _drop_resume_project),
+    ("resume_education_skill_leak", _mix_resume_education_into_skills),
+]
+
+MATCH_CORRUPTIONS: list[tuple[str, Callable[[dict[str, Any]], dict[str, Any] | None]]] = [
+    ("unexpected_field", _add_unexpected_field),
+    ("match_gap_drop", _drop_match_gap),
+    ("match_strength_gap_swap", _swap_match_strength_gap),
+    ("match_suggestion_drop", _drop_match_suggestion),
+]
+
+
+CorruptionFn = Callable[[dict[str, Any]], dict[str, Any] | None]
+
+
+def _corruptions_for_task(
+    task_type: str,
+    chosen_obj: dict[str, Any],
+) -> list[tuple[str, CorruptionFn]]:
+    if task_type == "resume_parse" or "目标岗位" in chosen_obj:
+        return RESUME_CORRUPTIONS
+    if task_type == "match" or "匹配结论" in chosen_obj:
+        return MATCH_CORRUPTIONS
+    return JD_CORRUPTIONS
+
 
 def build_bootstrap_preference(row: dict[str, Any]) -> dict[str, Any]:
     row_id = str(row["id"])
     messages = row["messages"]
     chosen_obj = json.loads(messages[-1]["content"])
-    start = _stable_index(row_id, len(CORRUPTIONS))
-    for offset in range(len(CORRUPTIONS)):
-        strategy, corruption = CORRUPTIONS[(start + offset) % len(CORRUPTIONS)]
+    task_type = row.get("task_type", "jd_parse")
+    corruptions = _corruptions_for_task(task_type, chosen_obj)
+    start = _stable_index(row_id, len(corruptions))
+    for offset in range(len(corruptions)):
+        strategy, corruption = corruptions[(start + offset) % len(corruptions)]
         rejected_obj = corruption(chosen_obj)
         if rejected_obj is not None and rejected_obj != chosen_obj:
             chosen = json.dumps(chosen_obj, ensure_ascii=False, sort_keys=True)
@@ -98,7 +186,7 @@ def build_bootstrap_preference(row: dict[str, Any]) -> dict[str, Any]:
             return {
                 "id": f"{row_id}_{strategy}",
                 "source_id": row_id,
-                "task_type": row.get("task_type", "jd_parse"),
+                "task_type": task_type,
                 "prompt": copy.deepcopy(messages[:-1]),
                 "chosen": [{"role": "assistant", "content": chosen}],
                 "rejected": [{"role": "assistant", "content": rejected}],

@@ -645,3 +645,51 @@ chosen 与 rejected 已明显拉开，训练过程未发散。由于 preference 
 5. `outputs/checkpoints/qwen3-14b-jobmatch-dft-dpo-chat-20260602` 保留为可复现实验产物，不作为默认服务 adapter。
 
 下一轮若继续 DPO，应增加人工偏好和真实 API 错例，尤其是 resume 优势标签语义粒度、match OCR-like 样本和岗位方向边界样本，而不是继续重复训练同一批合成负例。
+
+## 13. 产品链路 DPO 数据优化
+
+2026-06-02 继续优化 DPO 数据，不再把最终人工 holdout 直接写入训练偏好集。一次临时尝试从最终评测预测构造 `data/preference_product/`，readiness 报告显示 `holdout_overlap=50`，因此该方向被否决。
+
+最终采用的方案是从 `data/sft_multitask/` 训练池构造三任务 bootstrap preference：
+
+```bash
+bash scripts/data/build_product_preference_bootstrap_dataset.sh
+```
+
+生成结果：
+
+```text
+train = 9800
+valid = 1208
+任务分布：
+  jd_parse = 4950
+  resume_parse = 3138
+  match = 2920
+```
+
+readiness：
+
+```text
+invalid_rows = 0
+duplicate_ids = 0
+chosen_equals_rejected = 0
+cross_split_prompt_hashes = 0
+holdout_overlap = 0
+ready_for_dpo_smoke = true
+ready_for_dpo = true
+```
+
+偏好策略覆盖：
+
+- JD：多余字段、岗位方向错配、职责缺失、职责泄漏到技能、学历经验混淆
+- resume：优势标签缺失、项目经历缺失、教育背景泄漏到技能
+- match：主要短板缺失、匹配优势/短板互换、优化建议缺失
+
+产品链路 DPO 配置：
+
+```text
+configs/train_qwen3_14b_product_dpo.yaml
+scripts/train/train_qwen3_14b_product_dpo.sh
+```
+
+这一路 DPO 与上一轮 JD-only DPO 的区别是：它直接覆盖最终用户会使用的 `JD 解析 / 简历解析 / 人岗匹配分析` 三个任务，且不污染人工 holdout。

@@ -344,6 +344,159 @@ def parse_uploaded_resume_bytes(
         }
 
 
+def parse_uploaded_document_bytes(
+    service: ModelService,
+    *,
+    task: Literal["jd_parse", "resume_parse"],
+    file_name: str,
+    content: bytes,
+    ocr_text: str = "",
+    max_new_tokens: int = 1024,
+) -> dict[str, Any]:
+    extracted = extract_uploaded_document_text(
+        file_name=file_name,
+        content=content,
+        ocr_text=ocr_text,
+    )
+    if not extracted.get("ok"):
+        return extracted
+    parse_result = service.parse(
+        ParseRequest(
+            task=task,
+            text=extracted["text"],
+            max_new_tokens=max_new_tokens,
+        )
+    )
+    return {
+        "ok": parse_result.get("ok", False),
+        "file_name": file_name,
+        "task": task,
+        "ingest": extracted["ingest"],
+        "text": extracted["text"],
+        "sections": extracted.get("sections", {}),
+        "data": parse_result.get("data"),
+        "raw_output": parse_result.get("raw_output", ""),
+        "latency_seconds": parse_result.get("latency_seconds", 0.0),
+    }
+
+
+def extract_uploaded_document_text(
+    *,
+    file_name: str,
+    content: bytes,
+    ocr_text: str = "",
+) -> dict[str, Any]:
+    suffix = Path(file_name).suffix or ".txt"
+    with tempfile.TemporaryDirectory(prefix="jobmatch_doc_") as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        document_path = tmpdir_path / f"document{suffix}"
+        document_path.write_bytes(content)
+        if ocr_text.strip():
+            (tmpdir_path / "document.ocr.txt").write_text(ocr_text.strip(), encoding="utf-8")
+
+        ingest_row = ingest_resume(document_path, ocr_dir=tmpdir_path)
+        if not ingest_row.get("parse_ok"):
+            return {
+                "ok": False,
+                "file_name": file_name,
+                "ingest": ingest_row,
+                "needs_ocr": ingest_row.get("needs_ocr", False),
+                "error": ingest_row.get("parse_error", "document_ingest_failed"),
+            }
+
+        normalized = normalize_ingest_row(ingest_row)
+        text = normalized["normalized_text"] if normalized["source_type"] == "image" else normalized["clean_text"]
+        if not text.strip():
+            return {
+                "ok": False,
+                "file_name": file_name,
+                "ingest": ingest_row,
+                "needs_ocr": ingest_row.get("needs_ocr", False),
+                "error": "empty_text_after_extraction",
+            }
+        return {
+            "ok": True,
+            "file_name": file_name,
+            "text": text,
+            "sections": normalized["sections"],
+            "ingest": {
+                "source_type": ingest_row.get("source_type", ""),
+                "pdf_kind": ingest_row.get("pdf_kind", ""),
+                "ocr_used": ingest_row.get("ocr_used", False),
+                "ocr_source": ingest_row.get("ocr_source", ""),
+                "extraction_method": ingest_row.get("extraction_method", ""),
+                "page_count": ingest_row.get("page_count", 1),
+                "text_char_count": ingest_row.get("text_char_count", 0),
+                "needs_ocr": ingest_row.get("needs_ocr", False),
+            },
+        }
+
+
+def match_uploaded_inputs(
+    service: ModelService,
+    *,
+    jd_text: str = "",
+    resume_text: str = "",
+    jd_file_name: str = "",
+    jd_content: bytes | None = None,
+    resume_file_name: str = "",
+    resume_content: bytes | None = None,
+    jd_ocr_text: str = "",
+    resume_ocr_text: str = "",
+    max_new_tokens: int = 1024,
+) -> dict[str, Any]:
+    jd_payload: dict[str, Any] = {"source": "text", "text": jd_text.strip()}
+    resume_payload: dict[str, Any] = {"source": "text", "text": resume_text.strip()}
+    if jd_content is not None:
+        jd_payload = extract_uploaded_document_text(
+            file_name=jd_file_name or "jd.txt",
+            content=jd_content,
+            ocr_text=jd_ocr_text,
+        )
+        if not jd_payload.get("ok"):
+            return {"ok": False, "stage": "jd_ingest", **jd_payload}
+    if resume_content is not None:
+        resume_payload = extract_uploaded_document_text(
+            file_name=resume_file_name or "resume.txt",
+            content=resume_content,
+            ocr_text=resume_ocr_text,
+        )
+        if not resume_payload.get("ok"):
+            return {"ok": False, "stage": "resume_ingest", **resume_payload}
+
+    resolved_jd_text = str(jd_payload.get("text") or "").strip()
+    resolved_resume_text = str(resume_payload.get("text") or "").strip()
+    if not resolved_jd_text:
+        raise ValueError("JD text is empty")
+    if not resolved_resume_text:
+        raise ValueError("Resume text is empty")
+
+    match_result = service.match(
+        MatchRequest(
+            jd_text=resolved_jd_text,
+            resume_text=resolved_resume_text,
+            max_new_tokens=max_new_tokens,
+        )
+    )
+    return {
+        **match_result,
+        "inputs": {
+            "jd": {
+                "source": "file" if jd_content is not None else "text",
+                "file_name": jd_file_name,
+                "ingest": jd_payload.get("ingest", {}),
+                "text_char_count": len(resolved_jd_text),
+            },
+            "resume": {
+                "source": "file" if resume_content is not None else "text",
+                "file_name": resume_file_name,
+                "ingest": resume_payload.get("ingest", {}),
+                "text_char_count": len(resolved_resume_text),
+            },
+        },
+    }
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     return {"ok": True, **service.status()}
@@ -413,6 +566,57 @@ async def resume_file_parse(
             file_name=file.filename or "resume.txt",
             content=content,
             ocr_text=ocr_text,
+            max_new_tokens=max_new_tokens,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/jd_file_parse")
+async def jd_file_parse(
+    file: UploadFile = File(...),
+    max_new_tokens: int = Form(default=1024),
+    ocr_text: str = Form(default=""),
+) -> dict[str, Any]:
+    try:
+        content = await file.read()
+        if not content:
+            raise ValueError("Uploaded file is empty")
+        return parse_uploaded_document_bytes(
+            service,
+            task="jd_parse",
+            file_name=file.filename or "jd.txt",
+            content=content,
+            ocr_text=ocr_text,
+            max_new_tokens=max_new_tokens,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/match_files")
+async def match_files(
+    jd_text: str = Form(default=""),
+    resume_text: str = Form(default=""),
+    jd_file: UploadFile | None = File(default=None),
+    resume_file: UploadFile | None = File(default=None),
+    jd_ocr_text: str = Form(default=""),
+    resume_ocr_text: str = Form(default=""),
+    max_new_tokens: int = Form(default=1024),
+) -> dict[str, Any]:
+    try:
+        jd_content = await jd_file.read() if jd_file is not None else None
+        resume_content = await resume_file.read() if resume_file is not None else None
+        return match_uploaded_inputs(
+            service,
+            jd_text=jd_text,
+            resume_text=resume_text,
+            jd_file_name=jd_file.filename if jd_file is not None else "",
+            jd_content=jd_content,
+            resume_file_name=resume_file.filename if resume_file is not None else "",
+            resume_content=resume_content,
+            jd_ocr_text=jd_ocr_text,
+            resume_ocr_text=resume_ocr_text,
             max_new_tokens=max_new_tokens,
         )
     except ValueError as exc:

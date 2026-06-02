@@ -5,7 +5,17 @@ import SummaryGrid from "./components/SummaryGrid.js";
 import ControlPanel from "./components/ControlPanel.js";
 import ResultPanel from "./components/ResultPanel.js";
 import { examples } from "./config/examples.js";
-import { getStatus, warmup, parseSingle, parseBatch, parseResumeFile, matchSingle, matchBatch } from "./services/api.js";
+import {
+  getStatus,
+  warmup,
+  parseSingle,
+  parseBatch,
+  parseResumeFile,
+  parseJdFile,
+  matchSingle,
+  matchFiles,
+  matchBatch,
+} from "./services/api.js";
 import { prettyJson, splitBatchText } from "./utils/text.js";
 
 function createOverviewItems(state) {
@@ -53,7 +63,10 @@ export default {
       singleText: "",
       jdText: "",
       resumeText: "",
+      jdOcrText: "",
       resumeOcrText: "",
+      selectedJdFile: null,
+      selectedJdFileName: "",
       selectedResumeFile: null,
       selectedResumeFileName: "",
       busy: false,
@@ -127,6 +140,9 @@ export default {
       if (state.task === "resume_parse" && state.requestMode === "single" && state.selectedResumeFileName) {
         return `文件：${state.selectedResumeFileName}`;
       }
+      if (state.task === "jd_parse" && state.requestMode === "single" && state.selectedJdFileName) {
+        return `文件：${state.selectedJdFileName}`;
+      }
       if (state.requestMode === "batch") {
         return `${splitBatchText(state.singleText).length} 条`;
       }
@@ -189,6 +205,8 @@ export default {
     function fillExample() {
       state.selectedResumeFile = null;
       state.selectedResumeFileName = "";
+      state.selectedJdFile = null;
+      state.selectedJdFileName = "";
       if (state.task === "match") {
         state.jdText = examples.match.jd;
         state.resumeText = examples.match.resume;
@@ -220,14 +238,25 @@ export default {
       state.selectedResumeFileName = file ? file.name : "";
     }
 
+    function handleJdFileChange(event) {
+      const file = event.target.files?.[0] || null;
+      state.selectedJdFile = file;
+      state.selectedJdFileName = file ? file.name : "";
+    }
+
     function hasValidPayload() {
       if (state.task === "match") {
         if (state.requestMode === "batch") {
           return splitBatchText(state.jdText).length > 0 && splitBatchText(state.resumeText).length > 0;
         }
-        return state.jdText.trim() && state.resumeText.trim();
+        const hasJd = Boolean(state.jdText.trim() || state.selectedJdFile);
+        const hasResume = Boolean(state.resumeText.trim() || state.selectedResumeFile);
+        return hasJd && hasResume;
       }
       if (state.task === "resume_parse" && state.requestMode === "single" && state.selectedResumeFile) {
+        return true;
+      }
+      if (state.task === "jd_parse" && state.requestMode === "single" && state.selectedJdFile) {
         return true;
       }
       if (state.requestMode === "batch") {
@@ -257,11 +286,22 @@ export default {
               resume_text: resumeItems[index],
             }));
             data = await matchBatch(state.apiBase, items);
+          } else if (state.selectedJdFile || state.selectedResumeFile) {
+            data = await matchFiles(state.apiBase, {
+              jdText: state.jdText.trim(),
+              resumeText: state.resumeText.trim(),
+              jdFile: state.selectedJdFile,
+              resumeFile: state.selectedResumeFile,
+              jdOcrText: state.jdOcrText,
+              resumeOcrText: state.resumeOcrText,
+            });
           } else {
             data = await matchSingle(state.apiBase, state.jdText.trim(), state.resumeText.trim());
           }
         } else if (state.task === "resume_parse" && state.requestMode === "single" && state.selectedResumeFile) {
           data = await parseResumeFile(state.apiBase, state.selectedResumeFile, state.resumeOcrText);
+        } else if (state.task === "jd_parse" && state.requestMode === "single" && state.selectedJdFile) {
+          data = await parseJdFile(state.apiBase, state.selectedJdFile, state.jdOcrText);
         } else if (state.requestMode === "batch") {
           data = await parseBatch(state.apiBase, state.task, splitBatchText(state.singleText));
         } else {
@@ -309,6 +349,7 @@ export default {
       fillExample,
       setTask,
       setRequestMode,
+      handleJdFileChange,
       handleResumeFileChange,
       copyJson,
     };
@@ -334,12 +375,14 @@ export default {
           :single-text="state.singleText"
           :jd-text="state.jdText"
           :resume-text="state.resumeText"
+          :jd-ocr-text="state.jdOcrText"
           :resume-ocr-text="state.resumeOcrText"
           :input-stats="inputStats"
           :task-hint="taskHint"
           :batch-tip-visible="batchTipVisible"
           :model-path="state.modelPath"
           :adapter-path="state.adapterPath"
+          :selected-jd-file-name="state.selectedJdFileName"
           :selected-file-name="state.selectedResumeFileName"
           @update:api-base="state.apiBase = $event"
           @set-task="setTask"
@@ -347,7 +390,9 @@ export default {
           @update:single-text="state.singleText = $event"
           @update:jd-text="state.jdText = $event"
           @update:resume-text="state.resumeText = $event"
+          @update:jd-ocr-text="state.jdOcrText = $event"
           @update:resume-ocr-text="state.resumeOcrText = $event"
+          @jd-file-change="handleJdFileChange"
           @resume-file-change="handleResumeFileChange"
           @fill-example="fillExample"
         />

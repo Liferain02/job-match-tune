@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from jobmatch_tune.api.server import ModelService, parse_uploaded_resume_bytes
+from jobmatch_tune.api.server import (
+    ModelService,
+    match_uploaded_inputs,
+    parse_uploaded_document_bytes,
+    parse_uploaded_resume_bytes,
+)
 
 
 def test_parse_uploaded_resume_text(monkeypatch) -> None:
@@ -87,3 +92,69 @@ def test_parse_uploaded_resume_image_with_ocr_sidecar(monkeypatch) -> None:
     assert result["ok"] is True
     assert result["ingest"]["ocr_used"] is True
     assert result["ingest"]["ocr_source"] == "sidecar"
+
+
+def test_parse_uploaded_jd_text_file(monkeypatch) -> None:
+    service = ModelService()
+
+    def fake_parse(request):
+        assert request.task == "jd_parse"
+        assert "岗位职责" in request.text
+        return {
+            "ok": True,
+            "data": {
+                "岗位方向": "后端开发",
+                "核心职责": ["负责服务端接口开发"],
+                "必备技能": ["Python"],
+                "加分项": [],
+                "经验要求": "三年以上工作经验",
+                "学历要求": "本科及以上",
+            },
+            "raw_output": "{}",
+            "latency_seconds": 0.01,
+        }
+
+    monkeypatch.setattr(service, "parse", fake_parse)
+
+    result = parse_uploaded_document_bytes(
+        service,
+        task="jd_parse",
+        file_name="jd.txt",
+        content="岗位职责：负责服务端接口开发\n任职要求：熟悉 Python".encode(),
+    )
+
+    assert result["ok"] is True
+    assert result["task"] == "jd_parse"
+    assert result["ingest"]["source_type"] == "text"
+    assert result["data"]["岗位方向"] == "后端开发"
+
+
+def test_match_uploaded_inputs_with_jd_and_resume_files(monkeypatch) -> None:
+    service = ModelService()
+
+    def fake_match(request):
+        assert "岗位职责" in request.jd_text
+        assert "项目经历" in request.resume_text
+        return {
+            "ok": True,
+            "jd_parse": {"岗位方向": "AI应用开发"},
+            "resume_parse": {"目标岗位": "AI应用开发"},
+            "rule_result": {"匹配分数": 90, "匹配等级": "高匹配"},
+            "analysis": {"匹配结论": "高度匹配"},
+            "latency_seconds": 0.02,
+        }
+
+    monkeypatch.setattr(service, "match", fake_match)
+
+    result = match_uploaded_inputs(
+        service,
+        jd_file_name="jd.txt",
+        jd_content="岗位职责：负责 RAG 应用开发".encode(),
+        resume_file_name="resume.txt",
+        resume_content="目标岗位：AI应用开发\n项目经历\n知识库问答系统".encode(),
+    )
+
+    assert result["ok"] is True
+    assert result["inputs"]["jd"]["source"] == "file"
+    assert result["inputs"]["resume"]["source"] == "file"
+    assert result["rule_result"]["匹配等级"] == "高匹配"
