@@ -1,53 +1,110 @@
+# =========================
 # Python
+# =========================
+
 __pycache__/
 *.py[cod]
 *.so
+
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
 *.egg-info/
 
-# Virtual envs
+
+# =========================
+# Virtual environments
+# =========================
+
 .venv/
 venv/
 env/
 
+
+# =========================
 # Editors and OS
+# =========================
+
 .DS_Store
 .idea/
 .vscode/
 
+
+# =========================
 # Local runtime
+# =========================
+
 *.log
 *.pid
 
+
+# =========================
 # Model and training artifacts
+# =========================
+
 models/
 outputs/
 scripts/outputs/
 
+
+# =========================
 # Generated data
-data/*
-!data/eval/
-data/eval/*
-!data/eval/*.jsonl
-# Builder outputs are reproducible artifacts, not evaluation sources.
-data/eval/jd_train_pool_*.jsonl
-data/eval/match_train_pool_*.jsonl
-data/eval/resume_train_pool_*.jsonl
-data/eval/public_jd_candidate_pool.jsonl
-data/eval/resume_manual_eval_augmented.jsonl
+# =========================
+
+# Ignore all generated data by default
+/data/
+
+
+# =========================
+# Evaluation data whitelist
+# =========================
+
+# Keep evaluation directory itself
+!/data/eval/
+
+# Allow only small evaluation jsonl files by default
+!/data/eval/*.jsonl
+
+
+# =========================
+# Never commit large training pools
+# =========================
+
+/data/eval/jd_train_pool_*.jsonl
+/data/eval/match_train_pool_*.jsonl
+/data/eval/resume_train_pool_*.jsonl
+
+/data/eval/public_jd_candidate_pool.jsonl
+/data/eval/resume_manual_eval_augmented.jsonl
+
+
+# =========================
+# Private documents
+# =========================
+
+/data/private/
+/docs/private/
+
+
+# =========================
+# Database files
+# =========================
+
 *.sqlite3
 *.db
 
-# Private document fixtures must never be committed.
-data/private/
-docs/private/
 
-# Misc temporary files
+# =========================
+# Temporary files
+# =========================
+
 *.tmp
 *.swp
 *.swo
 
-# Frontend local cache
+
+# =========================
+# Frontend cache
+# =========================
+
 frontend/.cache/
