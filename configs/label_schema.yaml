@@ -55,14 +55,37 @@ skill_alias:
     - fastapi
   TypeScript:
     - typescript
+  JavaScript:
+    - javascript
+    - js
   React:
     - react
+  Vue:
+    - vue.js
+    - vuejs
+  Node.js:
+    - nodejs
   Vite:
     - vite
   ECharts:
     - echarts
   Go:
     - golang
+  PHP:
+    - php
+  C#:
+    - csharp
+  .NET:
+    - dotnet
+  Swift:
+    - swift
+  Objective-C:
+    - objective c
+    - objective-c
+  Android:
+    - android
+  iOS:
+    - ios
   Linux:
     - linux
   Shell:
@@ -95,6 +118,12 @@ skill_alias:
     - nccl
   MPI:
     - mpi
+  TensorFlow:
+    - tensorflow
+  OpenCV:
+    - opencv
+  MATLAB:
+    - matlab
   Selenium:
     - selenium
   Pytest:
@@ -103,6 +132,12 @@ skill_alias:
     - jmeter
   Ansible:
     - ansible
+  Git:
+    - git
+  Jenkins:
+    - jenkins
+  Nginx:
+    - nginx
   TCP/IP:
     - tcp/ip
   OSPF:
@@ -113,6 +148,21 @@ skill_alias:
     - can
   STM32:
     - stm32
+  ROS:
+    - ros2
+  AUTOSAR:
+    - autosar
+  FPGA:
+    - fpga
+  Verilog:
+    - systemverilog
+  Qt:
+    - qt
+  Unity:
+    - unity3d
+  Unreal Engine:
+    - ue4
+    - ue5
   C++:
     - cpp
   C:

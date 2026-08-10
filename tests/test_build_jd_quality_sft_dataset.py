@@ -33,7 +33,7 @@ def _candidate_row(row_id: str) -> dict:
         "company": "测试公司",
         "location": "北京",
         "raw_text": "岗位职责\n负责Python后端系统开发和接口设计。\n任职要求\n本科及以上，3年以上经验，熟悉Python、SQL、Linux。" * 4,
-        "meta": {},
+        "meta": {"training_eligible": True, "intended_usage": "weak_supervision_only"},
     }
 
 
@@ -53,7 +53,12 @@ def _weak_candidate_row(row_id: str) -> dict:
             "岗位要求：本科及以上学历，熟悉Java、MySQL、Redis、Linux，理解分布式系统和服务治理，"
             "具备接口设计、数据库建模、缓存治理、线上问题定位和高并发服务调优能力。"
         ),
-        "meta": {"language": "zh", "sft_ready": False},
+        "meta": {
+            "language": "zh",
+            "sft_ready": False,
+            "training_eligible": True,
+            "intended_usage": "weak_supervision_only",
+        },
     }
 
 
@@ -75,6 +80,24 @@ def test_build_quality_rows_prioritizes_strict_then_enhanced() -> None:
     assert {row["meta"]["quality_tier"] for row in rows} >= {"strict", "strict_plus"}
 
 
+def test_build_quality_rows_accepts_single_pass_strict_rows() -> None:
+    schema = {
+        "job_directions": ["后端开发", "算法工程"],
+        "skill_alias": {"Python": ["python"], "SQL": ["sql"], "Linux": ["linux"], "Java": ["java"]},
+    }
+
+    rows, stats = build_quality_rows(
+        strict_rows=iter([_strict_row("s1"), _strict_row("s2")]),
+        candidate_rows=[_candidate_row("c1")],
+        schema=schema,
+        target_total=2,
+        seed=42,
+    )
+
+    assert len(rows) == 2
+    assert stats["strict"] == 2
+
+
 def test_build_quality_rows_excludes_holdout_ids() -> None:
     schema = {
         "job_directions": ["后端开发", "算法工程"],
@@ -87,6 +110,7 @@ def test_build_quality_rows_excludes_holdout_ids() -> None:
         target_total=2,
         seed=42,
         excluded_ids={"holdout"},
+        max_weak_external_ratio=1.0,
     )
 
     assert {row["id"] for row in rows} == {"safe", "candidate"}
@@ -112,6 +136,17 @@ def test_build_quality_weak_rows_sanitizes_degree_only_experience_and_repairs_di
     assert sample["meta"]["quality_tier"] == "quality_weak"
     assert assistant["岗位方向"] == "后端开发"
     assert assistant["经验要求"] == ""
+
+
+def test_sanitize_normalized_row_keeps_network_security_in_security_direction() -> None:
+    row = _strict_row("security")
+    row["source"] = "hf_job_educational_train_2026_05_17"
+    row["job_title"] = "网络与信息安全研究岗"
+    row["labels"]["岗位方向"] = "网络与基础设施"
+
+    sanitized = _sanitize_normalized_row(row)
+
+    assert sanitized["labels"]["岗位方向"] == "安全工程"
 
 
 def test_sanitize_normalized_row_repairs_responsibility_requirement_boundary() -> None:
@@ -150,3 +185,25 @@ def test_quality_score_meta_tracks_risk_reasons() -> None:
     assert scored["meta"]["quality_risk_score"] >= 1
     assert "oversized_single_responsibility" in scored["meta"]["quality_risk_reasons"]
     assert scored["meta"]["quality_score"] < 100
+
+
+def test_build_quality_rows_caps_weak_external_family() -> None:
+    schema = {
+        "job_directions": ["后端开发", "算法工程"],
+        "skill_alias": {"Python": ["python"], "SQL": ["sql"], "Linux": ["linux"], "Java": ["java"]},
+    }
+    weak_rows = [_weak_candidate_row(f"w{index}") for index in range(4)]
+    rows, _ = build_quality_rows(
+        strict_rows=[_strict_row("s1"), _strict_row("s2")],
+        candidate_rows=weak_rows,
+        schema=schema,
+        target_total=4,
+        seed=42,
+        max_weak_external_ratio=0.5,
+    )
+    weak_count = sum(
+        (row.get("meta") or {}).get("intended_usage") == "weak_supervision_only"
+        for row in rows
+    )
+    assert len(rows) == 4
+    assert weak_count <= 2

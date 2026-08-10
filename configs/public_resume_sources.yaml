@@ -3,6 +3,8 @@ sources:
     schema: resume_parse_rows
     language: zh
     source_type: public_text
+    license_status: unconfirmed
+    intended_usage: candidate_pool_only
     path: data/external/public_resume_exports/faircv_resume_parse.jsonl
     mapping:
       text: text
@@ -18,7 +20,28 @@ sources:
     language: zh
     source_type: public_text
     tag_scheme: BIO
+    license: Apache-2.0
+    license_status: declared_upstream_provenance_incomplete
+    intended_usage: audit_only
     path: data/external/public_resume_exports/resume_ner_train.parquet
     mapping:
       tokens: tokens
       tags: ner_tags
+    tag_names:
+      0: O
+      1: B-CONT
+      2: I-CONT
+      3: B-EDU
+      4: I-EDU
+      5: B-LOC
+      6: I-LOC
+      7: B-NAME
+      8: I-NAME
+      9: B-ORG
+      10: I-ORG
+      11: B-PRO
+      12: I-PRO
+      13: B-RACE
+      14: I-RACE
+      15: B-TITLE
+      16: I-TITLE

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-from pathlib import Path
 from typing import Any
 
 from jobmatch_tune.dataset.build_sft_dataset import (

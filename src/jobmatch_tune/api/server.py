@@ -4,14 +4,16 @@ import json
 import os
 import tempfile
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from threading import Lock
+from threading import BoundedSemaphore, Lock
 from typing import Any, Literal
 
 import torch
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
 from jobmatch_tune.inference.predict import build_prompt, load_model
 from jobmatch_tune.inference.postprocess_json import parse_json_output
@@ -25,6 +27,18 @@ DEFAULT_MODEL_PATH = "models/Qwen3-14B"
 DEFAULT_ADAPTER_PATH = "outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601"
 DEFAULT_VLLM_BASE_URL = "http://127.0.0.1:8010/v1"
 DEFAULT_VLLM_MODEL = "jobmatch-lora"
+DEFAULT_MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+
+
+def read_positive_int_env(name: str, default: int) -> int:
+    raw_value = os.getenv(name, str(default))
+    try:
+        value = int(raw_value)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be an integer") from exc
+    if value <= 0:
+        raise ValueError(f"{name} must be positive")
+    return value
 
 
 class ParseRequest(BaseModel):
@@ -64,10 +78,29 @@ class ModelService:
         self.vllm_base_url = os.getenv("JOBMATCH_VLLM_BASE_URL", DEFAULT_VLLM_BASE_URL)
         self.vllm_api_key = os.getenv("JOBMATCH_VLLM_API_KEY", "-")
         self.vllm_model = os.getenv("JOBMATCH_VLLM_MODEL", DEFAULT_VLLM_MODEL)
+        self.vllm_max_concurrency = read_positive_int_env("JOBMATCH_VLLM_MAX_CONCURRENCY", 4)
+        self.parallel_match_parse = os.getenv("JOBMATCH_PARALLEL_MATCH_PARSE", "1") not in {
+            "0",
+            "false",
+            "False",
+        }
         self._tokenizer = None
         self._model = None
         self._client = None
         self._lock = Lock()
+        self._vllm_slots = BoundedSemaphore(self.vllm_max_concurrency)
+
+    @property
+    def match_parse_mode(self) -> str:
+        if self.backend == "vllm" and self.parallel_match_parse and self.vllm_max_concurrency >= 2:
+            return "parallel"
+        return "sequential"
+
+    @property
+    def batch_execution_mode(self) -> str:
+        if self.backend == "vllm" and self.vllm_max_concurrency >= 2:
+            return "parallel"
+        return "sequential"
 
     @property
     def loaded(self) -> bool:
@@ -135,13 +168,14 @@ class ModelService:
 
     def _complete_with_vllm(self, messages: list[dict[str, str]], max_new_tokens: int, task: str) -> str:
         assert self._client is not None
-        completion = self._client.chat.completions.create(
-            model=self.vllm_model,
-            messages=messages,
-            temperature=0,
-            max_tokens=max_new_tokens,
-            response_format=build_response_format(task),
-        )
+        with self._vllm_slots:
+            completion = self._client.chat.completions.create(
+                model=self.vllm_model,
+                messages=messages,
+                temperature=0,
+                max_tokens=max_new_tokens,
+                response_format=build_response_format(task),
+            )
         return completion.choices[0].message.content or ""
 
     def parse(self, request: ParseRequest) -> dict[str, Any]:
@@ -179,26 +213,56 @@ class ModelService:
         result["raw_output"] = raw_output
         return result
 
+    def _parse_match_inputs(
+        self,
+        request: MatchRequest,
+    ) -> tuple[dict[str, Any], dict[str, Any], float]:
+        jd_request = ParseRequest(
+            task="jd_parse",
+            text=request.jd_text,
+            max_new_tokens=request.max_new_tokens,
+        )
+        resume_request = ParseRequest(
+            task="resume_parse",
+            text=request.resume_text,
+            max_new_tokens=request.max_new_tokens,
+        )
+        started = time.perf_counter()
+        if self.match_parse_mode == "parallel":
+            with ThreadPoolExecutor(max_workers=2, thread_name_prefix="jobmatch-parse") as executor:
+                jd_future = executor.submit(self.parse, jd_request)
+                resume_future = executor.submit(self.parse, resume_request)
+                jd_result = jd_future.result()
+                resume_result = resume_future.result()
+        else:
+            jd_result = self.parse(jd_request)
+            resume_result = self.parse(resume_request)
+        return jd_result, resume_result, time.perf_counter() - started
+
     def match(self, request: MatchRequest) -> dict[str, Any]:
         self.load()
         started = time.perf_counter()
 
-        jd_result = self.parse(ParseRequest(task="jd_parse", text=request.jd_text, max_new_tokens=request.max_new_tokens))
-        resume_result = self.parse(ParseRequest(task="resume_parse", text=request.resume_text, max_new_tokens=request.max_new_tokens))
+        jd_result, resume_result, parse_wall_seconds = self._parse_match_inputs(request)
         if not jd_result.get("ok") or not resume_result.get("ok"):
             raise ValueError("Failed to parse JD or resume before matching")
 
+        rule_started = time.perf_counter()
         rule_result = compute_match_rule_result(
             jd_result["data"],
             resume_result["data"],
             jd_text=request.jd_text,
             resume_text=request.resume_text,
         )
+        rule_seconds = time.perf_counter() - rule_started
 
+        analysis_started = time.perf_counter()
         if self.backend == "vllm":
             analysis_result = self._match_with_vllm(request, rule_result)
         else:
             analysis_result = self._match_with_transformers(request, rule_result)
+        analysis_seconds = time.perf_counter() - analysis_started
+        total_seconds = time.perf_counter() - started
 
         return {
             "ok": analysis_result.get("ok", False),
@@ -207,7 +271,19 @@ class ModelService:
             "rule_result": rule_result,
             "analysis": analysis_result.get("data"),
             "analysis_raw_output": analysis_result.get("raw_output", ""),
-            "latency_seconds": round(time.perf_counter() - started, 3),
+            "execution": {
+                "backend": self.backend,
+                "parse_mode": self.match_parse_mode,
+            },
+            "timings": {
+                "jd_parse_seconds": jd_result.get("latency_seconds", 0.0),
+                "resume_parse_seconds": resume_result.get("latency_seconds", 0.0),
+                "parse_wall_seconds": round(parse_wall_seconds, 3),
+                "rule_seconds": round(rule_seconds, 3),
+                "analysis_seconds": round(analysis_seconds, 3),
+                "total_seconds": round(total_seconds, 3),
+            },
+            "latency_seconds": round(total_seconds, 3),
         }
 
     def batch_parse(self, request: BatchParseRequest) -> dict[str, Any]:
@@ -215,7 +291,8 @@ class ModelService:
         started = time.perf_counter()
         items: list[dict[str, Any]] = []
 
-        for index, text in enumerate(request.texts):
+        def parse_one(index_and_text: tuple[int, str]) -> dict[str, Any]:
+            index, text = index_and_text
             try:
                 result = self.parse(
                     ParseRequest(
@@ -224,9 +301,20 @@ class ModelService:
                         max_new_tokens=request.max_new_tokens,
                     )
                 )
-                items.append({"index": index, **result})
+                return {"index": index, **result}
             except ValueError as exc:
-                items.append({"index": index, "ok": False, "error": str(exc)})
+                return {"index": index, "ok": False, "error": str(exc)}
+
+        indexed_texts = list(enumerate(request.texts))
+        if self.batch_execution_mode == "parallel" and len(indexed_texts) > 1:
+            worker_count = min(self.vllm_max_concurrency, len(indexed_texts))
+            with ThreadPoolExecutor(
+                max_workers=worker_count,
+                thread_name_prefix="jobmatch-batch-parse",
+            ) as executor:
+                items = list(executor.map(parse_one, indexed_texts))
+        else:
+            items = [parse_one(item) for item in indexed_texts]
 
         success_count = sum(1 for item in items if item.get("ok"))
         return {
@@ -235,6 +323,7 @@ class ModelService:
             "total": len(items),
             "success_count": success_count,
             "items": items,
+            "execution": {"backend": self.backend, "mode": self.batch_execution_mode},
             "latency_seconds": round(time.perf_counter() - started, 3),
         }
 
@@ -243,7 +332,8 @@ class ModelService:
         started = time.perf_counter()
         items: list[dict[str, Any]] = []
 
-        for index, item in enumerate(request.items):
+        def match_one(index_and_item: tuple[int, BatchMatchItem]) -> dict[str, Any]:
+            index, item = index_and_item
             try:
                 result = self.match(
                     MatchRequest(
@@ -252,9 +342,20 @@ class ModelService:
                         max_new_tokens=request.max_new_tokens,
                     )
                 )
-                items.append({"index": index, **result})
+                return {"index": index, **result}
             except ValueError as exc:
-                items.append({"index": index, "ok": False, "error": str(exc)})
+                return {"index": index, "ok": False, "error": str(exc)}
+
+        indexed_items = list(enumerate(request.items))
+        if self.batch_execution_mode == "parallel" and len(indexed_items) > 1:
+            worker_count = min(self.vllm_max_concurrency, len(indexed_items))
+            with ThreadPoolExecutor(
+                max_workers=worker_count,
+                thread_name_prefix="jobmatch-batch-match",
+            ) as executor:
+                items = list(executor.map(match_one, indexed_items))
+        else:
+            items = [match_one(item) for item in indexed_items]
 
         success_count = sum(1 for item in items if item.get("ok"))
         return {
@@ -262,6 +363,7 @@ class ModelService:
             "total": len(items),
             "success_count": success_count,
             "items": items,
+            "execution": {"backend": self.backend, "mode": self.batch_execution_mode},
             "latency_seconds": round(time.perf_counter() - started, 3),
         }
 
@@ -275,14 +377,25 @@ class ModelService:
             "cuda_available": torch.cuda.is_available(),
             "vllm_base_url": self.vllm_base_url if self.backend == "vllm" else "",
             "vllm_model": self.vllm_model if self.backend == "vllm" else "",
+            "vllm_max_concurrency": self.vllm_max_concurrency if self.backend == "vllm" else 0,
+            "match_parse_mode": self.match_parse_mode,
+            "batch_execution_mode": self.batch_execution_mode,
         }
 
 
 service = ModelService()
 app = FastAPI(title="JobMatchTune API", version="0.1.0")
+configured_cors_origins = os.getenv("JOBMATCH_CORS_ORIGINS", "").strip()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("JOBMATCH_CORS_ORIGINS", "*").split(","),
+    allow_origins=(
+        [origin.strip() for origin in configured_cors_origins.split(",") if origin.strip()]
+        if configured_cors_origins
+        else []
+    ),
+    allow_origin_regex=(
+        None if configured_cors_origins else r"https?://(localhost|127\.0\.0\.1)(:\d+)?"
+    ),
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -558,10 +671,9 @@ async def resume_file_parse(
     ocr_text: str = Form(default=""),
 ) -> dict[str, Any]:
     try:
-        content = await file.read()
-        if not content:
-            raise ValueError("Uploaded file is empty")
-        return parse_uploaded_resume_bytes(
+        content = await read_upload_content(file)
+        return await run_in_threadpool(
+            parse_uploaded_resume_bytes,
             service,
             file_name=file.filename or "resume.txt",
             content=content,
@@ -579,10 +691,9 @@ async def jd_file_parse(
     ocr_text: str = Form(default=""),
 ) -> dict[str, Any]:
     try:
-        content = await file.read()
-        if not content:
-            raise ValueError("Uploaded file is empty")
-        return parse_uploaded_document_bytes(
+        content = await read_upload_content(file)
+        return await run_in_threadpool(
+            parse_uploaded_document_bytes,
             service,
             task="jd_parse",
             file_name=file.filename or "jd.txt",
@@ -605,9 +716,10 @@ async def match_files(
     max_new_tokens: int = Form(default=1024),
 ) -> dict[str, Any]:
     try:
-        jd_content = await jd_file.read() if jd_file is not None else None
-        resume_content = await resume_file.read() if resume_file is not None else None
-        return match_uploaded_inputs(
+        jd_content = await read_upload_content(jd_file) if jd_file is not None else None
+        resume_content = await read_upload_content(resume_file) if resume_file is not None else None
+        return await run_in_threadpool(
+            match_uploaded_inputs,
             service,
             jd_text=jd_text,
             resume_text=resume_text,
@@ -625,3 +737,15 @@ async def match_files(
 
 def jsonable(data: dict[str, Any]) -> str:
     return json.dumps(data, ensure_ascii=False)
+
+
+async def read_upload_content(file: UploadFile) -> bytes:
+    max_bytes = int(os.getenv("JOBMATCH_MAX_UPLOAD_BYTES", str(DEFAULT_MAX_UPLOAD_BYTES)))
+    if max_bytes <= 0:
+        raise ValueError("JOBMATCH_MAX_UPLOAD_BYTES must be positive")
+    content = await file.read(max_bytes + 1)
+    if len(content) > max_bytes:
+        raise ValueError(f"Uploaded file exceeds the {max_bytes}-byte limit")
+    if not content:
+        raise ValueError("Uploaded file is empty")
+    return content

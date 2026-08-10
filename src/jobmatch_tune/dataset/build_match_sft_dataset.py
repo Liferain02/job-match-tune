@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import argparse
 import json
-import random
-from collections import defaultdict
 from typing import Any
 
 from jobmatch_tune.dataset.templates import SYSTEM_PROMPT, match_prompt
+from jobmatch_tune.dataset.grouped_split import split_linked_samples
 from jobmatch_tune.utils.io import read_jsonl, write_jsonl
 
 
@@ -88,10 +87,17 @@ def build_match_sample(row: dict[str, Any]) -> dict[str, Any]:
         "缺失技能": row["label"].get("缺失技能", []),
     }
     assistant = build_analysis_from_label(row["label"])
+    row_id = str(row["id"])
+    if row_id.endswith("_ocr"):
+        source_group = row_id.removesuffix("_ocr")
+    elif row_id.startswith("synthetic_match_") and row_id.rsplit("_", 1)[-1].isdigit():
+        source_group = row_id.rsplit("_", 1)[0]
+    else:
+        source_group = row_id
     return {
         "id": row["id"],
         "task_type": "match",
-        "source_group": row["id"].rsplit("_", 1)[0],
+        "source_group": str(row.get("source_group") or source_group),
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {
@@ -110,29 +116,7 @@ def build_match_sample(row: dict[str, Any]) -> dict[str, Any]:
 def split_grouped_samples(
     samples: list[dict[str, Any]], train_ratio: float, valid_ratio: float, seed: int
 ) -> dict[str, list[dict[str, Any]]]:
-    groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for sample in samples:
-        groups[sample["source_group"]].append(sample)
-
-    group_keys = list(groups)
-    rng = random.Random(seed)
-    rng.shuffle(group_keys)
-    n = len(group_keys)
-    if n < 3:
-        all_rows = [row for key in group_keys for row in groups[key]]
-        return {"train": all_rows, "valid": all_rows[:1], "test": all_rows[:1]}
-
-    valid_count = max(1, int(n * valid_ratio))
-    test_count = max(1, n - int(n * train_ratio) - valid_count)
-    train_count = max(1, n - valid_count - test_count)
-    train_keys = group_keys[:train_count]
-    valid_keys = group_keys[train_count : train_count + valid_count]
-    test_keys = group_keys[train_count + valid_count :]
-    return {
-        "train": [row for key in train_keys for row in groups[key]],
-        "valid": [row for key in valid_keys for row in groups[key]],
-        "test": [row for key in test_keys for row in groups[key]],
-    }
+    return split_linked_samples(samples, train_ratio, valid_ratio, seed)
 
 
 def main() -> None:

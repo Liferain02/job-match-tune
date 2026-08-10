@@ -85,6 +85,29 @@ def test_collect_sft_rows_fills_to_target_with_weak_tech() -> None:
     assert [row["id"] for row in rows] == ["strong_1", "weak_1"]
 
 
+def test_collect_sft_rows_accepts_single_pass_iterable() -> None:
+    strong_row = {
+        "id": "strong_streamed",
+        "source": "zhaopin.jd.com",
+        "language": "zh",
+        "job_title": "后端开发工程师",
+        "clean_text": "岗位职责：负责服务开发\n任职要求：本科及以上，熟悉 Python",
+        "sections": {"responsibilities": "负责服务开发", "requirements": "本科及以上"},
+        "labels": {"岗位方向": "后端开发", "必备技能": ["Python"]},
+        "sft_ready": True,
+    }
+
+    selected = collect_sft_rows(
+        (row for row in [strong_row]),
+        include_weak_tech=False,
+        target_total=None,
+        seed=42,
+        quality_profile="strict",
+    )
+
+    assert [row["id"] for row in selected] == ["strong_streamed"]
+
+
 def test_is_high_trust_strong_row_requires_trusted_source_and_fields() -> None:
     row = {
         "id": "trusted_1",

@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import subprocess
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -25,11 +26,33 @@ def jsonl_profile(path: str | Path) -> dict[str, Any]:
     file_path = Path(path)
     if not file_path.exists():
         return {"path": str(file_path), "exists": False, "rows": 0, "sha256": ""}
+    rows = list(read_jsonl(file_path))
+    task_counts: Counter[str] = Counter()
+    source_groups: set[str] = set()
+    provenance_counts: Counter[str] = Counter()
+    quality_tier_counts: Counter[str] = Counter()
+    for row in rows:
+        meta = row.get("meta") or {}
+        task = str(meta.get("dataset_task") or row.get("task_type") or "unknown")
+        task_counts[task] += 1
+        source_group = str(row.get("source_group") or row.get("source_id") or row.get("id") or "")
+        if source_group:
+            source_groups.add(source_group)
+        if meta.get("provenance"):
+            provenance_counts[str(meta["provenance"])] += 1
+        if meta.get("quality_tier"):
+            quality_tier_counts[str(meta["quality_tier"])] += 1
+    row_count = len(rows)
     return {
         "path": str(file_path),
         "exists": True,
-        "rows": sum(1 for _ in read_jsonl(file_path)),
+        "rows": row_count,
         "sha256": file_sha256(file_path),
+        "task_counts": dict(task_counts),
+        "unique_source_groups": len(source_groups),
+        "source_group_ratio": round(len(source_groups) / row_count, 4) if row_count else 0.0,
+        "provenance_counts": dict(provenance_counts),
+        "quality_tier_counts": dict(quality_tier_counts),
     }
 
 

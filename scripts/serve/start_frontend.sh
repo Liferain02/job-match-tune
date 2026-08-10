@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+cd "${PROJECT_ROOT}"
+
 pick_port() {
   local start_port="$1"
   python - "$start_port" <<'PY'
@@ -24,4 +28,6 @@ PY
 
 PORT="$(pick_port "${JOBMATCH_FRONTEND_PORT:-5173}")"
 echo "frontend serving on http://127.0.0.1:${PORT}"
-python -m http.server "${PORT}" --directory frontend
+python -m http.server "${PORT}" \
+  --bind "${JOBMATCH_FRONTEND_HOST:-127.0.0.1}" \
+  --directory frontend

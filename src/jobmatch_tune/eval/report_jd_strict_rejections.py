@@ -4,14 +4,12 @@ import argparse
 import json
 import random
 from collections import Counter, defaultdict
-from pathlib import Path
 from typing import Any
 
 from jobmatch_tune.dataset.build_sft_dataset import (
     HIGH_TRUST_SOURCES,
     get_effective_direction,
     is_tencent_short_tech_row,
-    is_high_trust_strong_row,
     title_has_excluded_signal,
     title_has_exclusion_exception,
     title_has_strong_tech_signal,

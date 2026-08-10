@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from jobmatch_tune.eval.report_data_readiness import (
     audit_sft_files,
     build_multitask_report,
@@ -10,6 +12,15 @@ from jobmatch_tune.eval.report_data_readiness import (
     count_holdout_overlap,
     _float_or_default,
 )
+
+
+@pytest.fixture(autouse=True)
+def _fresh_pipeline_for_readiness_unit_tests():
+    with patch(
+        "jobmatch_tune.eval.report_data_readiness.build_pipeline_freshness_report",
+        return_value={"fresh": True, "normalization": {}, "dependencies": []},
+    ):
+        yield
 
 
 def test_build_task_report_not_ready_when_pool_missing():
@@ -33,7 +44,7 @@ def test_build_report_summarizes_not_ready_tasks():
             4000, 500, 500, 8000,  # jd
             2000, 200, 200, 3000,  # resume
             97, 12, 19, 0,  # match
-            9700, 1200,  # multitask
+            9540, 1180,  # multitask
         ]
         with patch("jobmatch_tune.eval.report_data_readiness.audit_sft_files") as audit:
             audit.return_value = {
@@ -50,6 +61,8 @@ def test_build_report_summarizes_not_ready_tasks():
                     {},
                     {},
                     {},
+                    {},
+                    {},
                 ]
                 report = build_report()
     assert report["summary"]["all_ready_for_training"] is False
@@ -61,10 +74,10 @@ def test_build_report_summarizes_not_ready_tasks():
 def test_build_report_requires_resume_privacy_and_product_preference():
     with patch("jobmatch_tune.eval.report_data_readiness.count_jsonl") as mocked:
         mocked.side_effect = [
-            4400, 550, 550, 8000,  # jd
+            4240, 530, 530, 8000,  # jd
             10000, 1000, 1000, 3000,  # resume
             3000, 400, 400, 4500,  # match
-            9700, 1200,  # multitask
+            9540, 1180,  # multitask
         ]
         with patch("jobmatch_tune.eval.report_data_readiness.audit_sft_files") as audit:
             audit.return_value = {
@@ -76,6 +89,8 @@ def test_build_report_requires_resume_privacy_and_product_preference():
             with patch("jobmatch_tune.eval.report_data_readiness.count_holdout_overlap", return_value=0):
                 with patch("jobmatch_tune.eval.report_data_readiness.read_json_file") as read_json_file:
                     read_json_file.side_effect = [
+                        {},
+                        {},
                         {},
                         {},
                         {"profile_ready": True},
@@ -92,10 +107,10 @@ def test_build_report_requires_resume_privacy_and_product_preference():
 def test_build_report_blocks_training_when_resume_privacy_fails():
     with patch("jobmatch_tune.eval.report_data_readiness.count_jsonl") as mocked:
         mocked.side_effect = [
-            4400, 550, 550, 8000,
+            4240, 530, 530, 8000,
             10000, 1000, 1000, 3000,
             3000, 400, 400, 4500,
-            9700, 1200,
+            9540, 1180,
         ]
         with patch("jobmatch_tune.eval.report_data_readiness.audit_sft_files") as audit:
             audit.return_value = {
@@ -107,6 +122,8 @@ def test_build_report_blocks_training_when_resume_privacy_fails():
             with patch("jobmatch_tune.eval.report_data_readiness.count_holdout_overlap", return_value=0):
                 with patch("jobmatch_tune.eval.report_data_readiness.read_json_file") as read_json_file:
                     read_json_file.side_effect = [
+                        {},
+                        {},
                         {},
                         {},
                         {"profile_ready": True},
@@ -162,6 +179,32 @@ def test_audit_sft_files_detects_cross_split_content_overlap(tmp_path: Path):
     assert audit["cross_split_duplicate_hashes"] == 1
 
 
+def test_audit_sft_files_detects_cross_split_normalized_input_overlap(tmp_path: Path):
+    train = tmp_path / "train.jsonl"
+    valid = tmp_path / "valid.jsonl"
+    train_row = _sample("row_1")
+    valid_row = _sample("row_2")
+    train_row["messages"][1]["content"] = "岗位名称：后端 开发工程师！"
+    valid_row["messages"][1]["content"] = "岗位名称:后端开发工程师"
+    valid_row["messages"][-1]["content"] = json.dumps(
+        {
+            "岗位方向": "后端开发",
+            "核心职责": ["负责接口治理"],
+            "必备技能": ["Python"],
+            "学历要求": "本科",
+            "经验要求": "3年",
+        },
+        ensure_ascii=False,
+    )
+    train.write_text(json.dumps(train_row, ensure_ascii=False) + "\n", encoding="utf-8")
+    valid.write_text(json.dumps(valid_row, ensure_ascii=False) + "\n", encoding="utf-8")
+
+    audit = audit_sft_files("jd", [str(train), str(valid)])
+
+    assert audit["cross_split_duplicate_hashes"] == 0
+    assert audit["cross_split_normalized_input_hashes"] == 1
+
+
 def test_build_multitask_report_requires_all_tasks(tmp_path: Path):
     train = tmp_path / "train.jsonl"
     valid = tmp_path / "valid.jsonl"
@@ -180,11 +223,49 @@ def test_build_multitask_report_requires_all_tasks(tmp_path: Path):
     valid.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in valid_rows), encoding="utf-8")
 
     with patch("jobmatch_tune.eval.report_data_readiness.count_jsonl") as mocked:
-        mocked.side_effect = [9700, 1200]
+        mocked.side_effect = [9540, 1180]
         report = build_multitask_report(str(train), str(valid))
 
     assert report["has_required_mix"] is True
+    assert report["source_diversity_ready"] is True
+    assert report["cross_split_source_groups"] == 0
     assert report["ready_for_sft"] is True
+
+
+def test_build_multitask_report_rejects_template_dominated_selection(tmp_path: Path):
+    train = tmp_path / "train.jsonl"
+    valid = tmp_path / "valid.jsonl"
+    train_rows = []
+    valid_rows = []
+    for split, target in (("train", train_rows), ("valid", valid_rows)):
+        for task in ("jd", "match"):
+            row = _sample(f"{split}_{task}")
+            row["messages"][1]["content"] = f"{split} {task}"
+            row["meta"] = {"dataset_task": task}
+            row["source_group"] = f"{split}_{task}"
+            target.append(row)
+        for index in range(10):
+            row = _sample(f"{split}_resume_{index}")
+            row["messages"][1]["content"] = f"{split} resume {index}"
+            row["meta"] = {"dataset_task": "resume"}
+            row["source_group"] = f"{split}_resume_same"
+            target.append(row)
+    train.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in train_rows),
+        encoding="utf-8",
+    )
+    valid.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in valid_rows),
+        encoding="utf-8",
+    )
+
+    with patch("jobmatch_tune.eval.report_data_readiness.count_jsonl") as mocked:
+        mocked.side_effect = [9540, 1180]
+        report = build_multitask_report(str(train), str(valid))
+
+    assert report["source_diversity"]["train"]["resume"]["source_group_ratio"] == 0.1
+    assert report["source_diversity_ready"] is False
+    assert report["ready_for_sft"] is False
 
 
 def test_count_holdout_overlap_normalizes_jd_parse_suffix(tmp_path: Path):

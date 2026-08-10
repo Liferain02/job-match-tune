@@ -1,1210 +1,216 @@
 # JobMatchTune
 
-面向招聘 JD / 简历结构化抽取的 Qwen3 QLoRA 微调项目。当前默认服务版本为 `Qwen3-14B + LoRA adapter + 规则后处理`。
+面向中文招聘场景的模型后训练与评测工作台，覆盖 JD 解析、简历解析和可解释的人岗匹配。当前默认推理组合是 `Qwen3-14B + LoRA adapter + 规则后处理`。
 
-## 当前默认版本
+它的核心价值在于一条可审计的实验闭环：公开招聘数据进入清洗和分层流程，经 SFT / DPO 训练后，用人工留出评测集（holdout）、隐私门禁、数据泄漏检查和产品回归报告决定 adapter 是否可晋级。它目前不是完整 ATS，也不应被当作可直接公网部署的招聘决策系统。
 
-- 基座模型：`models/Qwen3-14B`
-- Adapter：`outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601`
-- 服务默认入口：
-  - API: [src/jobmatch_tune/api/server.py](/share/home/lifr/workspace/code/job-match-tune/src/jobmatch_tune/api/server.py)
-  - 启动脚本: [scripts/serve/start_api.sh](/share/home/lifr/workspace/code/job-match-tune/scripts/serve/start_api.sh)
-  - vLLM 服务脚本: [scripts/serve/start_vllm_server.sh](/share/home/lifr/workspace/code/job-match-tune/scripts/serve/start_vllm_server.sh)
-- 当前产品能力：
-  - `POST /api/parse`：JD / 简历文本结构化解析
-  - `POST /api/jd_file_parse`：上传 JD 文件并结构化解析
-  - `POST /api/resume_file_parse`：上传简历文件并结构化解析
-  - `POST /api/match`：JD 文本 + 简历文本匹配分析
-  - `POST /api/match_files`：JD / 简历文本或文件混用的一次性匹配分析
-- 50 条人工 holdout 最新报告：
-  - [outputs/eval_reports/manual_eval_50_qwen3_14b_dft_dpo_final_20260602_report.json](/share/home/lifr/workspace/code/job-match-tune/outputs/eval_reports/manual_eval_50_qwen3_14b_dft_dpo_final_20260602_report.json)
+## 当前能力
 
-## 项目结构
+- `jd_parse`：抽取岗位方向、职责、技能、经验和学历要求。
+- `resume_parse`：解析文本、DOCX、文本型 PDF；图片和扫描 PDF 支持 OCR sidecar。
+- `match`：组合 JD/简历结构化结果、确定性规则分数和模型生成的解释建议。
+- 单条、批量、文本与文件混合 API。
+- Vue 3 静态工作台和 Markdown 报告下载。
+- QLoRA、DPO、run manifest、训练前 readiness 和产品回归门禁。
 
-详细说明见 [docs/project_structure.md](/share/home/lifr/workspace/code/job-match-tune/docs/project_structure.md)。
+默认本地资产：
 
-项目从 0 到当前版本的完整来龙去脉见 [docs/project_end_to_end_story.md](/share/home/lifr/workspace/code/job-match-tune/docs/project_end_to_end_story.md)。
+```text
+models/Qwen3-14B
+outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601
+```
 
-项目从起点、每次关键调整到当前状态的叙事化复盘见 [docs/project_origin_iteration_story.md](/share/home/lifr/workspace/code/job-match-tune/docs/project_origin_iteration_story.md)。
+模型、adapter、生成数据和评测输出不随 Git 分发。默认路径可通过 `JOBMATCH_MODEL_PATH`、`JOBMATCH_ADAPTER_PATH` 等环境变量覆盖。
 
-按阶段整理的项目建设全过程见 [docs/project_build_timeline.md](/share/home/lifr/workspace/code/job-match-tune/docs/project_build_timeline.md)。
+## 工作链路
 
-数据处理参考开源 SFT 项目的对照和本项目落地项见 [docs/open_source_data_practices.md](/share/home/lifr/workspace/code/job-match-tune/docs/open_source_data_practices.md)。
+```text
+公开 JD / 合法脱敏简历 / 人工标注
+                │
+        清洗、标准化、去重、审计
+                │
+       SFT / preference 数据构造
+                │
+       QLoRA SFT → 可选 DPO
+                │
+   人工留出评测集 + 产品回归 + readiness
+                │
+Transformers 或 vLLM → FastAPI → Web UI
+```
 
-2026-06-01 训练前泄漏审计、公开简历补充和 14B SFT 决策见 [docs/training_readiness_and_sft_2026-06-01.md](/share/home/lifr/workspace/code/job-match-tune/docs/training_readiness_and_sft_2026-06-01.md)。
+“人工留出评测集（holdout）”是提前单独保留、由人工给出正确答案、且不参加训练和调参的一组样本。它相当于最终考试卷，用于检验模型面对未见数据时是否真的变好。发现其中的错例后，不应把同一批答案直接回灌训练，否则再次评测只是在检查模型是否记住了答案。
 
-核心目录：
+匹配请求会先分别解析 JD 和简历，再计算技能、方向、学历、年限和项目命中的规则结果，最后让模型基于原文和规则结果生成解释。因此一次匹配当前需要三次生成调用；这保证了可解释性，但延迟和吞吐仍属于实验级。
 
-- `src/jobmatch_tune/`
-  - `crawler/`：公开 JD 抓取
-  - `preprocess/`：清洗、去重、规则抽取
-  - `dataset/`：SFT / DPO 数据构造
-  - `train/`：QLoRA / DPO 训练
-  - `inference/`：推理与后处理
-  - `api/`：FastAPI 服务
-  - `eval/`：人工评估与指标
-- `scripts/data/`：抓取、导入、重建数据
-- `scripts/train/`：14B 训练入口
-- `scripts/serve/`：API / vLLM / 前端启动
-- `scripts/dev/`：环境与模型下载
-- `scripts/research/`：研究辅助脚本
-- `scripts/legacy/`：历史 1.7B 实验脚本归档
-- `configs/`：训练、爬取、标签 schema
-- `frontend/`：Vue 3 ESM 前端（无构建步骤）
-- `docs/`：实验记录与口径文档
+## 快速开始
 
-## 环境
+推荐 Python 3.11 和 CUDA 环境：
 
 ```bash
 conda create -n tune-demo python=3.11 -y
 conda activate tune-demo
 pip install -r requirements.txt
-pip install -e . --no-build-isolation
 ```
 
-查看 `gpu03` 资源：
+`pyproject.toml` 是依赖元数据的唯一来源；`requirements.txt` 只是兼容入口。依赖目前只有最低版本约束、没有 lock file，因此历史训练环境还不能做到字节级复现。
 
-```bash
-ssh -n gpu03 nvidia-smi
-```
-
-## 服务与前端
-
-启动 API：
-
-```bash
-bash scripts/serve/start_api.sh
-```
-
-启动前端：
-
-```bash
-bash scripts/serve/start_frontend.sh
-```
-
-前端支持三类工作流：
-
-- JD 解析：粘贴 JD 文本，或上传 `.txt/.md/.docx/.pdf/图片` JD 文件。
-- 简历解析：粘贴简历文本，或上传 `.txt/.md/.docx/.pdf/图片` 简历文件。
-- 人岗匹配：JD 和简历均支持文本或文件，文件与文本可以混用；结果页会同时展示 JD 结构化、简历结构化和匹配分析。
-- 结果页支持下载 Markdown 报告，包含结构化结果、匹配结论和原始 JSON。
-
-扫描版 PDF 或图片文件需要 OCR 文本。前端提供可选 OCR 文本框；如果没有 OCR，API 会返回 `needs_ocr=true`。
-
-验证标准 PDF 简历上传前置解析：
-
-```bash
-bash scripts/eval/validate_resume_sample.sh \
-  --input docs/个人简历-李福润.pdf \
-  --out outputs/eval_reports/resume_sample_validation_report.json
-```
-
-该报告只包含 PDF 类型、抽取方式、字符数、分块完整性等元信息，不输出简历全文。该 PDF 用作私有产品 smoke 样例，不进入 SFT / DPO 训练集。
-
-对真实简历做隐私审计和脱敏：
-
-```bash
-bash scripts/data/resume_privacy_audit.sh \
-  --input docs/个人简历-李福润.pdf \
-  --report-out outputs/eval_reports/resume_privacy_sample_report.json \
-  --out outputs/eval_reports/resume_privacy_sample_sanitized.jsonl
-```
-
-后续真实简历只有经过授权、脱敏、标注和 train/valid/holdout 切分后，才允许进入 SFT / DPO 数据池。
-
-训练前检查 resume SFT 数据是否仍含 PII：
-
-```bash
-bash scripts/data/report_resume_privacy_readiness.sh \
-  --inputs data/sft_resume/train.jsonl data/sft_resume/valid.jsonl data/sft_resume/test.jsonl \
-  --out outputs/eval_reports/resume_privacy_readiness_report.json
-```
-
-只有 `ready_for_resume_training=true`，才继续训练。
-
-一键生成训练前总门禁：
-
-```bash
-bash scripts/data/report_training_readiness.sh
-```
-
-最终看：
-
-```text
-outputs/eval_reports/data_readiness_report.json
-summary.all_ready_for_training
-```
-
-只有 `summary.all_ready_for_training=true`，才允许继续正式 SFT / DPO。
-
-正式训练脚本会自动执行该门禁；如果门禁失败，脚本会在占用 GPU 前退出。只有在调试脚本本身时才建议显式跳过：
-
-```bash
-SKIP_TRAINING_READINESS_GATE=1 bash scripts/train/train_qwen3_14b_multitask_sft.sh
-```
-
-## SFT / DPO
-
-当前主 SFT 数据：
-
-```bash
-bash scripts/data/rebuild_data_pipeline.sh
-```
-
-当前产品链路 DPO 候选数据：
-
-```bash
-bash scripts/data/build_product_preference_bootstrap_dataset.sh
-bash scripts/data/report_preference_readiness.sh \
-  --train data/preference_product_bootstrap/train.jsonl \
-  --valid data/preference_product_bootstrap/valid.jsonl \
-  --out outputs/eval_reports/preference_product_bootstrap_readiness_report.json
-```
-
-当前审计结果：
-
-- train: `9800`
-- valid: `1208`
-- 覆盖任务：`jd_parse / resume_parse / match`
-- `ready_for_dpo=true`
-- `holdout_overlap=0`
-
-产品链路 DPO 训练入口：
-
-```bash
-bash scripts/train/train_qwen3_14b_product_dpo.sh
-```
-
-训练后跑三路产品评测：
-
-```bash
-ADAPTER_PATH=outputs/checkpoints/qwen3-14b-jobmatch-product-dpo \
-TAG=product_dpo \
-bash scripts/eval/run_product_adapter_suite.sh
-```
-
-该脚本会额外生成：
-
-```text
-outputs/eval_reports/product_readiness_${TAG}_report.json
-```
-
-如果要判断新 adapter 能否替换当前默认版本，需要加基线对比：
-
-```bash
-ADAPTER_PATH=outputs/checkpoints/qwen3-14b-jobmatch-product-dpo \
-TAG=product_dpo \
-BASELINE_TAG=qwen3_14b_dft_dpo_final_20260602 \
-bash scripts/eval/run_product_adapter_suite.sh
-```
-
-这会额外生成：
-
-```text
-outputs/eval_reports/product_regression_${TAG}_vs_${BASELINE_TAG}_report.json
-```
-
-切换默认服务 adapter 的标准是：
-
-1. `product_readiness_${TAG}_report.json` 中 `ready_for_user=true`。
-2. `product_regression_${TAG}_vs_${BASELINE_TAG}_report.json` 中 `ready_to_promote=true`。
-
-也就是说，新 SFT/DPO adapter 既要达到绝对产品阈值，也不能相对当前默认 adapter 在 JD、简历、匹配三路关键字段上发生超过容忍度的回退。
-
-如果只是验证训练链路：
-
-```bash
-bash scripts/train/train_qwen3_14b_product_dpo_smoke.sh
-```
-
-每次 SFT / DPO 启动时，训练入口都会在 `output_dir` 写入：
-
-```text
-run_manifest.json
-```
-
-该文件记录 git commit、训练配置 hash、train/valid 数据行数和 hash、readiness summary、CLI 覆盖参数和 CUDA 设备。后续比较 adapter 效果时，应把 `run_manifest.json`、`train_metrics.json`、`eval_metrics.json` 和产品评测报告一起看。
-
-## 数据链路
-
-初始化数据库：
-
-```bash
-python -m jobmatch_tune.init_db --db data/jobmatch_tune.sqlite3
-```
-
-抓取腾讯公开招聘 JD：
-
-```bash
-python -m jobmatch_tune.crawler.tencent_careers \
-  --keywords-file configs/tencent_keywords.txt \
-  --limit 3000 \
-  --page-size 50 \
-  --max-pages 30 \
-  --interval-seconds 0.5 \
-  --category 技术 \
-  --out data/raw/tencent_jd_raw.jsonl \
-  --db data/jobmatch_tune.sqlite3
-```
-
-抓取百度公开招聘 JD：
-
-```bash
-python -m jobmatch_tune.crawler.baidu_talent \
-  --keywords-file configs/baidu_keywords.txt \
-  --interval-seconds 0.5 \
-  --out data/raw/baidu_jd_raw.jsonl \
-  --db data/jobmatch_tune.sqlite3
-```
-
-抓取京东公开招聘 JD：
-
-```bash
-python -m jobmatch_tune.crawler.jd_careers \
-  --out data/raw/jd_careers_raw.jsonl \
-  --db data/jobmatch_tune.sqlite3
-```
-
-抓取携程公开招聘 JD：
-
-```bash
-python -m jobmatch_tune.crawler.ctrip_careers \
-  --out data/raw/ctrip_jd_raw.jsonl \
-  --db data/jobmatch_tune.sqlite3
-```
-
-抓取 Moka 托管招聘官网 JD：
-
-```bash
-python -m jobmatch_tune.crawler.moka_careers \
-  --sources configs/moka_sources.yaml \
-  --out data/raw/moka_jd_raw.jsonl \
-  --db data/jobmatch_tune.sqlite3
-```
-
-如需一键刷新腾讯数据：
-
-```bash
-bash scripts/data/refresh_tencent_data.sh auto
-```
-
-如需一键刷新百度数据：
-
-```bash
-bash scripts/data/refresh_baidu_data.sh
-```
-
-如需一键刷新京东数据：
-
-```bash
-bash scripts/data/refresh_jd_data.sh
-```
-
-如需一键刷新携程数据：
-
-```bash
-bash scripts/data/refresh_ctrip_data.sh
-```
-
-如需一键刷新小米数据：
-
-```bash
-bash scripts/data/refresh_xiaomi_data.sh
-```
-
-当前小米抓取已同时覆盖：
-- 旧版研发职位列表页 `8-0-2`
-- 关键词搜索页：`开发 / 算法 / 前端 / 后端 / 客户端 / 测试 / 数据 / Java`
-
-如需一键刷新美团数据：
-
-```bash
-bash scripts/data/refresh_meituan_data.sh
-```
-
-当前美团公开招聘 API 已验证可用：
-- 列表：`/api/official/job/getJobList`
-- 详情：`/api/official/job/getJobDetail`
-- 本轮接入后新增 `18` 条 tech-like raw，进入 `JD strict` 主集 `5` 条
-
-如需一键刷新滴滴数据：
-
-```bash
-bash scripts/data/refresh_didi_data.sh
-```
-
-当前滴滴公开招聘 API 已验证可用：
-- 列表：`/recruit-portal-service/api/job/front/list`
-- 详情：`/recruit-portal-service/api/job/front/view/{jdId}`
-- 本轮接入后新增 `540` 条 tech-like raw，进入 dedup `528` 条，进入 `JD strict` 主集 `395` 条
-
-当前携程公开招聘 API 已验证可用：
-- 列表：`/api/hrrecruit/getJobAd`
-- 当前已抓取 `656` 条 tech-like raw，已进入 `jd_clean` 层 `656` 条
-- 按现有 `strict` 准入规则单独评估，这批样本约有 `193` 条可进入 `JD strict`
-
-如需一键刷新 Moka 招聘官网数据：
-
-```bash
-bash scripts/data/refresh_moka_data.sh
-```
-
-如需探测 Feishu ATS 招聘官网（例如得物）公开接口可用性：
-
-```bash
-bash scripts/data/probe_feishu_ats.sh https://poizon.jobs.feishu.cn \
-  outputs/eval_reports/poizon_feishu_probe.json
-```
-
-说明：
-
-- 这个脚本不会把数据直接接进训练集。
-- 它会探测：
-  - `websiteInfo`
-  - 页面脚本 bundle URL
-  - 主 bundle 中暴露的 `/api/...` 路径
-  - `config/job/filters/{portal_type}`
-  - `job/posts/{id}`
-  - `search/job/posts`
-- 适合用来判断一个 Feishu ATS 站点是否值得继续接成正式 crawler。
-- 当前得物站点重跑后的结论是：
-  - 详情与 filters 接口可访问
-  - bundle 扫描只暴露了 `/api/embed/error-page/`
-  - 仍未恢复出职位列表接口
-
-如需探测蚂蚁招聘公开接口可用性：
-
-```bash
-bash scripts/data/probe_ant_careers.sh \
-  outputs/eval_reports/ant_probe.json
-```
-
-说明：
-
-- 这个脚本当前不会直接抓取 JD。
-- 它会探测：
-  - `talent.antgroup.com/off-campus` 前端页与脚本
-  - `/api/searchCondition/list`
-  - `/api/searchCondition/listPositionGroup`
-  - `/api/searchCondition/listTalentPlan`
-  - `/api/social/position/search`
-  - `/api/position/searchPositionIdsByQuery`
-- 当前已确认筛选枚举接口匿名可用，并能拿到 `totalPositions` 和 `技术类` 数量。
-- 已额外确认前端页暴露了社招路由和 chunk 线索：
-  - `/off-campus`
-  - `/off-campus-home`
-  - `/off-campus-position`
-  - `p__SocialRecruitment__SRList__index`
-  - `p__SocialRecruitment__Home__index`
-- 前端 Tern 配置已明确 `PROD` 下 `/api -> https://hrcareersweb.antgroup.com`。
-- probe 现在会自动尝试多组 `social/position/search` payload 变体，区分：
-  - 参数结构错误（`400 Bad Request`）
-  - 缺少必填字段（`param_can_not_be_null`）
-- `social/position/search` 仍需要继续恢复正确 payload，现阶段更适合作为 probe 而不是正式 crawler。
-
-如需探测拼多多校园招聘官网的 Next/接口线索：
-
-```bash
-bash scripts/data/probe_pdd_campus.sh \
-  outputs/eval_reports/pdd_campus_probe.json
-```
-
-说明：
-
-- 这个脚本当前不会直接抓取 JD。
-- 它会探测：
-  - `__NEXT_DATA__`
-  - 页面脚本 bundle URL
-  - bundle 中暴露的 `/api/...` 路径线索
-  - `/api/` 根路径返回
-- 适合用来判断拼多多校园招聘站点是否存在可继续恢复的职位列表/详情接口。
-
-如需探测小红书招聘官网公开接口线索：
-
-```bash
-bash scripts/data/probe_xiaohongshu_careers.sh \
-  outputs/eval_reports/xiaohongshu_probe.json
-```
-
-说明：
-
-- 这个脚本当前不会直接抓取 JD。
-- 它会探测：
-  - 页面主 bundle URL
-  - bundle 中暴露的 `/api/...` 路径
-  - 候选数据接口 `/api/store/jpd/main` 的 GET / POST 返回
-  - `/api/data`、`/api/bizInUrl` 这类候选接口的返回
-- 适合用来判断小红书招聘站点是否存在可继续恢复的职位列表接口。
-
-如需探测哔哩哔哩招聘官网公开接口线索：
-
-```bash
-bash scripts/data/probe_bilibili_careers.sh \
-  outputs/eval_reports/bilibili_probe.json
-```
-
-说明：
-
-- 这个脚本当前不会直接抓取 JD。
-- 它会探测：
-  - 招聘页 bundle URL
-  - bundle 中暴露的 `/api/...` 路径
-  - 与 `position / resume / record / analysis / deliver / login / user / token` 相关的候选接口
-- 适合用来判断哔哩哔哩招聘站点是否存在可继续恢复的匿名职位接口。
-
-如需一键刷新腾讯 + 百度 + 京东 + 携程 + 小米 + 美团 + 滴滴 + Moka 并重建下游：
-
-```bash
-bash scripts/data/refresh_official_job_data.sh
-```
-
-说明：
-
-- `auto`：先尝试抓取，失败则直接用现有 raw 数据重建下游
-- `crawl`：强制抓取后再重建
-- `rebuild`：只重建清洗、去重和 SFT 数据
-
-当前按最新 `strict` 口径重建后，`JD strict` 主集已到：
-
-- `train / valid / test = 2653 / 331 / 333`
-- 总计 `3317`
-
-当前贡献最大的高信任官网源：
-
-- `careers.tencent.com = 853`
-- `zhaopin.jd.com = 731`
-- `talent.baidu.com = 400`
-- `talent.didiglobal.com = 395`
-- `careers.ctrip.com = 193`
-
-导入公开职位导出文件并扩充原始语料：
-
-```bash
-bash scripts/data/import_public_job_exports.sh
-```
-
-导入大规模中文招聘学历数据：
-
-```bash
-bash scripts/data/import_chinese_job_exports.sh
-```
-
-审计公开 JD 数据：
-
-```bash
-bash scripts/data/audit_public_jd_data.sh --input data/raw/public_job_datasets_raw.jsonl
-```
-
-从公开 JD 导入语料中筛高质量候选池：
-
-```bash
-bash scripts/data/build_public_jd_candidate_pool.sh
-```
-
-把默认严格 JD 与公开 JD 候选池合并成统一训练池：
-
-```bash
-bash scripts/data/build_jd_train_pool_combined.sh
-```
-
-导入公开 resume 数据：
-
-```bash
-bash scripts/data/import_public_resume_exports.sh
-```
-
-导入公开 match 数据：
-
-```bash
-bash scripts/data/import_public_match_exports.sh
-```
-
-审计公开 resume 数据：
-
-```bash
-bash scripts/data/audit_public_resume_data.sh --input data/external/public_resume_imports.jsonl
-```
-
-审计公开 match 数据：
-
-```bash
-bash scripts/data/audit_public_match_data.sh --input data/external/public_match_imports.jsonl
-```
-
-把人工 resume 训练池与可用公开 `resume_parse` 样本合并：
-
-```bash
-bash scripts/data/build_resume_train_pool_combined.sh
-```
-
-把人工 `match` 训练池与可用公开匹配样本合并：
-
-```bash
-bash scripts/data/build_match_train_pool_combined.sh
-```
-
-一键跑公开 `resume` 导入、审计和合并建池：
-
-```bash
-bash scripts/data/prepare_public_resume_pipeline.sh
-```
-
-一键跑公开 `match` 导入、审计和合并建池：
-
-```bash
-bash scripts/data/prepare_public_match_pipeline.sh
-```
-
-一键跑公开 `JD` 审计和候选池构造：
-
-```bash
-bash scripts/data/prepare_public_jd_pipeline.sh
-```
-
-输出统一的数据就绪报告：
-
-```bash
-bash scripts/data/report_data_readiness.sh
-```
-
-输出当前三个数据池的分布画像：
-
-```bash
-bash scripts/data/report_pool_profiles.sh
-```
-
-输出外部数据落盘状态报告：
-
-```bash
-bash scripts/data/report_external_data_status.sh
-```
-
-一键跑当前所有公共数据流水线：
-
-```bash
-bash scripts/data/prepare_all_public_pipelines.sh
-```
-
-如果外部公开文件还没落盘，但想先基于当前已有数据把三条池子生成出来：
-
-```bash
-bash scripts/data/build_current_data_pools.sh
-```
-
-当前基于仓库已有数据实际生成出的池子规模：
-
-- `data/eval/public_jd_candidate_pool.jsonl`: `679`
-- `data/eval/jd_train_pool_supplemental.jsonl`: `2`
-- `data/eval/jd_train_pool_weak_structured.jsonl`: `35477`
-- `data/eval/jd_train_pool_combined.jsonl`: `37796`
-- `data/eval/resume_train_pool_synthetic.jsonl`: `3200`
-- `data/eval/resume_train_pool_from_sft.jsonl`: `3200`（legacy，不再默认回灌）
-- `data/eval/resume_train_pool_bootstrap.jsonl`: `2600`
-- `data/eval/resume_train_pool_combined.jsonl`: `4137`
-- `data/eval/match_train_pool_combined.jsonl`: `4896`
-
-当前统一就绪报告结论：
-
-- `JD`: `data/sft_jd_quality/` 已达到当前训练门槛，规模为 `4400 / 550 / 550`
-- `resume`: 已达到当前训练门槛，规模为 `39132 / 5083 / 4952`
-- `match`: 已达到当前训练门槛，规模为 `3917 / 486 / 493`
-
-也就是说，从数量、JSON 合法性、重复 ID、跨 split 内容去重和字段空值率这几个工程门槛看，当前已经具备做一轮小规模增量 SFT 的条件。训练前仍建议抽样复核 `data/sft_jd_quality/` 的 `quality_weak` 层，因为这部分不是纯官网 strict 样本。
-
-如果要看三个池子现在的来源和分布，不只看总数：
-
-- `JD`：来源 / 标题 / 公司分布
-- `resume`：目标岗位 / 核心技能分布
-- `match`：匹配等级和原始标签覆盖
-
-直接执行：
-
-```bash
-bash scripts/data/report_pool_profiles.sh
-```
-
-当前训练集规模：
-
-- `data/sft/train.jsonl`: `2666`
-- `data/sft/valid.jsonl`: `333`
-- `data/sft/test.jsonl`: `334`
-- `data/sft_jd_quality/train.jsonl`: `4400`
-- `data/sft_jd_quality/valid.jsonl`: `550`
-- `data/sft_jd_quality/test.jsonl`: `550`
-- `data/sft_jd_bootstrap/train.jsonl`: `1371`
-- `data/sft_jd_bootstrap/valid.jsonl`: `171`
-- `data/sft_jd_bootstrap/test.jsonl`: `172`
-- `data/sft_resume/train.jsonl`: `39132`
-- `data/sft_resume/valid.jsonl`: `5083`
-- `data/sft_resume/test.jsonl`: `4952`
-- `data/sft_match/train.jsonl`: `3917`
-- `data/sft_match/valid.jsonl`: `486`
-- `data/sft_match/test.jsonl`: `493`
-- `data/sft_multitask/train.jsonl`: `9800`
-- `data/sft_multitask/valid.jsonl`: `1208`
-
-当前默认 14B SFT 配置使用 `data/sft_multitask/`，而不是直接把 4.8 万条 resume 全量混入训练。多任务采样配比在 [configs/dataset_registry.yaml](/share/home/lifr/workspace/code/job-match-tune/configs/dataset_registry.yaml) 中维护：
-
-- `JD`: `4400 / 550`
-- `resume`: `2800 / 338`
-- `match`: `2600 / 320`
-
-重建多任务训练集：
-
-```bash
-bash scripts/data/build_multitask_sft_dataset.sh
-```
-
-启动 14B 多任务 SFT：
-
-```bash
-bash scripts/train/train_qwen3_14b_multitask_sft.sh
-```
-
-JD quality 现在会同时输出质量画像，便于按层级审计：
-
-- [outputs/eval_reports/jd_quality_profile.json](/share/home/lifr/workspace/code/job-match-tune/outputs/eval_reports/jd_quality_profile.json)
-- [outputs/eval_reports/jd_quality_risk_report.json](/share/home/lifr/workspace/code/job-match-tune/outputs/eval_reports/jd_quality_risk_report.json)
-- [outputs/eval_reports/jd_quality_risk_samples.jsonl](/share/home/lifr/workspace/code/job-match-tune/outputs/eval_reports/jd_quality_risk_samples.jsonl)
-- [data/eval/jd_quality_review_seed.jsonl](/share/home/lifr/workspace/code/job-match-tune/data/eval/jd_quality_review_seed.jsonl)
-
-重建 JD quality 人工复核种子集：
-
-```bash
-bash scripts/data/build_jd_quality_review_set.sh --per-tier 20
-```
-
-重跑 JD quality 风险审计：
-
-```bash
-bash scripts/data/report_jd_quality_risks.sh --sample-limit 200
-```
-
-当前这条链路会导入三类补充源：
-
-- GitHub `jhcoco/bosszp` CSV
-- GitHub `WorkAggregation` CSV
-- Hugging Face `open-apply-jobs` 的 Greenhouse / Ashby / Lever parquet 分片
-- Hugging Face `job-educational-parser-dataset-08-0-0805` 中文 parquet
-- 百度 / 京东 / Moka 招聘官网公开职位抓取
-
-注意：
-
-- 这一步配合腾讯、百度、京东、Moka 官网抓取后，当前 `jd_clean / jd_clean_dedup` 已经达到 `293582 / 269351`。
-- 当前 `JD combined pool` 为 `37796`，用于 strict_plus、quality_weak、bootstrap 等分层实验。
-- 当前去重后语言分布约为：
-  - 中文：`221402`
-  - 英文：`51330`
-  - 其他 / 未知：`927`
-- 默认 `data/sft/` 现在是严格质量版：`2666 / 333 / 334`。
-- `data/sft_jd_quality/` 是 5500 条 JD 质量集：先取严格官网中文技术岗，再补 strict_plus、少量可修复 bootstrap，最后补 quality_weak；当前分层为 `strict=3150, strict_plus=260, bootstrap=2, quality_weak=2088`。
-- `data/sft_expanded/` 是扩展实验版：`4524 / 565 / 566`。
-- 默认训练不再追求先凑满 2 万，而是优先保留高信任官网中文技术岗。`data/sft_jd_quality/` 可以作为当前 JD SFT 候选主线，但它不是纯 strict：quality_weak 层会要求方向、学历/经验、技能、职责/要求长度，并清理“本科/硕士误入经验字段”等噪声。
-
-如果要把 `JD combined pool` 转成一条独立的 bootstrap SFT 数据线，而不覆盖当前严格高质量集：
-
-```bash
-bash scripts/data/build_jd_bootstrap_sft_dataset.sh
-```
-
-如果要生成介于 `strict` 和 `bootstrap` 之间的 `JD strict_plus` 数据线：
-
-```bash
-bash scripts/data/build_jd_strict_plus_sft_dataset.sh
-```
-
-如果要生成当前 5500 条 `JD quality` 数据线：
-
-```bash
-bash scripts/data/build_jd_quality_sft_dataset.sh --target-total 5500
-```
-
-这条线的用途是给后续小规模增量 SFT 准备候选 JD 数据。训练前仍建议抽样审计 `岗位方向 / 核心职责 / 必备技能 / 学历要求 / 经验要求`，尤其关注 quality_weak 层。
-
-如果要单独抽出“原文信息足够、但当前还能修”的 `JD repairable pool`：
-
-```bash
-bash scripts/data/build_jd_train_pool_repairable.sh
-```
-
-如果要基于这条修复池再生成实验性的 `JD strict_plus_v2`：
-
-```bash
-bash scripts/data/build_jd_strict_plus_v2_sft_dataset.sh
-```
-
-当前 `strict_plus` 规模为：
-
-- `train / valid / test = 1188 / 148 / 149`
-- 总计 `1485`
-
-当前 `repairable pool` 和 `strict_plus_v2` 的规模为：
-
-- `data/eval/jd_train_pool_repairable.jsonl = 310`
-- `data/sft_jd_strict_plus_v2/train|valid|test = 2 / 1 / 1`
-
-结论：真正“原文足够、但可通过小修复救回”的高信任 JD 确实存在，但数量远小于几十万 raw 的直觉规模。这条链路适合作为精修候选池，不适合作为主训练数据来源。
-
-如果要直接比较 `JD strict` 和 `JD bootstrap` 的质量指标：
-
-```bash
-bash scripts/data/compare_jd_sft_tracks.sh
-```
-
-如果要审计高信任官网样本为什么没有进入 `JD strict` 主集：
-
-```bash
-bash scripts/data/report_jd_strict_rejections.sh
-```
-
-如果要只看其中“标题本身像技术岗”的拒绝样本：
-
-```bash
-bash scripts/data/report_jd_strict_tech_candidates.sh
-```
-
-当前 `JD bootstrap` 相对 `strict` 的主要差异：
-
-- 样本量：`2426 -> 1714`
-- `json_valid_rate`：都为 `1.0`
-- `avg_responsibility_count`：`4.45 -> 3.92`
-- `avg_skill_count`：`1.07 -> 1.37`
-- `education_coverage`：`0.58 -> 1.00`
-- `experience_coverage`：`0.66 -> 0.67`
-
-结论：最新 `bootstrap` 已经明显收紧，职责密度和技能密度都在可用区间。它在学历覆盖上仍然更完整，但经验覆盖已经和 `strict` 接近。因此它更适合作为第二阶段增强集，而不是直接替代 `strict` 主集。
-
-当前 `JD strict_plus` 相对 `strict` 和 `bootstrap` 的位置：
-
-- 样本量：`2426 -> 1485 -> 1714`
-- `avg_responsibility_count`：`4.45 -> 3.75 -> 3.92`
-- `avg_skill_count`：`1.07 -> 1.52 -> 1.37`
-- `education_coverage`：`0.58 -> 1.00 -> 1.00`
-- `experience_coverage`：`0.66 -> 0.78 -> 0.67`
-
-结论：最新 `strict_plus` 已经从“数量优先”转成“经验字段更完整”的增强集，`experience_coverage` 高于 `strict`，技能密度也更高，但样本量最小。它适合做第二阶段补强，不适合做唯一主集。
-
-当前 `JD strict` 拒绝审计的主要结论：
-
-- `total_rejected = 4455`
-- Top 3 原因：
-  - `missing_direction = 2420`
-  - `sft_not_ready = 1094`
-  - `language_not_zh = 348`
-- 说明当前 `strict` 的主瓶颈已经不是单纯经验字段缺失，而是：
-  - 岗位方向规则没有覆盖到足够多的高信任官网样本
-  - 以及一批样本被上游标成 `sft_not_ready`
-
-进一步过滤掉明显业务岗后，真正值得继续回收的技术候选拒绝样本约为：
-
-- `total_tech_like_rejected = 680`
-- `total_tech_like_rejected = 453`
-- Top reasons:
-  - `missing_direction = 180`
-  - `missing_edu_exp_skill = 82`
-  - `sft_not_ready = 75`
-  - `excluded_title = 67`
-  - `clean_text_too_short = 21`
-
-补了一条 `careers.tencent.com` 技术短 JD 例外后，腾讯高信任技术岗里的 `clean_text_too_short` 已经从 `238` 压到 `25`。后续随着滴滴、携程等官网源并入并按最新 `strict` 口径重建，`strict` 主集已经进一步提升到 `3317`。
-
-清洗与构造训练集：
-
-```bash
-python -m jobmatch_tune.preprocess.normalize_jd \
-  --db data/jobmatch_tune.sqlite3 \
-  --out data/interim/jd_clean.jsonl \
-  --schema configs/label_schema.yaml
-
-python -m jobmatch_tune.dataset.build_sft_dataset \
-  --jd data/interim/jd_clean.jsonl \
-  --out-dir data/sft \
-  --quality-profile strict
-
-python -m jobmatch_tune.dataset.build_sft_dataset \
-  --jd data/interim/jd_clean.jsonl \
-  --out-dir data/sft_expanded \
-  --include-weak-tech \
-  --quality-profile expanded \
-  --target-total 20000
-```
-
-构造万级中英混合弱标注 SFT：
-
-```bash
-bash scripts/data/build_multilingual_weak_sft.sh
-```
-
-说明：
-
-- `data/sft/` 是默认高质量中文集，只保留高信任中文官网样本。
-- `data/sft_expanded/` 是扩展实验集，允许少量高置信弱标注样本进入。
-- `data/sft_multilingual_weak/` 是规模优先的中英混合弱标注集，适合做第二阶段扩量实验，不建议直接替换默认 demo 版本。
-
-当前中文数据最多的来源：
-
-1. Hugging Face `job-educational-parser-dataset-08-0-0805`
-   - 当前导入：`232064` 条中文职位样本
-2. 京东公开招聘
-   - 当前抓取：`3054` 条
-3. 腾讯公开招聘
-   - 当前抓取：`935` 条
-4. 百度公开招聘
-   - 当前抓取：`577` 条
-5. Moka 招聘官网公开 API
-   - 当前抓取：`2662` 条
-
-## 训练
-
-14B smoke：
-
-```bash
-bash scripts/train/train_qwen3_14b_smoke.sh
-```
-
-14B 正式训练：
-
-```bash
-bash scripts/train/train_qwen3_14b_full.sh
-```
-
-如需下载模型快照：
+下载默认模型：
 
 ```bash
 bash scripts/dev/download_qwen_models_python.sh 14B
 ```
 
-轻量回退模型：
+推荐用统一脚本在后台启动 API 和静态前端：
 
 ```bash
-bash scripts/dev/download_qwen_models_python.sh 1.7B
+bash scripts/serve/start_project.sh
 ```
 
-## 偏好优化
-
-从独立 JD quality 训练集生成结构化 hard-negative 偏好数据，并审计泄漏与格式：
+停止项目：
 
 ```bash
-bash scripts/data/build_preference_bootstrap_dataset.sh
-bash scripts/data/report_preference_readiness.sh
+bash scripts/serve/stop_project.sh
 ```
 
-14B DPO 训练：
+默认地址是 `http://localhost:8000` 和 `http://localhost:5174`，日志写入 `outputs/logs/`，PID 写入 `outputs/runtime/`。本机 `5173` 已由另一个项目使用，所以统一脚本固定使用 `5174`。前端依赖 CDN 版 Vue 3，因此首次打开需要网络。通过登录节点访问 GPU 节点时的双层端口转发见 [项目启动与访问](docs/项目启动与访问.md)。
+
+vLLM 需要另行安装；统一脚本可以同时管理 vLLM、API 和前端：
 
 ```bash
-bash scripts/train/train_qwen3_14b_dpo.sh
+JOBMATCH_INFERENCE_BACKEND=vllm bash scripts/serve/start_project.sh
 ```
 
-说明：
+vLLM 模式会并行提交一次匹配中的 JD/简历解析，并对批量请求实施受控并发；默认 Transformers 4-bit 路径仍保持串行，以降低单 GPU 显存风险。实现与压测方法见[核心推理流程优化](docs/核心推理流程优化_2026-08-09.md)。
 
-- 当前环境中 `trl==1.4.0` 可直接使用 `DPOTrainer`
-- 当前偏好数据规模为 `4400 / 550`，默认不再使用人工 holdout 预测错例，避免评估泄漏
-- `scripts/data/build_preference_dataset.sh` 仅保留给人工复核后的离线错例实验
-- `ORPOTrainer` 当前环境不可直接用，所以仓库先接入了 `DPO`
-- `GRPO` 属于更重的在线后训练，不是当前第一优先级
-- 正式 DPO 实验产物：`outputs/checkpoints/qwen3-14b-jobmatch-dft-dpo-chat-20260602`
-- 正式 DPO 已学习结构化 preference，但 JD、resume、match 业务指标与 DFT SFT 持平，因此默认服务仍使用 DFT SFT adapter。
-- 完整训练与评测记录见 [docs/training_readiness_and_sft_2026-06-01.md](/share/home/lifr/workspace/code/job-match-tune/docs/training_readiness_and_sft_2026-06-01.md)。
+## API
 
-## 推理与评估
+| 方法 | 路径 | 用途 |
+| --- | --- | --- |
+| `GET` | `/health` | 进程、CUDA 和后端状态 |
+| `POST` | `/api/warmup` | 显式加载模型 |
+| `POST` | `/api/parse` | JD 或简历文本解析 |
+| `POST` | `/api/jd_file_parse` | JD 文件解析 |
+| `POST` | `/api/resume_file_parse` | 简历文件解析 |
+| `POST` | `/api/match` | 文本人岗匹配 |
+| `POST` | `/api/match_files` | 文本/文件混合匹配 |
+| `POST` | `/api/batch_parse` | 最多 64 条顺序解析 |
+| `POST` | `/api/batch_match` | 最多 32 组顺序匹配 |
 
-单条推理：
+文本请求限制为 20,000 字符，单文件默认最多 10 MiB（`JOBMATCH_MAX_UPLOAD_BYTES` 可覆盖），默认 CORS 只接受本机来源（`JOBMATCH_CORS_ORIGINS` 可覆盖）。当前还没有认证、限流、MIME 验证或持久化审计，不要直接暴露到公网。
+
+## 数据与训练
+
+初始化数据库并刷新官方公开职位：
 
 ```bash
-python -m jobmatch_tune.inference.predict \
-  --model models/Qwen3-14B \
-  --adapter outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601 \
-  --task jd_parse \
-  --input examples/jd_ai_app.txt \
-  --load-4bit
+python -m jobmatch_tune.init_db --db data/jobmatch_tune.sqlite3
+bash scripts/data/refresh_official_job_data.sh
+bash scripts/data/rebuild_data_pipeline.sh
 ```
 
-匹配分析推理：
+从源数据构建 JD、简历、匹配、多任务 SFT 和两套 preference 数据，并生成最新门禁报告：
 
 ```bash
-python -m jobmatch_tune.inference.predict \
-  --model models/Qwen3-14B \
-  --adapter outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601 \
-  --task match \
-  --input examples/jd_ai_app.txt \
-  --resume-input examples/resume_llm_app.txt \
-  --rule-result '{"匹配分数":82,"匹配等级":"较匹配","岗位方向匹配":true,"学历匹配":true,"经验匹配":true,"命中技能":["Python","FastAPI"],"缺失技能":["RAG"],"命中项目":["负责企业知识库问答系统开发"]}' \
-  --load-4bit
+bash scripts/data/build_current_data_pools.sh
 ```
 
-50 条人工评估：
+独立下载和处理外部招聘技能 gold（不自动混入主训练）：
 
 ```bash
-PYTHONPATH=src python -m jobmatch_tune.eval.run_manual_eval \
-  --dataset data/eval/jd_manual_eval_50.jsonl \
-  --model models/Qwen3-14B \
-  --adapter outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601 \
-  --out outputs/eval_reports/manual_eval_50_qwen3_14b_v3_report.json \
-  --predictions-out outputs/eval_reports/manual_eval_50_qwen3_14b_v3_predictions.jsonl \
-  --load-4bit
+bash scripts/data/prepare_external_skill_gold.sh
 ```
 
-简历解析人工评估集构造与评估：
+正式训练按阶段检查对应字段，避免一个阶段被无关数据误拦：
+
+```text
+outputs/eval_reports/data_readiness_report.json
+SFT:         summary.all_ready_for_sft = true
+JD DPO:      summary.ready_for_dpo = true
+产品 DPO:    summary.ready_for_product_dpo = true
+完整链路:    summary.all_ready_for_training = true
+```
+
+14B smoke、SFT 和产品 DPO：
 
 ```bash
-bash scripts/data/build_resume_eval_dataset.sh
-
-PYTHONPATH=src python -m jobmatch_tune.eval.run_manual_eval \
-  --dataset data/eval/resume_manual_eval_seed.jsonl \
-  --model models/Qwen3-14B \
-  --adapter outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601 \
-  --out outputs/eval_reports/resume_manual_eval_seed_report.json \
-  --predictions-out outputs/eval_reports/resume_manual_eval_seed_predictions.jsonl \
-  --load-4bit
+bash scripts/train/train_qwen3_14b_smoke.sh
+bash scripts/train/train_qwen3_14b_multitask_sft.sh
+bash scripts/train/train_qwen3_14b_product_dpo.sh
 ```
 
-人岗匹配人工评估集构造与评估：
+训练入口会写入 `run_manifest.json`，记录 Git commit、配置和数据 hash、任务构成、原始来源多样性、偏好数据出处、readiness 摘要和 CLI 覆盖项。正式 adapter 仍需同时通过绝对产品阈值与基线回归阈值：
 
 ```bash
-bash scripts/data/build_match_eval_dataset.sh
-
-bash scripts/data/run_match_eval.sh \
-  --dataset data/eval/match_manual_eval_seed.jsonl \
-  --model models/Qwen3-14B \
-  --adapter outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601 \
-  --out outputs/eval_reports/match_eval_report.json \
-  --predictions-out outputs/eval_reports/match_eval_predictions.jsonl \
-  --load-4bit
+ADAPTER_PATH=outputs/checkpoints/<adapter> \
+TAG=<tag> \
+BASELINE_TAG=qwen3_14b_dft_dpo_final_20260602 \
+bash scripts/eval/run_product_adapter_suite.sh
 ```
 
-当前已分层生成：
+## 数据边界
 
-- `data/eval/resume_manual_eval_text_seed.jsonl`
-- `data/eval/resume_manual_eval_ocr_seed.jsonl`
+Git 只保留人工 gold、人工标注种子和必要的小型 review seed。以下内容均为运行产物，不纳入版本控制：
 
-`text_seed` 用于文本简历评估，`ocr_seed` 用于 OCR-like 噪声文本评估。
+- `models/`、`outputs/`；
+- SQLite、raw、interim、SFT、preference 数据；
+- `data/eval/` 下由 builder 生成的 candidate/train pool。
 
-简历解析 SFT 数据构造：
+真实简历不得提交到仓库。私有样例应放在 Git 忽略目录中，先经过授权、PII 审计与脱敏，再决定是否进入标注流程：
 
 ```bash
-bash scripts/data/build_resume_sft_dataset.sh
+bash scripts/data/resume_privacy_audit.sh \
+  --input /private/path/resume.pdf \
+  --report-out outputs/eval_reports/resume_privacy_report.json \
+  --out outputs/eval_reports/resume_sanitized.jsonl
 ```
 
-当前输出：
-
-- `data/sft_resume/train.jsonl`: `1920`
-- `data/sft_resume/valid.jsonl`: `240`
-- `data/sft_resume/test.jsonl`: `240`
-
-这是从人工简历种子集出发，生成多种简历写法后的高质量 bootstrap 集，适合先打通 `resume_parse` 训练链路，不适合被误认为最终规模数据集。
-
-匹配评估与训练数据构造：
+## 验证
 
 ```bash
-bash scripts/data/build_match_sft_dataset.sh
+ruff check .
+pytest -q
+node tests/frontend_report_smoke.mjs
+python -m compileall -q src
 ```
 
-当前输出：
+当前仓库基线为 331 个 Python 测试和 1 个前端报告 smoke。测试主要覆盖规则、数据 builder、评测、隐私处理和 API service helper；不包含真实 14B GPU 推理回归。
 
-- `data/eval/match_manual_eval_seed.jsonl`: `64`
-- `data/eval/match_manual_train_pool.jsonl`: `128`
-- `data/eval/match_train_pool_combined.jsonl`: `4896`
-- `data/sft_match/train.jsonl`: `3917`
-- `data/sft_match/valid.jsonl`: `486`
-- `data/sft_match/test.jsonl`: `493`
+## 目录
 
-这批 `match` 数据由人工种子、规则配对 synthetic 样本和可用公开 pair 合并而来；当前默认 synthetic 配置使用 `1200` 个 JD、每个 JD `2` 个正样本和 `2` 个负样本。
+- `src/jobmatch_tune/`：crawler、预处理、数据构造、训练、推理、匹配、评测和 API。
+- `scripts/`：当前可执行数据、训练、服务和评测入口。
+- `configs/`：schema、数据源、数据配比与当前 14B 训练配置。
+- `data/eval/`：版本化人工 gold / seed；不保存派生训练池。
+- `frontend/`：无构建步骤的 Vue 3 ESM 工作台。
+- `docs/`：架构审查、数据与历史实验文档。
 
-Resume 专项增量训练：
+详细目录职责见 [项目结构](docs/项目结构.md)，本轮产品与技术审查见 [产品与技术审查](docs/产品与技术审查_2026-08-09.md)，后训练与数据优化见 [后训练与数据流程优化](docs/后训练与数据流程优化_2026-08-09.md)，外部技能 gold 处理见 [外部技能标注数据处理](docs/外部技能标注数据处理.md)，中文匹配数据的来源与许可判断见 [中文人岗匹配数据核验](docs/中文人岗匹配数据核验.md)，产品主流程与后续交互优先级见 [产品交互与优化目标](docs/产品交互与优化目标.md)。
 
-```bash
-bash scripts/train/train_qwen3_14b_resume_sft.sh
-```
+## 当前限制
 
-简历原始文件接入：
+- 匹配技能仍以 taxonomy 归一化后的精确集合重叠为主，没有语义召回或 reranker。
+- Transformers 后端用进程内锁串行生成；vLLM 后端已支持 JD/简历并行和受控批量并发，但当前环境尚未安装 vLLM，仍需真实 GPU 对照。
+- API service、上传解析和路由集中在单个较大的模块中，响应没有统一 Pydantic contract。
+- 前端依赖 CDN，没有版本锁定、构建产物和浏览器自动化测试。
+- 仓库没有 CI、容器定义、依赖 lock file、许可证和安全策略。
+- 人工留出评测集规模较小，训练池中合成/模板数据占比较高；指标不能等价为真实招聘决策质量。
 
-```bash
-bash scripts/data/resume_ingest.sh <resume-file-or-dir>
-```
+## 文档
 
-如果图片或扫描件已经有人先做了 OCR，可传 sidecar 目录：
+- [产品与技术审查](docs/产品与技术审查_2026-08-09.md)
+- [产品交互与优化目标](docs/产品交互与优化目标.md)
+- [项目结构](docs/项目结构.md)
+- [项目启动与访问](docs/项目启动与访问.md)
+- [核心推理流程优化](docs/核心推理流程优化_2026-08-09.md)
+- [项目后续计划](docs/项目后续计划.md)
+- [数据处理流程](docs/数据处理流程.md)
+- [简历处理流程](docs/简历处理流程.md)
+- [岗位方向标注口径](docs/岗位方向标注口径.md)
+- [公开数据源清单](docs/公开数据源清单.md)
+- [中文人岗匹配数据核验](docs/中文人岗匹配数据核验.md)
+- [训练评测记录（2026-06-01）](docs/训练评测记录_2026-06-01.md)
+- [项目建设历程](docs/项目建设历程.md)
 
-```bash
-bash scripts/data/resume_ingest.sh <resume-file-or-dir> data/resume_raw/resume_ingest.jsonl <ocr-dir>
-```
+## 许可状态
 
-sidecar 约定文件名支持：
-
-- `<原文件名>.ocr.txt`
-- `<文件 stem>.ocr.txt`
-
-自动生成 OCR sidecar：
-
-```bash
-bash scripts/data/resume_ocr_sidecar.sh <image-or-pdf-file-or-dir>
-```
-
-默认输出到：
-
-- `data/resume_ocr_text/`
-
-简历中间层规范化：
-
-```bash
-bash scripts/data/resume_normalize.sh \
-  --input data/resume_raw/resume_ingest.jsonl \
-  --out data/resume_interim/resume_clean.jsonl \
-  --only-parse-ok
-```
-
-这一步会把 `resume_raw` 统一整理为可直接喂给 `resume_parse` 的 `normalized_text`。
-
-批量 resume pipeline 评估：
-
-```bash
-bash scripts/data/run_resume_pipeline_eval.sh \
-  --dataset data/eval/resume_manual_eval_text_seed.jsonl \
-  --model models/Qwen3-14B \
-  --adapter outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601 \
-  --out outputs/eval_reports/resume_pipeline_text_report.json \
-  --predictions-out outputs/eval_reports/resume_pipeline_text_predictions.jsonl \
-  --load-4bit
-```
-
-OCR-like 对照评估：
-
-```bash
-bash scripts/data/run_resume_pipeline_eval.sh \
-  --dataset data/eval/resume_manual_eval_ocr_seed.jsonl \
-  --model models/Qwen3-14B \
-  --adapter outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601 \
-  --out outputs/eval_reports/resume_pipeline_ocr_report.json \
-  --predictions-out outputs/eval_reports/resume_pipeline_ocr_predictions.jsonl \
-  --load-4bit
-```
-
-PDF 接入时会进一步区分：
-
-- `text_pdf`
-- `weak_text_pdf`
-- `scanned_pdf`
-
-其中 `weak_text_pdf / scanned_pdf` 在没有 sidecar OCR 时会被标记为 `needs_ocr=true`，不会直接假装可用于结构化抽取。
-
-## 前后端分离应用
-
-启动后端：
-
-```bash
-source /share/home/lifr/miniconda3/etc/profile.d/conda.sh
-conda activate tune-demo
-cd /share/home/lifr/workspace/code/job-match-tune
-bash scripts/serve/start_api.sh
-```
-
-如需切到 `vLLM + OpenAI-compatible API + JSON Schema structured outputs`：
-
-```bash
-bash scripts/serve/start_vllm_server.sh
-
-export JOBMATCH_INFERENCE_BACKEND=vllm
-export JOBMATCH_VLLM_BASE_URL=http://127.0.0.1:8010/v1
-export JOBMATCH_VLLM_MODEL=jobmatch-lora
-bash scripts/serve/start_api.sh
-```
-
-启动前端：
-
-```bash
-cd /share/home/lifr/workspace/code/job-match-tune
-bash scripts/serve/start_frontend.sh
-```
-
-说明：
-
-- 默认从 `5173` 开始找端口
-- 如果端口已占用，会自动顺延到下一个可用端口
-- 启动时会打印实际访问地址
-
-前端当前结构：
-
-- `frontend/index.html`
-- `frontend/src/main.js`
-- `frontend/src/App.js`
-- `frontend/src/components/`
-- `frontend/src/services/`
-- `frontend/src/config/`
-- `frontend/src/utils/`
-- `frontend/src/styles/`
-
-说明：
-
-- 当前前端使用 Vue 3 ESM 浏览器构建版本
-- 不依赖 Vite / webpack，本地直接通过静态文件服务启动
-- 目录已经按组件、服务、配置、工具和样式拆分，不再是单一 `html/js/css` 三文件结构
-
-端口转发：
-
-```bash
-ssh -L 5173:localhost:5173 -L 8000:localhost:8000 gpu03
-```
-
-浏览器打开 `http://localhost:5173`。
-
-前端当前支持三个工作模式：
-
-- `JD 解析`
-- `简历解析`
-- `人岗匹配`
-  - 双输入：`JD 文本 + 简历文本`
-  - 输出：`规则匹配结果 + 模型分析结论`
-
-前端同时支持两种请求方式：
-
-- `单条`
-- `批量`
-  - 使用 `---` 分隔多条样本
-  - 可直接调用 `/api/batch_parse` 和 `/api/batch_match`
-
-在 `简历解析 -> 单条` 模式下，前端支持直接上传 `txt / docx / pdf / 图片` 简历文件，并调用 `/api/resume_file_parse`。
-
-当前后端接口：
-
-- `POST /api/parse`
-  - 支持 `jd_parse`
-  - 支持 `resume_parse`
-- `POST /api/match`
-  - 输入 `jd_text + resume_text`
-  - 返回 `jd_parse + resume_parse + rule_result + analysis`
-- `POST /api/batch_parse`
-  - 输入 `task + texts[]`
-  - 返回批量结构化结果和逐条状态
-- `POST /api/batch_match`
-  - 输入 `items[{jd_text,resume_text}]`
-  - 返回批量匹配结果和逐条状态
-- `POST /api/resume_file_parse`
-  - 输入 `multipart/form-data`
-  - 支持 `txt / docx / pdf / png / jpg`
-  - 对 `text_pdf` 直接解析
-  - 对 `weak_text_pdf / scanned_pdf / image`，可额外传 `ocr_text` 作为 OCR sidecar 文本
-
-如需切回 1.7B：
-
-```bash
-export JOBMATCH_MODEL_PATH=models/Qwen3-1.7B
-export JOBMATCH_ADAPTER_PATH=outputs/checkpoints/qwen3-1.7b-dft-lr1e-4
-bash scripts/serve/start_api.sh
-```
-
-## 文档索引
-
-- 技术方案原文：[微调方案.md](/share/home/lifr/workspace/code/job-match-tune/%E5%BE%AE%E8%B0%83%E6%96%B9%E6%A1%88.md)
-- 项目阶段路线图：[docs/project_roadmap.md](/share/home/lifr/workspace/code/job-match-tune/docs/project_roadmap.md)
-- 项目实现与迭代总览：[docs/implementation_and_evolution.md](/share/home/lifr/workspace/code/job-match-tune/docs/implementation_and_evolution.md)
-- 数据处理全流程：[docs/data_pipeline_full.md](/share/home/lifr/workspace/code/job-match-tune/docs/data_pipeline_full.md)
-- 三条数据链路说明：[docs/data_tracks_explained.md](/share/home/lifr/workspace/code/job-match-tune/docs/data_tracks_explained.md)
-- 简历处理链路：[docs/resume_pipeline.md](/share/home/lifr/workspace/code/job-match-tune/docs/resume_pipeline.md)
-- 公开招聘/简历/匹配数据源清单：[docs/public_dataset_inventory.md](/share/home/lifr/workspace/code/job-match-tune/docs/public_dataset_inventory.md)
-- 简历写法与项目亮点：[docs/resume_project_highlights.md](/share/home/lifr/workspace/code/job-match-tune/docs/resume_project_highlights.md)
-- 数据来源：[docs/data_sources.md](/share/home/lifr/workspace/code/job-match-tune/docs/data_sources.md)
-- 字节招聘 API 研究记录：[docs/bytedance_api_research.md](/share/home/lifr/workspace/code/job-match-tune/docs/bytedance_api_research.md)
-- 岗位方向标注口径：[docs/job_direction_policy.md](/share/home/lifr/workspace/code/job-match-tune/docs/job_direction_policy.md)
-- 历史实验记录：
-  - [docs/history/experiment_results_2026-05-11.md](/share/home/lifr/workspace/code/job-match-tune/docs/history/experiment_results_2026-05-11.md)
-  - [docs/history/incremental_sft_2026-05-13.md](/share/home/lifr/workspace/code/job-match-tune/docs/history/incremental_sft_2026-05-13.md)
-  - [docs/history/manual_eval_2026-05-13.md](/share/home/lifr/workspace/code/job-match-tune/docs/history/manual_eval_2026-05-13.md)
+仓库当前没有 `LICENSE`。在明确选择许可证之前，不应把“代码可见”等同于“已授权开源复用”。

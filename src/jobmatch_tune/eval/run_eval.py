@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 from typing import Any
 
 from jobmatch_tune.eval.metrics import precision_recall_f1, text_exact_match

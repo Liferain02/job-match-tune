@@ -33,6 +33,37 @@ def test_assert_training_readiness_blocks_product_dpo_failure():
     assert "product preference DPO data is not ready" in result["blockers"]
 
 
+def test_sft_stage_does_not_require_dpo_data():
+    report = _report(
+        {
+            "all_ready_for_training": False,
+            "ready_for_dpo": False,
+            "ready_for_product_dpo": False,
+        }
+    )
+
+    result = assert_training_readiness(report, "sft")
+
+    assert result["ready"] is True
+    assert result["blockers"] == []
+
+
+def test_product_dpo_stage_does_not_require_sft_or_jd_dpo():
+    report = _report(
+        {
+            "all_ready_for_training": False,
+            "all_ready_for_sft": False,
+            "ready_for_dpo": False,
+            "not_ready_tasks": ["resume"],
+        }
+    )
+
+    result = assert_training_readiness(report, "product_dpo")
+
+    assert result["ready"] is True
+    assert result["blockers"] == []
+
+
 def test_summarize_blockers_includes_resume_privacy_failure():
     report = _report(
         {"all_ready_for_training": False, "all_ready_for_sft": False, "not_ready_tasks": ["resume"]},

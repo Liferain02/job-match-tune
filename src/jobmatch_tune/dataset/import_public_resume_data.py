@@ -113,6 +113,9 @@ def build_resume_parse_row(
             "schema": source["schema"],
             "language": normalize_text(source.get("language") or "zh"),
             "source_path": normalize_text(source.get("path")),
+            "license": normalize_text(source.get("license")),
+            "license_status": normalize_text(source.get("license_status") or "unconfirmed"),
+            "intended_usage": normalize_text(source.get("intended_usage") or "audit_only"),
         },
     }
 
@@ -133,6 +136,11 @@ def build_resume_ner_row(
         return None
     if not isinstance(tags, list):
         tags = []
+    tag_names = source.get("tag_names") or {}
+    normalized_tags = [
+        str(tag_names.get(tag, tag_names.get(str(tag), tag)))
+        for tag in tags
+    ]
     text = "".join(str(token) for token in tokens)
     digest = hashlib.sha1(f"{source['name']}::{index}::{text}".encode("utf-8")).hexdigest()[:12]
     return {
@@ -141,13 +149,16 @@ def build_resume_ner_row(
         "source_type": normalize_text(source.get("source_type") or "public_text"),
         "text": text,
         "tokens": [str(token) for token in tokens],
-        "ner_tags": [str(tag) for tag in tags],
+        "ner_tags": normalized_tags,
         "meta": {
             "source_name": source["name"],
             "schema": source["schema"],
             "language": normalize_text(source.get("language") or "zh"),
             "tag_scheme": normalize_text(source.get("tag_scheme") or "BIO"),
             "source_path": normalize_text(source.get("path")),
+            "license": normalize_text(source.get("license")),
+            "license_status": normalize_text(source.get("license_status") or "unconfirmed"),
+            "intended_usage": normalize_text(source.get("intended_usage") or "audit_only"),
         },
     }
 

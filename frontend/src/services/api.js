@@ -11,10 +11,6 @@ export function getStatus(baseUrl) {
   return fetchJson(`${baseUrl}/api/status`);
 }
 
-export function warmup(baseUrl) {
-  return fetchJson(`${baseUrl}/api/warmup`, { method: "POST" });
-}
-
 export function parseSingle(baseUrl, task, text, maxNewTokens = 1024) {
   return fetchJson(`${baseUrl}/api/parse`, {
     method: "POST",

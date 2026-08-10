@@ -3,6 +3,16 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
+bash scripts/data/report_jd_quality_risks.sh \
+  --out outputs/eval_reports/jd_quality_risk_report.json \
+  --samples-out outputs/eval_reports/jd_quality_risk_samples.jsonl
+
+bash scripts/data/audit_jd_direction_conflicts.sh \
+  --out outputs/eval_reports/jd_direction_conflicts.json
+
+bash scripts/data/audit_jd_experience_gaps.sh \
+  --out outputs/eval_reports/jd_experience_gaps.json
+
 bash scripts/data/report_resume_sft_profile.sh \
   --out outputs/eval_reports/resume_sft_profile.json
 

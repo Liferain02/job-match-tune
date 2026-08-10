@@ -21,6 +21,9 @@ def compute_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
     internship_count = 0
     project_count = 0
     ner_tag_set = set()
+    ner_tag_counter = Counter()
+    sensitive_ner_rows = 0
+    sensitive_tag_prefixes = {"B-CONT", "B-LOC", "B-NAME", "B-ORG", "B-RACE"}
     resume_parse_rows = 0
 
     for row in rows:
@@ -47,7 +50,11 @@ def compute_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
             if label.get("项目经历"):
                 project_count += 1
         elif task == "resume_ner":
-            ner_tag_set.update(str(tag) for tag in (row.get("ner_tags") or []))
+            row_tags = [str(tag) for tag in (row.get("ner_tags") or [])]
+            ner_tag_set.update(row_tags)
+            ner_tag_counter.update(row_tags)
+            if sensitive_tag_prefixes.intersection(row_tags):
+                sensitive_ner_rows += 1
 
     total = len(rows)
     return {
@@ -66,6 +73,9 @@ def compute_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
         },
         "resume_ner_tag_count": len(ner_tag_set),
         "resume_ner_tags": sorted(ner_tag_set),
+        "resume_ner_tag_distribution": ner_tag_counter.most_common(),
+        "resume_ner_rows_with_sensitive_entities": sensitive_ner_rows,
+        "resume_ner_training_ready": sensitive_ner_rows == 0,
     }
 
 

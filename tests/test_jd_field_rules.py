@@ -2,12 +2,52 @@ from __future__ import annotations
 
 import yaml
 
-from jobmatch_tune.preprocess.jd_field_rules import extract_skills_from_text, infer_job_direction
+from jobmatch_tune.preprocess.jd_field_rules import (
+    extract_education_requirement,
+    extract_experience_requirement,
+    extract_skills_from_text,
+    infer_job_direction,
+)
 
 
 def _schema() -> dict:
     with open("configs/label_schema.yaml", "r", encoding="utf-8") as fp:
         return yaml.safe_load(fp)
+
+
+def test_extract_experience_accepts_common_chinese_spacing_and_prefixes() -> None:
+    assert extract_experience_requirement("任职要求：具备 3 年以上 Android 开发经验") == (
+        "具备 3 年以上 Android 开发经验"
+    )
+    assert extract_experience_requirement("至少两年 iOS 开发经验") == "至少两年 iOS 开发经验"
+    assert extract_experience_requirement("工作年限3～5年") == "3～5年"
+
+
+def test_extract_experience_rejects_graduation_date_as_year_range() -> None:
+    text = "任职资格：1-2024年10月1日至2025年9月30日期间毕业，本科及以上学历"
+    assert extract_experience_requirement(text) == ""
+
+
+def test_extract_education_covers_degree_and_postgraduate_phrases() -> None:
+    assert extract_education_requirement("相关专业研究生及以上学历") == "研究生及以上学历"
+    assert extract_education_requirement("相关领域的学士及以上学位") == "学士及以上学位"
+    assert extract_education_requirement("专科及以上学历，五年以上经验") == "专科及以上学历"
+
+
+def test_extract_education_preserves_preferred_semantics() -> None:
+    assert extract_education_requirement("研究生及以上学历优先") == "研究生及以上学历优先"
+    assert extract_education_requirement("学士及学士以上的学历") == "学士及学士以上的学历"
+
+
+def test_extract_skills_covers_common_client_game_and_hardware_tools() -> None:
+    skills = extract_skills_from_text(
+        "使用 JavaScript、Vue.js、Android、Unity3D、UE5、MATLAB、FPGA 和 SystemVerilog 开发",
+        _schema(),
+    )
+
+    assert {"JavaScript", "Vue", "Android", "Unity", "Unreal Engine", "MATLAB", "FPGA", "Verilog"} <= set(
+        skills
+    )
 
 
 def test_infer_job_direction_returns_empty_for_non_tech_business_title() -> None:
@@ -56,6 +96,24 @@ def test_infer_job_direction_accepts_security_ops_engineer_title() -> None:
         "安全运营工程师",
         "岗位职责：负责安全告警分析、漏洞处置和安全运营平台建设。",
         schema,
+    )
+    assert direction == "安全工程"
+
+
+def test_infer_job_direction_prioritizes_algorithm_role_over_security_department() -> None:
+    direction = infer_job_direction(
+        "微信安全-多模态大模型高级算法工程师",
+        "岗位职责：负责多模态模型训练和内容理解算法研发。",
+        {"job_directions": ["算法工程", "安全工程"]},
+    )
+    assert direction == "算法工程"
+
+
+def test_infer_job_direction_treats_network_security_as_security() -> None:
+    direction = infer_job_direction(
+        "网络与信息安全研究岗",
+        "岗位职责：负责漏洞研究、安全攻防和风险分析。",
+        {"job_directions": ["网络与基础设施", "安全工程"]},
     )
     assert direction == "安全工程"
 

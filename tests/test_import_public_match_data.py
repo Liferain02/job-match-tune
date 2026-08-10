@@ -28,6 +28,11 @@ def test_convert_match_pair_rows():
         "name": "match_demo",
         "schema": "match_pair_rows",
         "path": "demo.jsonl",
+        "source_url": "https://example.com/demo",
+        "source_revision": "abc123",
+        "provenance_status": "human_annotated",
+        "license_status": "confirmed",
+        "intended_usage": "training",
         "mapping": {
             "jd_text": "job_description",
             "resume_text": "resume",
@@ -46,3 +51,5 @@ def test_convert_match_pair_rows():
     converted = convert_rows(source, rows)
     assert converted[0]["task"] == "match"
     assert converted[0]["label"]["raw_label"] == "fit"
+    assert converted[0]["meta"]["license_status"] == "confirmed"
+    assert converted[0]["meta"]["provenance_status"] == "human_annotated"

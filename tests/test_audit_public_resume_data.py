@@ -24,3 +24,5 @@ def test_compute_public_resume_report():
     assert report["task_distribution"][0][0] in {"resume_parse", "resume_ner"}
     assert report["resume_parse_label_coverage"]["target_job"] == 1.0
     assert report["resume_ner_tag_count"] == 2
+    assert report["resume_ner_rows_with_sensitive_entities"] == 1
+    assert report["resume_ner_training_ready"] is False

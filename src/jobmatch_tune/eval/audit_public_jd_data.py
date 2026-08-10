@@ -13,17 +13,31 @@ def compute_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
     source_counter = Counter()
     language_counter = Counter()
     sft_ready_counter = Counter()
+    intended_usage_counter = Counter()
+    content_rights_counter = Counter()
+    annotation_type_counter = Counter()
+    split_role_counter = Counter()
     title_lengths: list[int] = []
     text_lengths: list[int] = []
     education_count = 0
     experience_count = 0
     salary_count = 0
+    training_eligible_count = 0
+    holdout_eligible_count = 0
+    pinned_artifact_count = 0
 
     for row in rows:
         source_counter[str(row.get("source") or "")] += 1
         meta = row.get("meta") or {}
         language_counter[str(meta.get("language") or "")] += 1
         sft_ready_counter[str(bool(meta.get("sft_ready")))] += 1
+        intended_usage_counter[str(meta.get("intended_usage") or "unspecified")] += 1
+        content_rights_counter[str(meta.get("content_rights_status") or "unspecified")] += 1
+        annotation_type_counter[str(meta.get("annotation_type") or "unspecified")] += 1
+        split_role_counter[str(meta.get("split_role") or "unspecified")] += 1
+        training_eligible_count += int(meta.get("training_eligible") is True)
+        holdout_eligible_count += int(meta.get("holdout_eligible") is True)
+        pinned_artifact_count += int(bool(meta.get("source_revision") and meta.get("artifact_sha256")))
         title = str(row.get("job_title") or "")
         raw_text = str(row.get("raw_text") or "")
         if title:
@@ -43,6 +57,13 @@ def compute_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "source_distribution_top30": source_counter.most_common(30),
         "language_distribution": language_counter.most_common(),
         "sft_ready_distribution": sft_ready_counter.most_common(),
+        "intended_usage_distribution": intended_usage_counter.most_common(),
+        "content_rights_distribution": content_rights_counter.most_common(),
+        "annotation_type_distribution": annotation_type_counter.most_common(),
+        "split_role_distribution": split_role_counter.most_common(),
+        "training_eligible_rows": training_eligible_count,
+        "holdout_eligible_rows": holdout_eligible_count,
+        "pinned_artifact_rows": pinned_artifact_count,
         "avg_title_length": mean(title_lengths) if title_lengths else 0.0,
         "avg_raw_text_length": mean(text_lengths) if text_lengths else 0.0,
         "education_coverage": education_count / total if total else 0.0,

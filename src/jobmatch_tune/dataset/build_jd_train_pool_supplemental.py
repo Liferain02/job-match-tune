@@ -6,6 +6,7 @@ from typing import Any
 
 from jobmatch_tune.dataset.build_sft_dataset import (
     HIGH_TRUST_SOURCES,
+    is_external_source_training_allowed,
     is_high_confidence_weak_tech_row,
 )
 from jobmatch_tune.utils.io import read_jsonl, write_jsonl
@@ -38,6 +39,8 @@ def build_supplemental_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for row in rows:
         if row.get("source") in HIGH_TRUST_SOURCES:
             continue
+        if not is_external_source_training_allowed(row):
+            continue
         if not is_high_confidence_weak_tech_row(row):
             continue
         labels = row.get("labels") or {}
@@ -53,6 +56,7 @@ def build_supplemental_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "salary": row.get("salary", ""),
                 "raw_text": row.get("clean_text") or row.get("raw_text") or "",
                 "meta": {
+                    **(row.get("meta") or {}),
                     "language": row.get("language", ""),
                     "sft_ready": row.get("sft_ready", False),
                     "pool_origin": "supplemental_weak_high_conf",

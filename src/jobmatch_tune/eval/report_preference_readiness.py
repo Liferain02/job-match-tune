@@ -41,6 +41,7 @@ def audit_preference_files(train_path: str, valid_path: str, holdout_path: str) 
     holdout_ids = _holdout_ids(holdout_path)
     split_counts: Counter[str] = Counter()
     strategies: Counter[str] = Counter()
+    provenances: Counter[str] = Counter()
     ids: set[str] = set()
     prompt_splits: dict[str, str] = {}
     invalid_rows = 0
@@ -83,6 +84,8 @@ def audit_preference_files(train_path: str, valid_path: str, holdout_path: str) 
                 holdout_overlap += 1
             strategy = str((row.get("meta") or {}).get("rejection_strategy") or "prediction_mismatch")
             strategies[strategy] += 1
+            provenance = str((row.get("meta") or {}).get("provenance") or "unknown")
+            provenances[provenance] += 1
 
     counts = {"train": split_counts["train"], "valid": split_counts["valid"]}
     format_ready = (
@@ -92,6 +95,11 @@ def audit_preference_files(train_path: str, valid_path: str, holdout_path: str) 
         and cross_split_prompt_hashes == 0
         and holdout_overlap == 0
     )
+    valid_rows = sum(provenances.values())
+    synthetic_rows = sum(
+        count for provenance, count in provenances.items() if "synthetic" in provenance
+    )
+    synthetic_preference_rate = round(synthetic_rows / valid_rows, 4) if valid_rows else 0.0
     return {
         "counts": counts,
         "thresholds": {"smoke": SMOKE_THRESHOLDS, "full": FULL_THRESHOLDS},
@@ -102,6 +110,15 @@ def audit_preference_files(train_path: str, valid_path: str, holdout_path: str) 
         "holdout_overlap": holdout_overlap,
         "unique_prompts": len(prompt_splits),
         "strategy_counts": dict(strategies.most_common()),
+        "provenance_counts": dict(provenances.most_common()),
+        "synthetic_preference_rate": synthetic_preference_rate,
+        "preference_origin": (
+            "synthetic_only"
+            if valid_rows and synthetic_rows == valid_rows
+            else "mixed"
+            if synthetic_rows
+            else "non_synthetic_or_unknown"
+        ),
         "format_ready": format_ready,
         "ready_for_dpo_smoke": format_ready
         and counts["train"] >= SMOKE_THRESHOLDS["train"]

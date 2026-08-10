@@ -16,6 +16,16 @@ def is_usable_public_match_row(row: dict[str, Any]) -> bool:
     if str(row.get("task") or "") != "match":
         return False
     meta = row.get("meta") or {}
+    if str(meta.get("license_status") or "").lower() != "confirmed":
+        return False
+    if str(meta.get("intended_usage") or "").lower() not in {
+        "training",
+        "sft_training",
+        "training_and_evaluation",
+    }:
+        return False
+    if str(meta.get("provenance_status") or "").lower() in {"", "undocumented", "unknown"}:
+        return False
     language = str(meta.get("language") or "").lower()
     if language not in {"", "zh", "zh-cn", "en"}:
         return False

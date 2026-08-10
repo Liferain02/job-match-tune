@@ -3,19 +3,44 @@ sources:
     schema: match_pair_rows
     language: en
     source_type: public_pair
+    source_url: https://huggingface.co/datasets/med2425/resume-job-fit-merged-v1
+    source_revision: f46f355acddab1368a7386cbe94d42fd42767d88
+    provenance_status: synthetic_teacher_labeled
+    license_status: unconfirmed
+    intended_usage: audit_only
     path: data/external/public_match_exports/resume_job_fit_merged_v1.jsonl
     mapping:
-      jd_text: job_description
+      jd_text: jd
       resume_text: resume
       label: label
-      score: score
+    notes: >-
+      合并两个公开数据集并生成跨域样本，使用 Qwen2.5-32B 标注；上游数据卡未声明许可证。
 
   - name: resume_jd_fit_en
     schema: match_pair_rows
     language: en
     source_type: public_pair
+    source_url: https://huggingface.co/datasets/cnamuangtoun/resume-job-description-fit
+    source_revision: 08978e21714984bb417547d2c0f9b477f5298163
+    provenance_status: undocumented
+    license_status: unconfirmed
+    intended_usage: audit_only
     path: data/external/public_match_exports/resume_job_description_fit.jsonl
     mapping:
       jd_text: job_description
       resume_text: resume
       label: label
+    notes: 上游没有数据卡、许可证和原始数据来源说明。
+
+candidates:
+  - name: tianchi_zhaopin_person_job_match_2019
+    language: zh
+    source_type: competition_interactions
+    source_url: https://tianchi.aliyun.com/competition/entrance/231728/information
+    provenance_status: official_competition_source
+    license_status: restricted_or_unconfirmed
+    intended_usage: authorization_required
+    access_status: login_and_registration_required
+    notes: >-
+      智联招聘提供的脱敏简历、职位和浏览/投递/HR认可行为。官方页允许报名后下载，
+      但未提供开放数据许可证；在取得主办方书面授权并保存协议快照前不得导入或再分发。

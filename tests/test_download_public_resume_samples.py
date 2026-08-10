@@ -25,4 +25,4 @@ def test_convert_resume_ner_rows_keeps_non_empty_tokens():
         ]
     )
 
-    assert converted == [{"tokens": ["后", "端"], "ner_tags": [1, 2]}]
+    assert converted == [{"tokens": ["后", "端"], "ner_tags": ["B-CONT", "I-CONT"]}]

@@ -14,6 +14,20 @@ EDUCATION_ORDER = {
     "博士": 5,
 }
 
+CHINESE_DIGITS = {
+    "零": 0,
+    "一": 1,
+    "二": 2,
+    "两": 2,
+    "三": 3,
+    "四": 4,
+    "五": 5,
+    "六": 6,
+    "七": 7,
+    "八": 8,
+    "九": 9,
+}
+
 
 def _normalize_text(value: Any) -> str:
     if value is None:
@@ -41,10 +55,19 @@ def _extract_years(text: str) -> int:
     normalized = _normalize_text(text)
     if not normalized:
         return 0
-    matches = re.findall(r"([0-9]+)\s*年", normalized)
+    matches = re.findall(r"([0-9]+|[零一二两三四五六七八九十]+)\s*年", normalized)
     if not matches:
         return 0
-    return max(int(item) for item in matches)
+    return max(_parse_number(item) for item in matches)
+
+
+def _parse_number(value: str) -> int:
+    if value.isdigit():
+        return int(value)
+    if "十" not in value:
+        return CHINESE_DIGITS.get(value, 0)
+    tens, ones = value.split("十", 1)
+    return (CHINESE_DIGITS.get(tens, 1) * 10) + CHINESE_DIGITS.get(ones, 0)
 
 
 def _extract_education_rank(text: str) -> int:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +14,7 @@ def _normalize_text(value: Any) -> str:
     return str(value or "").strip()
 
 
-def build_manual_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def build_manual_rows(rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     converted = []
     for row in rows:
         if not is_high_trust_strong_row(row):
@@ -28,6 +29,7 @@ def build_manual_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "salary": row.get("salary", ""),
                 "raw_text": row.get("clean_text") or row.get("raw_text") or "",
                 "meta": {
+                    **(row.get("meta") or {}),
                     "language": row.get("language", ""),
                     "sft_ready": row.get("sft_ready", False),
                     "pool_origin": "strict_manual",
@@ -37,17 +39,21 @@ def build_manual_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return converted
 
 
-def deduplicate_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _dedup_key(row: dict[str, Any]) -> str:
+    title = _normalize_text(row.get("job_title"))
+    company = _normalize_text(row.get("company"))
+    location = _normalize_text(row.get("location"))
+    raw_text = _normalize_text(row.get("raw_text"))
+    return hashlib.sha1(
+        f"{title}\n{company}\n{location}\n{raw_text[:500]}".encode("utf-8")
+    ).hexdigest()
+
+
+def deduplicate_rows(rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     seen = set()
     deduped = []
     for row in rows:
-        title = _normalize_text(row.get("job_title"))
-        company = _normalize_text(row.get("company"))
-        location = _normalize_text(row.get("location"))
-        raw_text = _normalize_text(row.get("raw_text"))
-        key = hashlib.sha1(
-            f"{title}\n{company}\n{location}\n{raw_text[:500]}".encode("utf-8")
-        ).hexdigest()
+        key = _dedup_key(row)
         if key in seen:
             continue
         seen.add(key)
@@ -56,31 +62,41 @@ def deduplicate_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def build_combined_rows(
-    manual_rows: list[dict[str, Any]],
-    public_rows: list[dict[str, Any]],
-    supplemental_rows: list[dict[str, Any]] | None = None,
-    weak_structured_rows: list[dict[str, Any]] | None = None,
+    manual_rows: Iterable[dict[str, Any]],
+    public_rows: Iterable[dict[str, Any]],
+    supplemental_rows: Iterable[dict[str, Any]] | None = None,
+    weak_structured_rows: Iterable[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
-    combined = build_manual_rows(manual_rows)
+    seen = set()
+    combined = []
+
+    def append_unique(row: dict[str, Any]) -> None:
+        key = _dedup_key(row)
+        if key not in seen:
+            seen.add(key)
+            combined.append(row)
+
+    for row in build_manual_rows(manual_rows):
+        append_unique(row)
     for row in supplemental_rows or []:
         copied = dict(row)
         meta = dict(copied.get("meta") or {})
         meta["pool_origin"] = meta.get("pool_origin") or "supplemental_candidate"
         copied["meta"] = meta
-        combined.append(copied)
+        append_unique(copied)
     for row in weak_structured_rows or []:
         copied = dict(row)
         meta = dict(copied.get("meta") or {})
         meta["pool_origin"] = meta.get("pool_origin") or "weak_structured_candidate"
         copied["meta"] = meta
-        combined.append(copied)
+        append_unique(copied)
     for row in public_rows:
         copied = dict(row)
         meta = dict(copied.get("meta") or {})
         meta["pool_origin"] = "public_candidate"
         copied["meta"] = meta
-        combined.append(copied)
-    return deduplicate_rows(combined)
+        append_unique(copied)
+    return combined
 
 
 def main() -> None:
@@ -92,20 +108,25 @@ def main() -> None:
     parser.add_argument("--out", default="data/eval/jd_train_pool_combined.jsonl")
     args = parser.parse_args()
 
-    manual_rows = list(read_jsonl(args.manual_input))
-    public_rows = list(read_jsonl(args.public_input)) if Path(args.public_input).exists() else []
-    supplemental_rows = (
-        list(read_jsonl(args.supplemental_input)) if Path(args.supplemental_input).exists() else []
-    )
-    weak_structured_rows = (
-        list(read_jsonl(args.weak_structured_input)) if Path(args.weak_structured_input).exists() else []
-    )
+    counts = {"manual": 0, "public": 0, "supplemental": 0, "weak_structured": 0}
+
+    def counted_rows(path: str, key: str):
+        if not Path(path).exists():
+            return
+        for row in read_jsonl(path):
+            counts[key] += 1
+            yield row
+
+    manual_rows = counted_rows(args.manual_input, "manual")
+    public_rows = counted_rows(args.public_input, "public")
+    supplemental_rows = counted_rows(args.supplemental_input, "supplemental")
+    weak_structured_rows = counted_rows(args.weak_structured_input, "weak_structured")
     combined = build_combined_rows(manual_rows, public_rows, supplemental_rows, weak_structured_rows)
     write_jsonl(args.out, combined)
     print(
         "manual="
-        f"{len(manual_rows)} public={len(public_rows)} supplemental={len(supplemental_rows)} "
-        f"weak_structured={len(weak_structured_rows)} combined={len(combined)}"
+        f"{counts['manual']} public={counts['public']} supplemental={counts['supplemental']} "
+        f"weak_structured={counts['weak_structured']} combined={len(combined)}"
     )
 
 

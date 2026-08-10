@@ -22,6 +22,25 @@ SECTION_ALIASES = {
     "projects": ("项目经验", "项目经历"),
     "strengths": ("其他亮点", "优势", "自我评价"),
 }
+RESUME_NER_TAG_NAMES = {
+    0: "O",
+    1: "B-CONT",
+    2: "I-CONT",
+    3: "B-EDU",
+    4: "I-EDU",
+    5: "B-LOC",
+    6: "I-LOC",
+    7: "B-NAME",
+    8: "I-NAME",
+    9: "B-ORG",
+    10: "I-ORG",
+    11: "B-PRO",
+    12: "I-PRO",
+    13: "B-RACE",
+    14: "I-RACE",
+    15: "B-TITLE",
+    16: "I-TITLE",
+}
 
 
 def fetch_rows(
@@ -108,7 +127,7 @@ def _extract_sections(text: str) -> dict[str, list[str]]:
 
 def convert_faircv_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     converted = []
-    for index, row in enumerate(rows):
+    for row in rows:
         metadata = row.get("metadata") or {}
         text = str(row.get("content") or "").strip()
         if not text:
@@ -138,7 +157,10 @@ def convert_resume_ner_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         {
             "tokens": row.get("tokens") or [],
-            "ner_tags": row.get("ner_tags") or [],
+            "ner_tags": [
+                RESUME_NER_TAG_NAMES.get(int(tag), str(tag))
+                for tag in (row.get("ner_tags") or [])
+            ],
         }
         for row in rows
         if row.get("tokens")

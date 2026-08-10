@@ -1,13 +1,11 @@
 import { computed, onMounted, reactive } from "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js";
 
 import AppHeader from "./components/AppHeader.js";
-import SummaryGrid from "./components/SummaryGrid.js";
 import ControlPanel from "./components/ControlPanel.js";
 import ResultPanel from "./components/ResultPanel.js";
 import { examples } from "./config/examples.js";
 import {
   getStatus,
-  warmup,
   parseSingle,
   parseBatch,
   parseResumeFile,
@@ -17,6 +15,8 @@ import {
   matchBatch,
 } from "./services/api.js";
 import { buildMarkdownReport, prettyJson, splitBatchText } from "./utils/text.js";
+
+const defaultApiBase = `${window.location.protocol}//${window.location.hostname || "localhost"}:8000`;
 
 function createOverviewItems(state) {
   if (state.requestMode === "batch") {
@@ -53,11 +53,11 @@ function createOverviewItems(state) {
 
 export default {
   name: "App",
-  components: { AppHeader, SummaryGrid, ControlPanel, ResultPanel },
+  components: { AppHeader, ControlPanel, ResultPanel },
   setup() {
     const state = reactive({
-      apiBase: "http://localhost:8000",
-      task: "jd_parse",
+      apiBase: defaultApiBase,
+      task: "match",
       requestMode: "single",
       activeView: "structured",
       singleText: "",
@@ -70,11 +70,11 @@ export default {
       selectedResumeFile: null,
       selectedResumeFileName: "",
       busy: false,
-      warmupBusy: false,
       statusText: "未连接",
       statusMode: "",
       latencyText: "-",
       backendName: "-",
+      matchParseMode: "-",
       gpuState: "-",
       loadState: "-",
       modelPath: "-",
@@ -82,13 +82,6 @@ export default {
       rawText: "{}",
       lastPayload: null,
     });
-
-    const summaryItems = computed(() => [
-      { label: "服务后端", value: state.backendName },
-      { label: "GPU 状态", value: state.gpuState },
-      { label: "模型状态", value: state.loadState },
-      { label: "单次延迟", value: state.latencyText },
-    ]);
 
     const overviewItems = computed(() => {
       if (!state.lastPayload) {
@@ -162,43 +155,28 @@ export default {
       state.statusMode = mode;
     }
 
-    async function refreshStatus() {
+    async function refreshStatus(updateUiStatus = true) {
       try {
         const data = await getStatus(state.apiBase);
         state.backendName = data.backend || "-";
+        state.matchParseMode = data.match_parse_mode || "-";
         state.modelPath = data.model_path || "-";
         state.adapterPath = data.adapter_path || "-";
         state.gpuState = data.cuda_available ? "CUDA 可用" : "CUDA 不可用";
         state.loadState = data.loaded ? "已加载" : "未加载";
-        setStatus(data.loaded ? "模型已加载" : "服务可用", "ok");
+        if (updateUiStatus) {
+          setStatus(data.loaded ? "模型已加载" : "服务可用", "ok");
+        }
       } catch {
         state.backendName = "-";
+        state.matchParseMode = "-";
         state.modelPath = "-";
         state.adapterPath = "-";
         state.gpuState = "-";
         state.loadState = "-";
-        setStatus("未连接", "error");
-      }
-    }
-
-    async function handleWarmup() {
-      state.warmupBusy = true;
-      setStatus("加载模型", "ok");
-      try {
-        const data = await warmup(state.apiBase);
-        state.latencyText = data.latency_seconds ? `${data.latency_seconds}s` : "-";
-        state.backendName = data.backend || state.backendName;
-        state.modelPath = data.model_path || state.modelPath;
-        state.adapterPath = data.adapter_path || state.adapterPath;
-        state.gpuState = data.cuda_available ? "CUDA 可用" : "CUDA 不可用";
-        state.loadState = data.loaded ? "已加载" : "未加载";
-        setStatus("模型已加载", "ok");
-      } catch (error) {
-        state.rawText = prettyJson({ ok: false, error: error.message });
-        state.activeView = "raw";
-        setStatus("预热失败", "error");
-      } finally {
-        state.warmupBusy = false;
+        if (updateUiStatus) {
+          setStatus("未连接", "error");
+        }
       }
     }
 
@@ -207,6 +185,8 @@ export default {
       state.selectedResumeFileName = "";
       state.selectedJdFile = null;
       state.selectedJdFileName = "";
+      state.jdOcrText = "";
+      state.resumeOcrText = "";
       if (state.task === "match") {
         state.jdText = examples.match.jd;
         state.resumeText = examples.match.resume;
@@ -226,9 +206,11 @@ export default {
       state.requestMode = mode;
       state.lastPayload = null;
       state.rawText = "{}";
-      if (!(state.task === "resume_parse" && mode === "single")) {
+      if (mode === "batch") {
         state.selectedResumeFile = null;
         state.selectedResumeFileName = "";
+        state.selectedJdFile = null;
+        state.selectedJdFileName = "";
       }
     }
 
@@ -267,13 +249,23 @@ export default {
 
     async function handleParse() {
       if (!hasValidPayload()) {
-        state.rawText = prettyJson({ ok: false, error: "输入为空" });
-        state.activeView = "raw";
+        let message = "请先提供需要解析的内容";
+        if (state.task === "match") {
+          const hasJd = Boolean(state.jdText.trim() || state.selectedJdFile);
+          message = hasJd ? "请再提供候选人简历" : "请先提供目标岗位 JD";
+        }
+        state.rawText = prettyJson({ ok: false, error: message });
+        setStatus(message, "error");
         return;
       }
       state.busy = true;
       state.latencyText = "-";
-      setStatus(state.task === "match" ? "匹配分析中" : "推理中", "ok");
+      const needsModelLoad = state.loadState !== "已加载";
+      if (needsModelLoad) {
+        setStatus("首次运行：正在加载模型并处理，约需 2–3 分钟", "ok");
+      } else {
+        setStatus(state.task === "match" ? "正在匹配，通常约需 1 分钟" : "正在解析", "ok");
+      }
       try {
         let data;
         if (state.task === "match") {
@@ -311,8 +303,10 @@ export default {
         state.rawText = prettyJson(data);
         state.latencyText = data.latency_seconds ? `${data.latency_seconds}s` : "-";
         state.activeView = "structured";
-        setStatus(data.ok === false ? "处理失败" : "处理完成", data.ok === false ? "error" : "ok");
-        await refreshStatus();
+        const completedText = state.task === "match" ? "匹配完成" : "解析完成";
+        const elapsedText = data.latency_seconds ? `，用时 ${data.latency_seconds}s` : "";
+        setStatus(data.ok === false ? "处理失败" : `${completedText}${elapsedText}`, data.ok === false ? "error" : "ok");
+        await refreshStatus(false);
       } catch (error) {
         state.lastPayload = null;
         state.rawText = prettyJson({ ok: false, error: error.message });
@@ -357,13 +351,11 @@ export default {
 
     return {
       state,
-      summaryItems,
       overviewItems,
       inputStats,
       taskHint,
       batchTipVisible,
       refreshStatus,
-      handleWarmup,
       handleParse,
       fillExample,
       setTask,
@@ -379,13 +371,7 @@ export default {
       <AppHeader
         :status-text="state.statusText"
         :status-mode="state.statusMode"
-        :busy="state.busy"
-        :warmup-busy="state.warmupBusy"
-        @warmup="handleWarmup"
-        @parse="handleParse"
       />
-
-      <SummaryGrid :summary-items="summaryItems" />
 
       <section class="workspace-grid">
         <ControlPanel
@@ -402,8 +388,14 @@ export default {
           :batch-tip-visible="batchTipVisible"
           :model-path="state.modelPath"
           :adapter-path="state.adapterPath"
+          :backend-name="state.backendName"
+          :match-parse-mode="state.matchParseMode"
           :selected-jd-file-name="state.selectedJdFileName"
           :selected-file-name="state.selectedResumeFileName"
+          :busy="state.busy"
+          :status-text="state.statusText"
+          :status-mode="state.statusMode"
+          :model-loaded="state.loadState === '已加载'"
           @update:api-base="state.apiBase = $event"
           @set-task="setTask"
           @set-request-mode="setRequestMode"
@@ -415,6 +407,7 @@ export default {
           @jd-file-change="handleJdFileChange"
           @resume-file-change="handleResumeFileChange"
           @fill-example="fillExample"
+          @submit="handleParse"
         />
 
         <ResultPanel

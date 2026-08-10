@@ -18,9 +18,30 @@ def test_is_usable_public_match_row_requires_pair_text_and_label():
             "项目经历：负责订单中心重构与缓存优化，参与支付服务接口开发、压测和链路追踪接入。"
         ),
         "label": {"raw_label": "fit", "raw_score": 0.91},
-        "meta": {"language": "en"},
+        "meta": {
+            "language": "en",
+            "license_status": "confirmed",
+            "intended_usage": "training",
+            "provenance_status": "human_annotated",
+        },
     }
     assert is_usable_public_match_row(row) is True
+
+
+def test_is_usable_public_match_row_rejects_unconfirmed_license():
+    row = {
+        "task": "match",
+        "jd_text": "岗位描述" * 30,
+        "resume_text": "简历内容" * 30,
+        "label": {"raw_label": "fit"},
+        "meta": {
+            "language": "zh",
+            "license_status": "unconfirmed",
+            "intended_usage": "audit_only",
+            "provenance_status": "human_annotated",
+        },
+    }
+    assert is_usable_public_match_row(row) is False
 
 
 def test_build_combined_rows_merges_and_deduplicates():
@@ -50,7 +71,12 @@ def test_build_combined_rows_merges_and_deduplicates():
                 "项目经历：负责订单中心重构与缓存优化，参与支付服务接口开发、压测和链路追踪接入。"
             ),
             "label": {"raw_label": "fit", "raw_score": 0.91},
-            "meta": {"language": "en"},
+            "meta": {
+                "language": "en",
+                "license_status": "confirmed",
+                "intended_usage": "training",
+                "provenance_status": "human_annotated",
+            },
         },
         {
             "id": "public_2",
@@ -67,7 +93,12 @@ def test_build_combined_rows_merges_and_deduplicates():
                 "项目经历：负责订单中心重构与缓存优化，参与支付服务接口开发、压测和链路追踪接入。"
             ),
             "label": {"raw_label": "fit", "raw_score": 0.91},
-            "meta": {"language": "en"},
+            "meta": {
+                "language": "en",
+                "license_status": "confirmed",
+                "intended_usage": "training",
+                "provenance_status": "human_annotated",
+            },
         },
     ]
     synthetic_rows = [

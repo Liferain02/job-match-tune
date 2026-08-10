@@ -114,9 +114,9 @@ def post_json(
         if not isinstance(data, dict) or data.get("retCode") != "201":
             raise RuntimeError(f"Unexpected Ctrip response via curl: {data}")
         return data
-    except Exception:
+    except Exception as curl_error:
         assert last_error is not None
-        raise last_error
+        raise last_error from curl_error
 
 
 def timeout_from_session(session: requests.Session) -> float:

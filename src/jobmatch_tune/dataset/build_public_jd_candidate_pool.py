@@ -22,6 +22,11 @@ def _contains_any(text: str, keywords: list[str]) -> bool:
 
 def is_usable_public_jd_row(row: dict[str, Any]) -> bool:
     meta = row.get("meta") or {}
+    if meta.get("training_eligible") is not True:
+        return False
+    intended_usage = str(meta.get("intended_usage") or "").lower()
+    if intended_usage not in {"training", "training_and_evaluation", "weak_supervision_only"}:
+        return False
     language = str(meta.get("language") or "").lower()
     if language and not language.startswith("zh"):
         return False

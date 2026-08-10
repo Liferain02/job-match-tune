@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import Counter
 import random
+import re
+from collections import Counter
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +18,7 @@ from jobmatch_tune.dataset.build_jd_strict_plus_sft_dataset import build_rows as
 from jobmatch_tune.dataset.build_jd_strict_plus_sft_dataset import load_schema
 from jobmatch_tune.dataset.build_sft_dataset import (
     build_jd_parse_sample,
+    is_external_source_training_allowed,
     is_high_trust_strong_row,
     split_samples,
 )
@@ -63,6 +66,7 @@ QUALITY_TIER_BASE_SCORE = {
 }
 
 EXPERIENCE_SUPPLEMENT_LIMIT = 250
+DEFAULT_MAX_WEAK_EXTERNAL_RATIO = 0.40
 
 
 def _row_id(row: dict[str, Any]) -> str:
@@ -88,8 +92,14 @@ def _append_unique(
     limit: int,
     max_risk_score: int | None = None,
     excluded_ids: set[str] | None = None,
+    max_weak_external_rows: int | None = None,
 ) -> None:
     excluded_ids = excluded_ids or set()
+    weak_external_count = sum(
+        str((selected.get("meta") or {}).get("intended_usage") or "").lower()
+        == "weak_supervision_only"
+        for selected in target
+    )
     for row in rows:
         row_id = _row_id(row)
         if not row_id or row_id in seen_ids or row_id.removesuffix("_jd_parse") in excluded_ids:
@@ -99,8 +109,18 @@ def _append_unique(
             threshold=max_risk_score + 1,
         ):
             continue
+        if max_weak_external_rows is not None:
+            is_weak_external = (
+                str((row.get("meta") or {}).get("intended_usage") or "").lower()
+                == "weak_supervision_only"
+            )
+            if is_weak_external and weak_external_count >= max_weak_external_rows:
+                continue
+        else:
+            is_weak_external = False
         target.append(row)
         seen_ids.add(row_id)
+        weak_external_count += int(is_weak_external)
         if len(target) >= limit:
             return
 
@@ -185,6 +205,18 @@ def _repair_direction_from_title(title: str, current: str) -> str:
         return "AI Infra"
     if "hpc" in lowered or "高性能计算" in title or "gpu集群" in title or "gpu 集群" in title:
         return "高性能计算"
+    if re.search(
+        r"(算法(?:高级|资深|首席)?(?:工程师|研究员|专家|研发)|评测算法(?:工程师|研究员)?)",
+        title,
+        flags=re.I,
+    ) and not re.search(r"(应用算法|算法应用|大模型应用)", title, flags=re.I):
+        return "算法工程"
+    if re.search(
+        r"(网络(?:与)?(?:信息|数据)?安全|信息安全|数据安全|安全研发|渗透测试|漏洞研究|安全攻防)",
+        title,
+        flags=re.I,
+    ):
+        return "安全工程"
     if "网络" in title or "基础设施" in title or "基础架构" in title:
         return "网络与基础设施"
     if "sre" in lowered or "devops" in lowered or "运维" in title:
@@ -281,14 +313,19 @@ def build_quality_weak_rows(rows: list[dict[str, Any]], schema: dict[str, Any]) 
 
 def build_quality_rows(
     *,
-    strict_rows: list[dict[str, Any]],
+    strict_rows: Iterable[dict[str, Any]],
     candidate_rows: list[dict[str, Any]],
     schema: dict[str, Any],
     target_total: int,
     seed: int,
     max_risk_score: int | None = HIGH_RISK_THRESHOLD - 1,
     excluded_ids: set[str] | None = None,
+    max_weak_external_ratio: float = DEFAULT_MAX_WEAK_EXTERNAL_RATIO,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    if not 0.0 <= max_weak_external_ratio <= 1.0:
+        raise ValueError("max_weak_external_ratio must be between 0 and 1")
+    candidate_rows = [row for row in candidate_rows if is_external_source_training_allowed(row)]
+    max_weak_external_rows = int(target_total * max_weak_external_ratio)
     selected: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
     strict_selected = [_sanitize_normalized_row(row) for row in strict_rows if is_high_trust_strong_row(row)]
@@ -304,6 +341,7 @@ def build_quality_rows(
         limit=target_total,
         max_risk_score=max_risk_score,
         excluded_ids=excluded_ids,
+        max_weak_external_rows=max_weak_external_rows,
     )
 
     stats = {"strict": len(selected), "strict_plus": 0, "bootstrap_experience": 0, "quality_weak": 0, "bootstrap": 0}
@@ -325,6 +363,7 @@ def build_quality_rows(
         limit=target_total,
         max_risk_score=max_risk_score,
         excluded_ids=excluded_ids,
+        max_weak_external_rows=max_weak_external_rows,
     )
     stats["strict_plus"] = len(selected) - before
     if len(selected) >= target_total:
@@ -348,6 +387,7 @@ def build_quality_rows(
         limit=min(target_total, len(selected) + EXPERIENCE_SUPPLEMENT_LIMIT),
         max_risk_score=max_risk_score,
         excluded_ids=excluded_ids,
+        max_weak_external_rows=max_weak_external_rows,
     )
     stats["bootstrap_experience"] = len(selected) - before
     if len(selected) >= target_total:
@@ -359,7 +399,6 @@ def build_quality_rows(
         "quality_weak",
         "weak_source_direction_skill_education_or_experience",
     )
-    rng = random.Random(seed)
     quality_weak_rows = _rank_quality_candidates(quality_weak_rows, seed)
     before = len(selected)
     _append_unique(
@@ -369,6 +408,7 @@ def build_quality_rows(
         limit=target_total,
         max_risk_score=max_risk_score,
         excluded_ids=excluded_ids,
+        max_weak_external_rows=max_weak_external_rows,
     )
     stats["quality_weak"] = len(selected) - before
     if len(selected) >= target_total:
@@ -388,12 +428,18 @@ def build_quality_rows(
         limit=target_total,
         max_risk_score=max_risk_score,
         excluded_ids=excluded_ids,
+        max_weak_external_rows=max_weak_external_rows,
     )
     stats["bootstrap"] = len(selected) - before
     return selected[:target_total], stats
 
 
-def build_quality_profile(rows: list[dict[str, Any]], stats: dict[str, int]) -> dict[str, Any]:
+def build_quality_profile(
+    rows: list[dict[str, Any]],
+    stats: dict[str, int],
+    *,
+    max_weak_external_ratio: float = DEFAULT_MAX_WEAK_EXTERNAL_RATIO,
+) -> dict[str, Any]:
     tier_counts = Counter()
     reason_counts = Counter()
     source_counts = Counter()
@@ -402,6 +448,7 @@ def build_quality_profile(rows: list[dict[str, Any]], stats: dict[str, int]) -> 
     risk_score_counts = Counter()
     quality_score_counts = Counter()
     quality_scores = []
+    weak_external_count = 0
     for row in rows:
         meta = row.get("meta") or {}
         labels = row.get("labels") or {}
@@ -413,6 +460,9 @@ def build_quality_profile(rows: list[dict[str, Any]], stats: dict[str, int]) -> 
         quality_score = int(meta.get("quality_score") or 0)
         quality_scores.append(quality_score)
         quality_score_counts[str((quality_score // 10) * 10)] += 1
+        weak_external_count += int(
+            str(meta.get("intended_usage") or "").lower() == "weak_supervision_only"
+        )
         assistant = json.loads(build_jd_parse_sample(row)["messages"][-1]["content"])
         if not assistant.get("核心职责"):
             empty_counts["核心职责"] += 1
@@ -435,6 +485,9 @@ def build_quality_profile(rows: list[dict[str, Any]], stats: dict[str, int]) -> 
         "risk_score_counts": {str(key): value for key, value in sorted(risk_score_counts.items())},
         "quality_score_avg": round(sum(quality_scores) / total, 2) if total else 0.0,
         "quality_score_buckets": dict(sorted(quality_score_counts.items())),
+        "weak_external_rows": weak_external_count,
+        "weak_external_rate": round(weak_external_count / total, 4) if total else 0.0,
+        "max_weak_external_ratio": max_weak_external_ratio,
     }
 
 
@@ -446,15 +499,16 @@ def main() -> None:
     parser.add_argument("--out-dir", default="data/sft_jd_quality")
     parser.add_argument("--profile-out", default="outputs/eval_reports/jd_quality_profile.json")
     parser.add_argument("--holdout-input", default="data/eval/jd_manual_eval_50.jsonl")
-    parser.add_argument("--target-total", type=int, default=5500)
+    parser.add_argument("--target-total", type=int, default=5300)
     parser.add_argument("--max-risk-score", type=int, default=HIGH_RISK_THRESHOLD - 1)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--train-ratio", type=float, default=0.8)
     parser.add_argument("--valid-ratio", type=float, default=0.1)
+    parser.add_argument("--max-weak-external-ratio", type=float, default=DEFAULT_MAX_WEAK_EXTERNAL_RATIO)
     args = parser.parse_args()
 
     schema = load_schema(args.schema)
-    strict_rows = list(read_jsonl(args.strict_input))
+    strict_rows = read_jsonl(args.strict_input)
     candidate_rows = list(read_jsonl(args.candidate_input))
     excluded_ids = _load_excluded_ids(args.holdout_input)
     quality_rows, stats = build_quality_rows(
@@ -465,6 +519,7 @@ def main() -> None:
         seed=args.seed,
         max_risk_score=args.max_risk_score,
         excluded_ids=excluded_ids,
+        max_weak_external_ratio=args.max_weak_external_ratio,
     )
     if len(quality_rows) < args.target_total:
         raise SystemExit(
@@ -480,7 +535,11 @@ def main() -> None:
     for split, split_rows in splits.items():
         write_jsonl(str(out_dir / f"{split}.jsonl"), split_rows)
         print(f"wrote {len(split_rows)} {split} samples")
-    profile = build_quality_profile(quality_rows, stats)
+    profile = build_quality_profile(
+        quality_rows,
+        stats,
+        max_weak_external_ratio=args.max_weak_external_ratio,
+    )
     write_text(args.profile_out, json.dumps(profile, ensure_ascii=False, indent=2) + "\n")
     print(f"wrote quality profile to {args.profile_out}")
     print(f"stage_stats={stats}")

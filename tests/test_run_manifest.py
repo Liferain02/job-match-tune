@@ -11,7 +11,13 @@ def test_build_run_manifest_profiles_config_dataset_and_readiness(tmp_path: Path
     valid = tmp_path / "valid.jsonl"
     readiness = tmp_path / "readiness.json"
     config.write_text("learning_rate: 1.0e-4\n", encoding="utf-8")
-    write_jsonl(train, [{"id": "t1"}, {"id": "t2"}])
+    write_jsonl(
+        train,
+        [
+            {"id": "t1", "task_type": "jd_parse", "source_group": "source_1"},
+            {"id": "t2", "task_type": "jd_parse", "source_group": "source_2"},
+        ],
+    )
     write_jsonl(valid, [{"id": "v1"}])
     readiness.write_text(
         json.dumps({"summary": {"all_ready_for_training": True}}, ensure_ascii=False),
@@ -32,6 +38,8 @@ def test_build_run_manifest_profiles_config_dataset_and_readiness(tmp_path: Path
     assert manifest["config"]["sha256"] == file_sha256(config)
     assert manifest["datasets"]["train"]["rows"] == 2
     assert manifest["datasets"]["valid"]["rows"] == 1
+    assert manifest["datasets"]["train"]["task_counts"] == {"jd_parse": 2}
+    assert manifest["datasets"]["train"]["unique_source_groups"] == 2
     assert manifest["readiness"]["summary"]["all_ready_for_training"] is True
     assert "git" in manifest
 

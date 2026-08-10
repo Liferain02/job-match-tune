@@ -6,17 +6,20 @@ import json
 from pathlib import Path
 from typing import Any
 
+from jobmatch_tune.dataset.grouped_split import normalized_input_hash
+from jobmatch_tune.dataset.pipeline_freshness import build_pipeline_freshness_report
 from jobmatch_tune.utils.io import read_jsonl, write_text
 
 
 READINESS_THRESHOLDS = {
-    "jd": {"train": 4400, "valid": 550, "test": 550, "pool": 8000},
+    "jd": {"train": 4240, "valid": 530, "test": 530, "pool": 8000},
     "resume": {"train": 10000, "valid": 1000, "test": 1000, "pool": 3000},
     "match": {"train": 3000, "valid": 400, "test": 400, "pool": 4500},
-    "multitask": {"train": 9700, "valid": 1200, "test": 0, "pool": 10900},
+    "multitask": {"train": 9540, "valid": 1180, "test": 0, "pool": 10720},
 }
 
 MAX_JD_HIGH_RISK_RATE = 0.05
+MIN_MULTITASK_SOURCE_GROUP_RATIO = {"jd": 0.95, "resume": 0.8, "match": 0.8}
 
 REQUIRED_FIELDS = {
     "jd": ["岗位方向", "核心职责", "必备技能", "学历要求", "经验要求"],
@@ -104,7 +107,9 @@ def audit_sft_files(task_name: str, paths: list[str]) -> dict[str, Any]:
     duplicate_ids = 0
     ids: set[str] = set()
     content_seen: dict[str, str] = {}
+    normalized_input_seen: dict[str, str] = {}
     cross_split_duplicate_hashes = 0
+    cross_split_normalized_input_hashes = 0
     split_counts: dict[str, int] = {}
     empty_counts = {field: 0 for field in REQUIRED_FIELDS[task_name]}
     task_types: dict[str, int] = {}
@@ -138,6 +143,11 @@ def audit_sft_files(task_name: str, paths: list[str]) -> dict[str, Any]:
                     if previous_split and previous_split != split_name:
                         cross_split_duplicate_hashes += 1
                     content_seen.setdefault(content_hash, split_name)
+                    input_hash = normalized_input_hash(user_text)
+                    previous_input_split = normalized_input_seen.get(input_hash)
+                    if previous_input_split and previous_input_split != split_name:
+                        cross_split_normalized_input_hashes += 1
+                    normalized_input_seen.setdefault(input_hash, split_name)
                 except Exception:
                     invalid_json += 1
                     continue
@@ -158,6 +168,7 @@ def audit_sft_files(task_name: str, paths: list[str]) -> dict[str, Any]:
         "invalid_json": invalid_json,
         "duplicate_ids": duplicate_ids,
         "cross_split_duplicate_hashes": cross_split_duplicate_hashes,
+        "cross_split_normalized_input_hashes": cross_split_normalized_input_hashes,
         "split_counts": split_counts,
         "task_types": task_types,
         "empty_counts": empty_counts,
@@ -173,21 +184,53 @@ def build_multitask_report(train_path: str, valid_path: str) -> dict[str, Any]:
     valid_count = count_jsonl(valid_path)
     audit = audit_sft_files("multitask", [train_path, valid_path])
     task_mix = {}
+    source_groups: dict[str, dict[str, set[str]]] = {}
+    group_splits: dict[str, dict[str, set[str]]] = {}
     for path in [train_path, valid_path]:
         split = Path(path).stem
         for row in read_jsonl(path):
             task = str((row.get("meta") or {}).get("dataset_task") or row.get("task_type") or "")
             task_mix.setdefault(split, {})
             task_mix[split][task] = task_mix[split].get(task, 0) + 1
+            source_group = str(
+                row.get("source_group") or row.get("source_id") or row.get("id") or ""
+            )
+            source_groups.setdefault(split, {}).setdefault(task, set()).add(source_group)
+            group_splits.setdefault(task, {}).setdefault(source_group, set()).add(split)
     required_tasks = {"jd", "resume", "match"}
     has_required_mix = all(required_tasks.issubset(set(task_mix.get(split, {}))) for split in ("train", "valid"))
+    source_diversity = {}
+    for split, task_counts in task_mix.items():
+        source_diversity[split] = {}
+        for task, row_count in task_counts.items():
+            unique_groups = len(source_groups.get(split, {}).get(task, set()))
+            source_diversity[split][task] = {
+                "rows": row_count,
+                "unique_source_groups": unique_groups,
+                "source_group_ratio": round(unique_groups / row_count, 4) if row_count else 0.0,
+                "minimum_ratio": MIN_MULTITASK_SOURCE_GROUP_RATIO.get(task, 0.0),
+            }
+    source_diversity_ready = all(
+        source_diversity.get(split, {}).get(task, {}).get("source_group_ratio", 0.0)
+        >= MIN_MULTITASK_SOURCE_GROUP_RATIO[task]
+        for split in ("train", "valid")
+        for task in required_tasks
+    )
+    cross_split_source_groups = sum(
+        1
+        for task_groups in group_splits.values()
+        for splits in task_groups.values()
+        if len(splits) > 1
+    )
     count_ready = train_count >= thresholds["train"] and valid_count >= thresholds["valid"]
     format_ready = (
         audit["invalid_json"] == 0
         and audit["duplicate_ids"] == 0
         and audit["cross_split_duplicate_hashes"] == 0
+        and audit.get("cross_split_normalized_input_hashes", 0) == 0
+        and cross_split_source_groups == 0
     )
-    ready = count_ready and format_ready and has_required_mix
+    ready = count_ready and format_ready and has_required_mix and source_diversity_ready
     return {
         "task": "multitask",
         "counts": {"train": train_count, "valid": valid_count, "test": 0, "combined_pool": train_count + valid_count},
@@ -196,6 +239,9 @@ def build_multitask_report(train_path: str, valid_path: str) -> dict[str, Any]:
         "format_ready": format_ready,
         "task_mix": task_mix,
         "has_required_mix": has_required_mix,
+        "source_diversity": source_diversity,
+        "source_diversity_ready": source_diversity_ready,
+        "cross_split_source_groups": cross_split_source_groups,
         "quality_audit": audit,
         "ready_for_sft": ready,
     }
@@ -222,8 +268,8 @@ def build_task_report(
     )
     format_ready = (
         audit["invalid_json"] == 0
-        and audit["duplicate_ids"] == 0
         and audit["cross_split_duplicate_hashes"] == 0
+        and audit.get("cross_split_normalized_input_hashes", 0) == 0
     )
     ready = count_ready and format_ready and bool(audit["field_quality_ok"])
     return {
@@ -243,6 +289,7 @@ def build_task_report(
 
 
 def build_report() -> dict[str, object]:
+    pipeline_freshness = build_pipeline_freshness_report()
     tasks = {
         "jd": build_task_report(
             "jd",
@@ -279,6 +326,12 @@ def build_report() -> dict[str, object]:
         tasks["jd"]["risk_report"] = jd_risk_report
         tasks["jd"]["risk_ready"] = high_risk_rate <= MAX_JD_HIGH_RISK_RATE
         tasks["jd"]["ready_for_sft"] = bool(tasks["jd"]["ready_for_sft"] and tasks["jd"]["risk_ready"])
+    jd_direction_conflicts = read_json_file("outputs/eval_reports/jd_direction_conflicts.json")
+    if jd_direction_conflicts:
+        tasks["jd"]["direction_conflict_audit"] = jd_direction_conflicts
+    jd_experience_gaps = read_json_file("outputs/eval_reports/jd_experience_gaps.json")
+    if jd_experience_gaps:
+        tasks["jd"]["experience_gap_audit"] = jd_experience_gaps
     jd_holdout_overlap = count_holdout_overlap(
         [
             "data/sft_jd_quality/train.jsonl",
@@ -309,7 +362,12 @@ def build_report() -> dict[str, object]:
     ready_for_dpo_smoke = bool(preference_report.get("ready_for_dpo_smoke"))
     ready_for_product_dpo = bool(product_preference_report.get("ready_for_dpo"))
     ready_for_product_dpo_smoke = bool(product_preference_report.get("ready_for_dpo_smoke"))
-    all_ready_for_training = all_ready_for_sft and ready_for_dpo and ready_for_product_dpo
+    all_ready_for_training = (
+        all_ready_for_sft
+        and ready_for_dpo
+        and ready_for_product_dpo
+        and bool(pipeline_freshness["fresh"])
+    )
     return {
         "summary": {
             "all_ready_for_training": all_ready_for_training,
@@ -319,7 +377,9 @@ def build_report() -> dict[str, object]:
             "ready_for_product_dpo_smoke": ready_for_product_dpo_smoke,
             "ready_for_product_dpo": ready_for_product_dpo,
             "not_ready_tasks": [name for name, task in tasks.items() if not task["ready_for_sft"]],
+            "pipeline_fresh": pipeline_freshness["fresh"],
         },
+        "pipeline_freshness": pipeline_freshness,
         "tasks": tasks,
         "preference": preference_report,
         "product_preference": product_preference_report,

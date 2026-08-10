@@ -25,15 +25,28 @@ def describe_manifest(name: str, manifest_path: str | Path) -> dict[str, Any]:
     items = []
     existing = 0
     for source in sources:
-        source_path = Path(str(source.get("path") or ""))
-        exists = source_path.exists()
+        source_path_text = str(source.get("path") or source.get("local_path") or "")
+        source_path = Path(source_path_text) if source_path_text else None
+        exists = bool(source_path and source_path.exists())
         if exists:
             existing += 1
         items.append(
             {
                 "name": str(source.get("name") or ""),
-                "path": str(source_path),
+                "path": source_path_text,
                 "exists": exists,
+                "license_status": str(source.get("license_status") or "unconfirmed"),
+                "intended_usage": str(source.get("intended_usage") or "audit_only"),
+                "provenance_status": str(
+                    source.get("provenance_status") or "undocumented"
+                ),
+                "training_eligible": (
+                    str(source.get("license_status") or "").lower() == "confirmed"
+                    and str(source.get("intended_usage") or "").lower()
+                    in {"training", "sft_training", "training_and_evaluation"}
+                    and str(source.get("provenance_status") or "").lower()
+                    not in {"", "undocumented", "unknown"}
+                ),
             }
         )
     return {

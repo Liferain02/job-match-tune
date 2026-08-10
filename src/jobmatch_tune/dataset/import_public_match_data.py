@@ -94,6 +94,13 @@ def build_match_pair_row(
             "schema": source["schema"],
             "language": normalize_text(source.get("language") or "unknown"),
             "source_path": normalize_text(source.get("path")),
+            "source_url": normalize_text(source.get("source_url")),
+            "source_revision": normalize_text(source.get("source_revision")),
+            "provenance_status": normalize_text(
+                source.get("provenance_status") or "undocumented"
+            ),
+            "license_status": normalize_text(source.get("license_status") or "unconfirmed"),
+            "intended_usage": normalize_text(source.get("intended_usage") or "audit_only"),
         },
     }
 
@@ -118,6 +125,9 @@ def main() -> None:
 
     all_rows: list[dict[str, Any]] = []
     for source in load_sources(args.manifest):
+        if source.get("enabled") is False:
+            print(f"{source['name']}: skipped (disabled)")
+            continue
         rows = read_rows(source["path"])
         converted = convert_rows(source, rows)
         all_rows.extend(converted)

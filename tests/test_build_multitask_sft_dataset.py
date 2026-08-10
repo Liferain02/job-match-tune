@@ -6,8 +6,8 @@ from pathlib import Path
 from jobmatch_tune.dataset.build_multitask_sft_dataset import build_multitask_dataset
 
 
-def _sample(row_id: str, task_type: str, user: str) -> dict:
-    return {
+def _sample(row_id: str, task_type: str, user: str, source_group: str | None = None) -> dict:
+    row = {
         "id": row_id,
         "task_type": task_type,
         "messages": [
@@ -16,6 +16,9 @@ def _sample(row_id: str, task_type: str, user: str) -> dict:
             {"role": "assistant", "content": json.dumps({"ok": row_id}, ensure_ascii=False)},
         ],
     }
+    if source_group:
+        row["source_group"] = source_group
+    return row
 
 
 def _write_jsonl(path: Path, rows: list[dict]) -> None:
@@ -72,3 +75,40 @@ def test_build_multitask_dataset_samples_by_task_and_tags_meta(tmp_path: Path) -
     assert result["valid_total"] == 2
     assert result["train_stats"] == {"jd": 1, "resume": 2}
     assert {row["meta"]["dataset_task"] for row in train_rows} == {"jd", "resume"}
+
+
+def test_build_multitask_dataset_prefers_unique_source_groups(tmp_path: Path) -> None:
+    train = tmp_path / "train_source.jsonl"
+    valid = tmp_path / "valid_source.jsonl"
+    _write_jsonl(
+        train,
+        [
+            _sample("a_1", "resume_parse", "a variant 1", "a"),
+            _sample("a_2", "resume_parse", "a variant 2", "a"),
+            _sample("a_3", "resume_parse", "a variant 3", "a"),
+            _sample("b_1", "resume_parse", "b variant 1", "b"),
+            _sample("c_1", "resume_parse", "c variant 1", "c"),
+        ],
+    )
+    _write_jsonl(valid, [_sample("v_1", "resume_parse", "valid", "v")])
+    registry = {
+        "multitask_sft": {
+            "train_out": str(tmp_path / "train.jsonl"),
+            "valid_out": str(tmp_path / "valid.jsonl"),
+            "seed": 42,
+            "tasks": {
+                "resume": {
+                    "train_file": str(train),
+                    "valid_file": str(valid),
+                    "train_samples": 3,
+                    "valid_samples": 1,
+                }
+            },
+        }
+    }
+
+    result = build_multitask_dataset(registry, "multitask_sft")
+    selected = [json.loads(line) for line in Path(result["train_out"]).read_text(encoding="utf-8").splitlines()]
+
+    assert {row["source_group"] for row in selected} == {"a", "b", "c"}
+    assert result["train_diversity"]["resume"]["source_group_ratio"] == 1.0

@@ -3,17 +3,56 @@ sources:
     type: job_educational_parquet
     enabled: true
     local_path: data/external/public_job_exports/job_educational_train_2026-05-17.parquet
-    source_url: https://huggingface.co/datasets/wangzihaogithub/job-educational-parser-dataset-08-0-0805/resolve/refs%2Fconvert%2Fparquet/default/train/0000.parquet
+    source_url: https://huggingface.co/datasets/wangzihaogithub/job-educational-parser-dataset-08-0-0805/resolve/09444854fb15a62ee1d11f693fae9b54f171f691/default/train/0000.parquet
+    source_revision: da1d0e3b2dc4ccd5b6315468f830a14f04b3e382
+    artifact_revision: 09444854fb15a62ee1d11f693fae9b54f171f691
+    artifact_sha256: 3f014ae53fb0c3aa1b8a7127512f01757a66d41f193512d8885d1db8bba86036
+    package_license: Apache-2.0
+    package_license_status: confirmed
+    content_rights_status: upstream_declared_license_provenance_incomplete
+    provenance_status: creator_published_underlying_job_origin_undocumented
+    annotation_type: weak_non_manual
+    quality_tier: weak
+    intended_usage: weak_supervision_only
+    training_eligible: true
+    split_role: upstream_weak_train
+    holdout_eligible: false
     min_description_chars: 40
   - name: hf_job_educational_validation_2026_05_17
     type: job_educational_parquet
     enabled: true
     local_path: data/external/public_job_exports/job_educational_validation_2026-05-17.parquet
-    source_url: https://huggingface.co/datasets/wangzihaogithub/job-educational-parser-dataset-08-0-0805/resolve/refs%2Fconvert%2Fparquet/default/validation/0000.parquet
+    source_url: https://huggingface.co/datasets/wangzihaogithub/job-educational-parser-dataset-08-0-0805/resolve/09444854fb15a62ee1d11f693fae9b54f171f691/default/validation/0000.parquet
+    source_revision: da1d0e3b2dc4ccd5b6315468f830a14f04b3e382
+    artifact_revision: 09444854fb15a62ee1d11f693fae9b54f171f691
+    artifact_sha256: eb6059a795c0047001d95272d4a593a5ad7702818aa3234671c3ad0d483b73be
+    package_license: Apache-2.0
+    package_license_status: confirmed
+    content_rights_status: upstream_declared_license_provenance_incomplete
+    provenance_status: creator_published_underlying_job_origin_undocumented
+    annotation_type: weak_non_manual
+    quality_tier: weak
+    intended_usage: weak_supervision_only
+    training_eligible: true
+    split_role: upstream_weak_validation
+    holdout_eligible: false
     min_description_chars: 40
   - name: hf_job_educational_test_2026_05_17
     type: job_educational_parquet
     enabled: true
     local_path: data/external/public_job_exports/job_educational_test_2026-05-17.parquet
-    source_url: https://huggingface.co/datasets/wangzihaogithub/job-educational-parser-dataset-08-0-0805/resolve/refs%2Fconvert%2Fparquet/default/test/0000.parquet
+    source_url: https://huggingface.co/datasets/wangzihaogithub/job-educational-parser-dataset-08-0-0805/resolve/09444854fb15a62ee1d11f693fae9b54f171f691/default/test/0000.parquet
+    source_revision: da1d0e3b2dc4ccd5b6315468f830a14f04b3e382
+    artifact_revision: 09444854fb15a62ee1d11f693fae9b54f171f691
+    artifact_sha256: e3fb779f756b95f2045b6fc6aefda1cd8d39f0080d8cec938aa57202ba54746a
+    package_license: Apache-2.0
+    package_license_status: confirmed
+    content_rights_status: upstream_declared_license_provenance_incomplete
+    provenance_status: creator_published_underlying_job_origin_undocumented
+    annotation_type: weak_non_manual
+    quality_tier: weak
+    intended_usage: weak_supervision_only
+    training_eligible: true
+    split_role: upstream_weak_test
+    holdout_eligible: false
     min_description_chars: 40

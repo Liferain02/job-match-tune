@@ -151,8 +151,13 @@ def _normalize_resume_fields(data: dict[str, Any], context_text: str) -> dict[st
     direction = _normalize_string(data.get("目标岗位"))
     if direction:
         data["目标岗位"] = _canonicalize_resume_direction(direction, context_text)
-    for field in ("教育背景", "核心技能", "实习经历"):
+    for field in ("教育背景", "实习经历"):
         data[field] = _ensure_resume_list(data.get(field))
+    data["核心技能"] = _canonicalize_skills(
+        _ensure_resume_list(data.get("核心技能")),
+        load_label_schema(),
+        keep_unknown=True,
+    )
     data["优势标签"] = _normalize_resume_tags(data.get("优势标签"))
     projects = _ensure_resume_list(data.get("项目经历"), split_semicolon=True)
     data["项目经历"] = [_ensure_sentence_ending(item) for item in projects]
@@ -169,7 +174,12 @@ def _normalize_match_fields(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _canonicalize_skills(skills: list[str], schema: dict[str, Any]) -> list[str]:
+def _canonicalize_skills(
+    skills: list[str],
+    schema: dict[str, Any],
+    *,
+    keep_unknown: bool = False,
+) -> list[str]:
     canonical_map = {}
     for canonical, aliases in schema.get("skill_alias", {}).items():
         canonical_map[canonical.lower()] = canonical
@@ -177,10 +187,10 @@ def _canonicalize_skills(skills: list[str], schema: dict[str, Any]) -> list[str]
             canonical_map[str(alias).strip().lower()] = canonical
     result = []
     for skill in skills:
-        normalized = _normalize_string(skill).lower()
-        canonical = canonical_map.get(normalized)
-        if canonical:
-            result.append(canonical)
+        normalized = _normalize_string(skill)
+        canonical = canonical_map.get(normalized.lower())
+        if canonical or (keep_unknown and normalized):
+            result.append(canonical or normalized)
     return merge_unique(result)
 
 
@@ -224,7 +234,7 @@ def _merge_missing_responsibilities(parsed_lines: list[str], context_text: str) 
     if not parsed_lines or not missing:
         return merge_unique(parsed_lines)
     matched_prefix = 0
-    for parsed, source in zip(parsed_lines, context_lines):
+    for parsed, source in zip(parsed_lines, context_lines, strict=False):
         if parsed.strip() == source.strip():
             matched_prefix += 1
         else:

@@ -31,7 +31,7 @@ def test_build_analysis_from_label_contains_strengths_and_gaps():
 def test_build_match_sample_contains_match_prompt_and_json_assistant():
     sample = build_match_sample(_row())
     assert sample["task_type"] == "match"
-    assert sample["source_group"] == "match_eval"
+    assert sample["source_group"] == "match_eval_001"
     assert "请根据 JD、简历和规则评分结果生成岗位匹配分析" in sample["messages"][1]["content"]
     assert "固定包含匹配结论、匹配优势、主要短板、简历优化建议、推荐投递岗位方向五个字段" in sample["messages"][1]["content"]
     assert "匹配结论" in sample["messages"][2]["content"]

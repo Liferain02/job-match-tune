@@ -18,8 +18,5 @@ case "$MODEL_SIZE" in
     ;;
 esac
 
-source /share/home/lifr/miniconda3/etc/profile.d/conda.sh
-conda activate tune-demo
-
-cd /share/home/lifr/workspace/code/job-match-tune
+cd "$(dirname "$0")/../.."
 PYTHONPATH=src python -m jobmatch_tune.utils.download_hf_snapshot --repo-id "$MODEL_ID" --local-dir "$LOCAL_DIR"

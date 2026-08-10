@@ -4,7 +4,7 @@ import argparse
 import hashlib
 import re
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from difflib import SequenceMatcher
 from typing import Any
 
@@ -72,19 +72,19 @@ def text_similarity(left: str, right: str, *, ngram_size: int = 5) -> float:
     return max(jaccard, sequence_ratio)
 
 
-def deduplicate_rows(
+def iter_deduplicated_rows(
     rows: Iterable[dict[str, Any]],
     text_key: str = "clean_text",
     *,
     near_threshold: float = 0.9,
     ngram_size: int = 5,
-) -> list[dict[str, Any]]:
-    kept_rows: list[dict[str, Any]] = []
+) -> Iterator[dict[str, Any]]:
     bucket_fingerprints: dict[str, set[str]] = defaultdict(set)
     bucket_texts: dict[str, list[str]] = defaultdict(list)
 
     for row in rows:
         text = str(row.get(text_key, ""))
+        similarity_text = normalize_similarity_text(text)
         bucket_key = build_bucket_key(row)
         exact_fp = fingerprint(text)
         if exact_fp in bucket_fingerprints[bucket_key]:
@@ -92,16 +92,32 @@ def deduplicate_rows(
 
         duplicate = False
         for existing_text in bucket_texts[bucket_key]:
-            if text_similarity(text, existing_text, ngram_size=ngram_size) >= near_threshold:
+            if text_similarity(similarity_text, existing_text, ngram_size=ngram_size) >= near_threshold:
                 duplicate = True
                 break
         if duplicate:
             continue
 
         bucket_fingerprints[bucket_key].add(exact_fp)
-        bucket_texts[bucket_key].append(text)
-        kept_rows.append(row)
-    return kept_rows
+        bucket_texts[bucket_key].append(similarity_text)
+        yield row
+
+
+def deduplicate_rows(
+    rows: Iterable[dict[str, Any]],
+    text_key: str = "clean_text",
+    *,
+    near_threshold: float = 0.9,
+    ngram_size: int = 5,
+) -> list[dict[str, Any]]:
+    return list(
+        iter_deduplicated_rows(
+            rows,
+            text_key,
+            near_threshold=near_threshold,
+            ngram_size=ngram_size,
+        )
+    )
 
 
 def main() -> None:
@@ -112,14 +128,21 @@ def main() -> None:
     parser.add_argument("--near-threshold", type=float, default=0.9)
     parser.add_argument("--ngram-size", type=int, default=5)
     args = parser.parse_args()
-    rows = deduplicate_rows(
-        read_jsonl(args.input),
-        args.text_key,
-        near_threshold=args.near_threshold,
-        ngram_size=args.ngram_size,
-    )
-    write_jsonl(args.out, rows)
-    print(f"wrote {len(rows)} unique rows to {args.out}")
+    count = 0
+
+    def counted_rows() -> Iterator[dict[str, Any]]:
+        nonlocal count
+        for row in iter_deduplicated_rows(
+            read_jsonl(args.input),
+            args.text_key,
+            near_threshold=args.near_threshold,
+            ngram_size=args.ngram_size,
+        ):
+            count += 1
+            yield row
+
+    write_jsonl(args.out, counted_rows())
+    print(f"wrote {count} unique rows to {args.out}")
 
 
 if __name__ == "__main__":

@@ -6,18 +6,15 @@ multitask_sft:
     jd:
       train_file: data/sft_jd_quality/train.jsonl
       valid_file: data/sft_jd_quality/valid.jsonl
-      train_samples: 4400
-      valid_samples: 550
-      weight: 0.5
+      train_samples: 4240
+      valid_samples: 530
     resume:
       train_file: data/sft_resume/train.jsonl
       valid_file: data/sft_resume/valid.jsonl
       train_samples: 2800
       valid_samples: 338
-      weight: 0.29
     match:
       train_file: data/sft_match/train.jsonl
       valid_file: data/sft_match/valid.jsonl
       train_samples: 2600
       valid_samples: 320
-      weight: 0.24

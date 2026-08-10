@@ -3,30 +3,78 @@ sources:
     type: bosszp_csv
     enabled: true
     local_path: data/external/public_job_exports/jhcoco_bosszp.csv
-    source_url: https://raw.githubusercontent.com/jhcoco/bosszp/master/%E5%85%A8%E5%9B%BD-%E7%83%AD%E9%97%A8%E5%9F%8E%E5%B8%82%E5%B2%97%E4%BD%8D%E6%95%B0%E6%8D%AE.csv
+    source_url: https://raw.githubusercontent.com/jhcoco/bosszp/522250ff097909439bd72a58d2433bfc1a5bdab3/%E5%85%A8%E5%9B%BD-%E7%83%AD%E9%97%A8%E5%9F%8E%E5%B8%82%E5%B2%97%E4%BD%8D%E6%95%B0%E6%8D%AE.csv
+    source_revision: 522250ff097909439bd72a58d2433bfc1a5bdab3
+    artifact_sha256: 8d867a37ca775443ad7a1d39d583bacc57b1fdbabd5c6f7d3ee7d9f552379c95
+    package_license_status: unconfirmed
+    content_rights_status: unconfirmed
+    provenance_status: scraped_third_party_site
+    annotation_type: raw
+    intended_usage: audit_only
+    training_eligible: false
+    holdout_eligible: false
   - name: github_workaggregation_test
     type: workaggregation_csv
     enabled: true
     local_path: data/external/public_job_exports/workaggregation_test.csv
-    source_url: https://raw.githubusercontent.com/xming521/WorkAggregation/master/data/test.csv
+    source_url: https://raw.githubusercontent.com/xming521/WorkAggregation/7c505e076fd10af7749186cb23704362691f4784/data/test.csv
+    source_revision: 7c505e076fd10af7749186cb23704362691f4784
+    artifact_sha256: 305b9495259d7a3b0d643c086703e8c3f74a80fb103cf2d210124eddaef42a5c
+    package_license_status: unconfirmed
+    content_rights_status: unconfirmed
+    provenance_status: scraped_third_party_sites
+    annotation_type: raw
+    intended_usage: audit_only
+    training_eligible: false
+    holdout_eligible: false
   - name: hf_open_apply_greenhouse_tech_2026_05_15
     type: open_apply_jobs_parquet
     enabled: true
     local_path: data/external/public_job_exports/open_apply_greenhouse_2026-05-15.parquet
-    source_url: https://huggingface.co/datasets/edwarddgao/open-apply-jobs/resolve/main/data/date=2026-05-15/source=greenhouse/52db4a0a5e67446bb34dceaf6c9f6c43-0.parquet
+    source_url: https://huggingface.co/datasets/edwarddgao/open-apply-jobs/resolve/450a44a3a75941b912f22bc9d2898d4caa495ad5/data/date=2026-05-15/source=greenhouse/52db4a0a5e67446bb34dceaf6c9f6c43-0.parquet
+    source_revision: 450a44a3a75941b912f22bc9d2898d4caa495ad5
+    artifact_sha256: 9b29f4a8eaee296b47b657af8dc59677edc0df35ba8211bba51bf14dbf2bbd65
+    package_license: MIT
+    package_license_status: confirmed
+    content_rights_status: fair_use_claim_not_open_license
+    provenance_status: public_ats_aggregated
+    annotation_type: raw
+    intended_usage: research_evaluation_only
+    training_eligible: false
+    holdout_eligible: false
     min_description_chars: 800
     max_rows: 20000
   - name: hf_open_apply_ashby_tech_2026_05_15
     type: open_apply_jobs_parquet
     enabled: true
     local_path: data/external/public_job_exports/open_apply_ashby_2026-05-15.parquet
-    source_url: https://huggingface.co/datasets/edwarddgao/open-apply-jobs/resolve/main/data/date=2026-05-15/source=ashby/52db4a0a5e67446bb34dceaf6c9f6c43-0.parquet
+    source_url: https://huggingface.co/datasets/edwarddgao/open-apply-jobs/resolve/450a44a3a75941b912f22bc9d2898d4caa495ad5/data/date=2026-05-15/source=ashby/52db4a0a5e67446bb34dceaf6c9f6c43-0.parquet
+    source_revision: 450a44a3a75941b912f22bc9d2898d4caa495ad5
+    artifact_sha256: bf99eac8f2f2cfb9b28927bf7627db29085ae1726305600dd296e0f6cc606389
+    package_license: MIT
+    package_license_status: confirmed
+    content_rights_status: fair_use_claim_not_open_license
+    provenance_status: public_ats_aggregated
+    annotation_type: raw
+    intended_usage: research_evaluation_only
+    training_eligible: false
+    holdout_eligible: false
     min_description_chars: 800
     max_rows: 20000
   - name: hf_open_apply_lever_tech_2026_05_15
     type: open_apply_jobs_parquet
     enabled: true
     local_path: data/external/public_job_exports/open_apply_lever_2026-05-15.parquet
-    source_url: https://huggingface.co/datasets/edwarddgao/open-apply-jobs/resolve/main/data/date=2026-05-15/source=lever/52db4a0a5e67446bb34dceaf6c9f6c43-0.parquet
+    source_url: https://huggingface.co/datasets/edwarddgao/open-apply-jobs/resolve/450a44a3a75941b912f22bc9d2898d4caa495ad5/data/date=2026-05-15/source=lever/52db4a0a5e67446bb34dceaf6c9f6c43-0.parquet
+    source_revision: 450a44a3a75941b912f22bc9d2898d4caa495ad5
+    artifact_sha256: 786e43797424e9a12def73c8a2b84943d3db4505b1d06aa3c83e8d5e5e450bba
+    package_license: MIT
+    package_license_status: confirmed
+    content_rights_status: fair_use_claim_not_open_license
+    provenance_status: public_ats_aggregated
+    annotation_type: raw
+    intended_usage: research_evaluation_only
+    training_eligible: false
+    holdout_eligible: false
     min_description_chars: 800
     max_rows: 20000

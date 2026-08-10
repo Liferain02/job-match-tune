@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
+from collections.abc import Iterable
 from typing import Any
 
 from jobmatch_tune.dataset.templates import SYSTEM_PROMPT, jd_parse_prompt
@@ -316,6 +317,7 @@ def build_jd_parse_sample(row: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": f"{row['id']}_jd_parse",
         "task_type": "jd_parse",
+        "source_group": str(row.get("source_group") or row["id"]),
         "meta": meta,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -370,6 +372,20 @@ def split_samples(
         "train": shuffled[:train_end],
         "valid": shuffled[train_end:valid_end],
         "test": shuffled[valid_end:],
+    }
+
+
+def is_external_source_training_allowed(row: dict[str, Any]) -> bool:
+    """Require an explicit opt-in before external HF/GitHub rows enter training."""
+    source = str(row.get("source") or "")
+    if not source.startswith(("hf_", "github_")):
+        return True
+    meta = row.get("meta") or {}
+    intended_usage = str(meta.get("intended_usage") or "").lower()
+    return meta.get("training_eligible") is True and intended_usage in {
+        "training",
+        "training_and_evaluation",
+        "weak_supervision_only",
     }
 
 
@@ -508,7 +524,7 @@ def is_high_confidence_weak_tech_row(row: dict[str, Any]) -> bool:
     if len(clean_text) < 180:
         return False
 
-    sections = row.get("sections") or split_sections(clean_text)
+    sections = row.get("sections") or split_sections(clean_text, source=str(row.get("source") or ""))
     responsibilities = str(sections.get("responsibilities") or "").strip()
     requirements = str(sections.get("requirements") or "").strip()
     has_structure_marker = any(
@@ -545,26 +561,31 @@ def is_high_confidence_weak_tech_row(row: dict[str, Any]) -> bool:
 
 
 def collect_sft_rows(
-    rows: list[dict[str, Any]],
+    rows: Iterable[dict[str, Any]],
     *,
     include_weak_tech: bool,
     target_total: int | None,
     seed: int,
     quality_profile: str,
 ) -> list[dict[str, Any]]:
-    if quality_profile == "strict":
-        strong_rows = [row for row in rows if is_high_trust_strong_row(row)]
-    else:
-        strong_rows = [row for row in rows if row.get("sft_ready", True)]
+    strong_rows: list[dict[str, Any]] = []
+    weak_candidates: list[dict[str, Any]] = []
+    chosen_ids: set[str] = set()
+    for row in rows:
+        is_strong = (
+            is_high_trust_strong_row(row)
+            if quality_profile == "strict"
+            else bool(row.get("sft_ready", True))
+        )
+        if is_strong:
+            strong_rows.append(row)
+            chosen_ids.add(str(row.get("id")))
+        if include_weak_tech and is_high_confidence_weak_tech_row(row):
+            weak_candidates.append(row)
     if not include_weak_tech:
         return strong_rows
 
-    chosen_ids = {str(row.get("id")) for row in strong_rows}
-    weak_rows = [
-        row
-        for row in rows
-        if str(row.get("id")) not in chosen_ids and is_high_confidence_weak_tech_row(row)
-    ]
+    weak_rows = [row for row in weak_candidates if str(row.get("id")) not in chosen_ids]
     if target_total is None or len(strong_rows) >= target_total:
         return strong_rows + weak_rows
 
@@ -586,9 +607,8 @@ def main() -> None:
     parser.add_argument("--quality-profile", choices=["strict", "expanded"], default="strict")
     args = parser.parse_args()
 
-    rows = list(read_jsonl(args.jd))
     selected_rows = collect_sft_rows(
-        rows,
+        read_jsonl(args.jd),
         include_weak_tech=args.include_weak_tech,
         target_total=args.target_total,
         seed=args.seed,

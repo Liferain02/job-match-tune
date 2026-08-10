@@ -1,10 +1,17 @@
 from __future__ import annotations
 
+import asyncio
+from io import BytesIO
+
+import pytest
+from fastapi import UploadFile
+
 from jobmatch_tune.api.server import (
     ModelService,
     match_uploaded_inputs,
     parse_uploaded_document_bytes,
     parse_uploaded_resume_bytes,
+    read_upload_content,
 )
 
 
@@ -158,3 +165,11 @@ def test_match_uploaded_inputs_with_jd_and_resume_files(monkeypatch) -> None:
     assert result["inputs"]["jd"]["source"] == "file"
     assert result["inputs"]["resume"]["source"] == "file"
     assert result["rule_result"]["匹配等级"] == "高匹配"
+
+
+def test_read_upload_content_rejects_oversized_file(monkeypatch) -> None:
+    monkeypatch.setenv("JOBMATCH_MAX_UPLOAD_BYTES", "3")
+    upload = UploadFile(filename="resume.txt", file=BytesIO(b"four"))
+
+    with pytest.raises(ValueError, match="3-byte limit"):
+        asyncio.run(read_upload_content(upload))

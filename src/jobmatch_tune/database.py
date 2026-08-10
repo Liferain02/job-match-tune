@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -86,13 +86,14 @@ def upsert_jd_raw(db_path: str | Path, rows: Iterable[dict[str, Any]]) -> None:
       html=excluded.html,
       meta_json=excluded.meta_json
     """
-    prepared = []
-    for row in rows:
-        item = dict(row)
-        item["meta_json"] = json.dumps(item.get("meta", {}), ensure_ascii=False)
-        prepared.append(item)
+    def prepared_rows() -> Iterator[dict[str, Any]]:
+        for row in rows:
+            item = dict(row)
+            item["meta_json"] = json.dumps(item.get("meta", {}), ensure_ascii=False)
+            yield item
+
     with connect(db_path) as conn:
-        conn.executemany(sql, prepared)
+        conn.executemany(sql, prepared_rows())
 
 
 def upsert_jd_clean(db_path: str | Path, rows: Iterable[dict[str, Any]]) -> None:
@@ -111,14 +112,32 @@ def upsert_jd_clean(db_path: str | Path, rows: Iterable[dict[str, Any]]) -> None
       sections_json=excluded.sections_json,
       labels_json=excluded.labels_json
     """
-    prepared = []
-    for row in rows:
-        item = dict(row)
-        item["sections_json"] = json.dumps(item.get("sections", {}), ensure_ascii=False)
-        item["labels_json"] = json.dumps(item.get("labels", {}), ensure_ascii=False)
-        prepared.append(item)
+    def prepared_rows() -> Iterator[dict[str, Any]]:
+        for row in rows:
+            item = dict(row)
+            item["sections_json"] = json.dumps(item.get("sections", {}), ensure_ascii=False)
+            item["labels_json"] = json.dumps(item.get("labels", {}), ensure_ascii=False)
+            yield item
+
     with connect(db_path) as conn:
-        conn.executemany(sql, prepared)
+        conn.executemany(sql, prepared_rows())
+
+
+def iter_table_batches(
+    db_path: str | Path,
+    table: str,
+    *,
+    batch_size: int = 1000,
+) -> Iterator[list[dict[str, Any]]]:
+    allowed = {"jd_raw", "jd_clean", "resume_clean", "sft_samples"}
+    if table not in allowed:
+        raise ValueError(f"Unsupported table: {table}")
+    if batch_size <= 0:
+        raise ValueError("batch_size must be positive")
+    with connect(db_path) as conn:
+        cursor = conn.execute(f"SELECT * FROM {table}")
+        while rows := cursor.fetchmany(batch_size):
+            yield [dict(row) for row in rows]
 
 
 def fetch_table(db_path: str | Path, table: str) -> list[dict[str, Any]]:

@@ -5,6 +5,8 @@ from typing import Any
 
 
 EDUCATION_PATTERNS = [
+    r"((?:研究生|专科)\s*(?:及以上|以上)?\s*学历(?:优先)?)",
+    r"(学士(?:及学士以上|及以上|以上)?(?:的)?(?:学历|学位)(?:优先)?)",
     r"(博士(?:研究生)?(?:及以上)?)",
     r"(硕士(?:研究生)?(?:及以上)?)",
     r"(本科(?:及以上)?)",
@@ -13,16 +15,18 @@ EDUCATION_PATTERNS = [
     r"(统招本科(?:及以上)?)",
 ]
 
+EXPERIENCE_NUMBER = r"[一二三四五六七八九十两0-9]+"
 EXPERIENCE_PATTERNS = [
-    r"((?:[一二三四五六七八九十两0-9]+|[0-9]+\+?)年以上[^，。；;\n]*经验)",
-    r"((?:[一二三四五六七八九十两0-9]+|[0-9]+\+?)年[^，。；;\n]*工作经验)",
-    r"((?:[0-9]+)\s*[-~至]\s*(?:[0-9]+)\s*年(?:工作)?经验)",
-    r"((?:[0-9]+)\s*[-~至]\s*(?:[0-9]+)\s*年)",
-    r"((?:[0-9]+)\s*年及以上[^，。；;\n]*经验?)",
     r"(经验要求[：:]\s*[^，。；;\n]+)",
     r"(工作经验[：:]\s*[^，。；;\n]+)",
     r"(经验不限)",
     r"(工作经验不限)",
+    rf"(({EXPERIENCE_NUMBER})\s*[-~～至]\s*({EXPERIENCE_NUMBER})\s*年(?:工作)?经验)",
+    rf"(({EXPERIENCE_NUMBER})\s*[-~～至]\s*({EXPERIENCE_NUMBER})\s*年)",
+    rf"((?:至少|不少于|不低于|具备|拥有|具有|需要)?\s*{EXPERIENCE_NUMBER}\s*年\s*"
+    rf"(?:以上|及以上|或以上|\+|左右|以内|以下)?(?:的)?[^，。；;\n]{{0,50}}(?:经验|经历|背景))",
+    rf"((?:工作经验|相关经验|经验要求|工作年限)[^，。；;\n]{{0,20}}"
+    rf"{EXPERIENCE_NUMBER}\s*(?:[-~至～]\s*{EXPERIENCE_NUMBER}\s*)?年)",
 ]
 
 JOB_DIRECTION_RULES = [
@@ -195,6 +199,9 @@ def extract_experience_requirement(text: str) -> str:
         match = re.search(pattern, text, flags=re.I)
         if match:
             value = match.group(1)
+            year_values = [int(number) for number in re.findall(r"(\d+)\s*年", value)]
+            if any(number > 50 for number in year_values):
+                continue
             return re.sub(r"^(经验要求|工作经验)[：:]\s*", "", value).strip()
     return ""
 
@@ -255,6 +262,24 @@ def infer_job_direction(title: str, text: str, schema: dict[str, Any]) -> str:
     normalized_text = _normalize_text(text).lower()
     if re.search(r"(创新应用工程师|agentic engineer)", normalized_title, flags=re.I):
         return "AI应用开发"
+    # Explicit role phrases take precedence over department/domain prefixes.
+    # Examples: "微信安全-数据算法工程师" is an algorithm role, while
+    # "网络安全研究岗" is security rather than generic network infrastructure.
+    if (
+        re.search(
+            r"(算法(?:高级|资深|首席)?(?:工程师|研究员|专家|研发)|评测算法(?:工程师|研究员)?)",
+            normalized_title,
+            flags=re.I,
+        )
+        and not re.search(r"(应用算法|算法应用|大模型应用)", normalized_title, flags=re.I)
+    ):
+        return "算法工程"
+    if re.search(
+        r"(网络(?:与)?(?:信息|数据)?安全|信息安全|数据安全|安全研发|渗透测试|漏洞研究|安全攻防)",
+        normalized_title,
+        flags=re.I,
+    ):
+        return "安全工程"
     if any(re.search(pattern, normalized_title, flags=re.I) for pattern in BUSINESS_ROLE_PATTERNS):
         if not any(re.search(pattern, normalized_title, flags=re.I) for pattern in STRONG_TECH_TITLE_PATTERNS):
             return ""

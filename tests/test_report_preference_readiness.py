@@ -11,7 +11,10 @@ def _preference(row_id: str, prompt: str) -> dict:
         "prompt": prompt,
         "chosen": json.dumps({"岗位方向": "后端开发"}, ensure_ascii=False),
         "rejected": json.dumps({"岗位方向": "前端开发"}, ensure_ascii=False),
-        "meta": {"rejection_strategy": "direction_mismatch"},
+        "meta": {
+            "rejection_strategy": "direction_mismatch",
+            "provenance": "synthetic_structured_hard_negative",
+        },
     }
 
 
@@ -58,3 +61,5 @@ def test_preference_readiness_accepts_conversational_format(tmp_path: Path):
     report = audit_preference_files(str(train), str(valid), str(holdout))
 
     assert report["invalid_rows"] == 0
+    assert report["synthetic_preference_rate"] == 1.0
+    assert report["preference_origin"] == "synthetic_only"

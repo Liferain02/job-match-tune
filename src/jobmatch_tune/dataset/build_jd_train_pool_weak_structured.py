@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+from collections.abc import Iterable
 from typing import Any
 
 from jobmatch_tune.dataset.build_sft_dataset import (
     STRONG_TITLE_EXCLUDE_KEYWORDS,
     STRONG_TITLE_INCLUDE_KEYWORDS,
     WEAK_TECH_SOURCES,
+    is_external_source_training_allowed,
 )
 from jobmatch_tune.preprocess.jd_field_rules import extract_education_requirement
 from jobmatch_tune.utils.io import read_jsonl, write_jsonl
@@ -23,6 +25,8 @@ def _contains_any(text: str, keywords: list[str]) -> bool:
 
 
 def is_usable_weak_structured_row(row: dict[str, Any]) -> bool:
+    if not is_external_source_training_allowed(row):
+        return False
     if row.get("source") not in WEAK_TECH_SOURCES:
         return False
     if row.get("language") != "zh":
@@ -84,17 +88,21 @@ def is_usable_weak_structured_row(row: dict[str, Any]) -> bool:
     return True
 
 
+def _dedup_key(row: dict[str, Any]) -> str:
+    title = _normalize_text(row.get("job_title"))
+    company = _normalize_text(row.get("company"))
+    location = _normalize_text(row.get("location"))
+    raw_text = _normalize_text(row.get("raw_text"))
+    return hashlib.sha1(
+        f"{title}\n{company}\n{location}\n{raw_text[:500]}".encode("utf-8")
+    ).hexdigest()
+
+
 def deduplicate_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     seen = set()
     deduped = []
     for row in rows:
-        title = _normalize_text(row.get("job_title"))
-        company = _normalize_text(row.get("company"))
-        location = _normalize_text(row.get("location"))
-        raw_text = _normalize_text(row.get("raw_text"))
-        key = hashlib.sha1(
-            f"{title}\n{company}\n{location}\n{raw_text[:500]}".encode("utf-8")
-        ).hexdigest()
+        key = _dedup_key(row)
         if key in seen:
             continue
         seen.add(key)
@@ -102,28 +110,33 @@ def deduplicate_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return deduped
 
 
-def build_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def build_rows(rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     built = []
+    seen = set()
     for row in rows:
         if not is_usable_weak_structured_row(row):
             continue
-        built.append(
-            {
-                "id": row["id"],
-                "source": row.get("source", ""),
-                "job_title": row.get("job_title", ""),
-                "company": row.get("company", ""),
-                "location": row.get("location", ""),
-                "salary": row.get("salary", ""),
-                "raw_text": row.get("clean_text") or row.get("raw_text") or "",
-                "meta": {
-                    "language": row.get("language", ""),
-                    "sft_ready": row.get("sft_ready", False),
-                    "pool_origin": "weak_structured_candidate",
-                },
-            }
-        )
-    return deduplicate_rows(built)
+        candidate = {
+            "id": row["id"],
+            "source": row.get("source", ""),
+            "job_title": row.get("job_title", ""),
+            "company": row.get("company", ""),
+            "location": row.get("location", ""),
+            "salary": row.get("salary", ""),
+            "raw_text": row.get("clean_text") or row.get("raw_text") or "",
+            "meta": {
+                **(row.get("meta") or {}),
+                "language": row.get("language", ""),
+                "sft_ready": row.get("sft_ready", False),
+                "pool_origin": "weak_structured_candidate",
+            },
+        }
+        key = _dedup_key(candidate)
+        if key in seen:
+            continue
+        seen.add(key)
+        built.append(candidate)
+    return built
 
 
 def main() -> None:
@@ -132,10 +145,17 @@ def main() -> None:
     parser.add_argument("--out", default="data/eval/jd_train_pool_weak_structured.jsonl")
     args = parser.parse_args()
 
-    rows = list(read_jsonl(args.input))
-    built = build_rows(rows)
+    input_count = 0
+
+    def counted_rows():
+        nonlocal input_count
+        for row in read_jsonl(args.input):
+            input_count += 1
+            yield row
+
+    built = build_rows(counted_rows())
     write_jsonl(args.out, built)
-    print(f"input={len(rows)} weak_structured={len(built)}")
+    print(f"input={input_count} weak_structured={len(built)}")
 
 
 if __name__ == "__main__":

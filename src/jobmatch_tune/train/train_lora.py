@@ -8,7 +8,7 @@ import yaml
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", default="configs/train_qlora.yaml")
+    parser.add_argument("--config", default="configs/train_qwen3_14b_qlora.yaml")
     parser.add_argument("--max_train_samples", type=int, default=None)
     parser.add_argument("--max_eval_samples", type=int, default=None)
     parser.add_argument("--model_name_or_path", default=None)

@@ -1,4 +1,3 @@
-from pathlib import Path
 from unittest.mock import patch
 
 from jobmatch_tune.eval.report_external_data_status import build_report, describe_manifest
@@ -18,6 +17,19 @@ def test_describe_manifest_counts_existing_and_missing(tmp_path):
     assert report["total_sources"] == 2
     assert report["existing_sources"] == 1
     assert report["missing_sources"] == 1
+
+
+def test_describe_manifest_supports_public_job_local_path(tmp_path):
+    existing = tmp_path / "jobs.csv"
+    existing.write_text("title,description\n", encoding="utf-8")
+    manifest = tmp_path / "sources.yaml"
+    manifest.write_text(
+        "sources:\n" f"  - name: jobs\n    local_path: {existing}\n",
+        encoding="utf-8",
+    )
+    report = describe_manifest("jobs", manifest)
+    assert report["existing_sources"] == 1
+    assert report["sources"][0]["path"] == str(existing)
 
 
 def test_build_report_summarizes_ready_manifests():

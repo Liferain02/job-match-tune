@@ -5,6 +5,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+*.egg-info/
 
 # Virtual envs
 .venv/
@@ -30,8 +31,18 @@ data/*
 !data/eval/
 data/eval/*
 !data/eval/*.jsonl
+# Builder outputs are reproducible artifacts, not evaluation sources.
+data/eval/jd_train_pool_*.jsonl
+data/eval/match_train_pool_*.jsonl
+data/eval/resume_train_pool_*.jsonl
+data/eval/public_jd_candidate_pool.jsonl
+data/eval/resume_manual_eval_augmented.jsonl
 *.sqlite3
 *.db
+
+# Private document fixtures must never be committed.
+data/private/
+docs/private/
 
 # Misc temporary files
 *.tmp

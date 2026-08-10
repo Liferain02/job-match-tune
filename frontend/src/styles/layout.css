@@ -5,7 +5,6 @@
 }
 
 .hero,
-.summary-card,
 .panel,
 .overview-card {
   background: var(--panel);
@@ -60,21 +59,6 @@
   justify-items: end;
 }
 
-.hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: flex-end;
-}
-
-.summary-grid {
-  margin-top: 18px;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.summary-card,
 .overview-card {
   min-height: 104px;
   padding: 16px 18px;
@@ -131,6 +115,27 @@
   padding: 18px 24px 0;
 }
 
+.task-mode-row {
+  flex-wrap: wrap;
+}
+
+.flow-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 18px 24px 0;
+  list-style: none;
+}
+
+.flow-steps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .service-meta {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -144,18 +149,25 @@
   padding: 18px 24px 0;
 }
 
-.match-file-grid {
+.dual-input-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   padding: 18px 24px 0;
 }
 
-.dual-input-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  padding: 18px 24px 0;
+.advanced-settings {
+  margin: 18px 24px 0;
+}
+
+.advanced-mode-row {
+  padding: 16px 0 0;
+}
+
+.advanced-settings > .field,
+.advanced-settings > .service-meta {
+  padding-right: 0;
+  padding-left: 0;
 }
 
 .editor-footer {
@@ -198,16 +210,25 @@
   gap: 14px;
 }
 
+.match-result-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
 .batch-result-list {
   display: grid;
   gap: 14px;
 }
 
 @media (max-width: 1120px) {
-  .summary-grid,
   .result-overview,
   .service-meta,
-  .match-file-grid,
   .dual-input-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -225,18 +246,17 @@
   .hero,
   .mode-row,
   .hero-status,
-  .hero-actions,
   .result-actions,
   .editor-footer {
     display: grid;
   }
 
-  .summary-grid,
   .result-overview,
   .service-meta,
-  .match-file-grid,
   .dual-input-grid,
   .nested-result-grid,
+  .evidence-grid,
+  .flow-steps,
   .result-grid {
     grid-template-columns: 1fr;
   }

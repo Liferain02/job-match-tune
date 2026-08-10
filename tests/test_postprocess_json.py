@@ -225,6 +225,16 @@ def test_parse_json_output_normalizes_resume_schema():
     }
 
 
+def test_parse_json_output_canonicalizes_resume_skill_aliases():
+    result = parse_json_output(
+        '{"目标岗位":"后端开发","教育背景":[],"核心技能":["Golang","SpringBoot","自研框架"],'
+        '"实习经历":[],"项目经历":[],"优势标签":[]}'
+    )
+
+    assert result["ok"] is True
+    assert result["data"]["核心技能"] == ["Go", "Spring Boot", "自研框架"]
+
+
 def test_parse_json_output_normalizes_structured_resume_items():
     result = parse_json_output(
         '{"目标岗位":"后端开发工程师","教育背景":{"学历":"本科","专业":"软件工程"},'

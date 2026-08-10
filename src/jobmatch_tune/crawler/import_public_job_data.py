@@ -17,6 +17,23 @@ from jobmatch_tune.database import init_db, upsert_jd_raw
 from jobmatch_tune.utils.io import read_jsonl, write_jsonl
 
 
+SOURCE_METADATA_FIELDS = (
+    "source_revision",
+    "artifact_revision",
+    "artifact_sha256",
+    "package_license",
+    "package_license_status",
+    "content_rights_status",
+    "provenance_status",
+    "annotation_type",
+    "quality_tier",
+    "intended_usage",
+    "training_eligible",
+    "split_role",
+    "holdout_eligible",
+)
+
+
 def load_sources(path: str | Path) -> list[dict[str, Any]]:
     with Path(path).open("r", encoding="utf-8") as f:
         payload = yaml.safe_load(f) or {}
@@ -554,53 +571,52 @@ def import_sources(source_specs: Iterable[dict[str, Any]]) -> list[dict[str, Any
             raise ValueError(f"Missing local_path in source spec: {spec}")
         source_name = str(spec.get("name") or "public_dataset")
         source_url = str(spec.get("source_url") or local_path)
+        source_rows: list[dict[str, Any]]
         if source_type == "bosszp_csv":
-            imported.extend(
-                import_bosszp_csv(
-                    csv_path=local_path,
-                    source_name=source_name,
-                    source_url=source_url,
-                    crawl_time=crawl_time,
-                )
+            source_rows = import_bosszp_csv(
+                csv_path=local_path,
+                source_name=source_name,
+                source_url=source_url,
+                crawl_time=crawl_time,
             )
-            continue
-        if source_type == "workaggregation_csv":
-            imported.extend(
-                import_workaggregation_csv(
-                    csv_path=local_path,
-                    source_name=source_name,
-                    source_url=source_url,
-                    crawl_time=crawl_time,
-                )
+        elif source_type == "workaggregation_csv":
+            source_rows = import_workaggregation_csv(
+                csv_path=local_path,
+                source_name=source_name,
+                source_url=source_url,
+                crawl_time=crawl_time,
             )
-            continue
-        if source_type == "open_apply_jobs_parquet":
-            imported.extend(
-                import_open_apply_jobs_parquet(
-                    parquet_path=local_path,
-                    source_name=source_name,
-                    source_url=source_url,
-                    crawl_time=crawl_time,
-                    include_keywords=list(spec.get("include_keywords") or DEFAULT_OPEN_APPLY_KEYWORDS),
-                    exclude_keywords=list(spec.get("exclude_keywords") or DEFAULT_OPEN_APPLY_EXCLUDE_KEYWORDS),
-                    min_description_chars=int(spec.get("min_description_chars") or 600),
-                    max_rows=int(spec["max_rows"]) if spec.get("max_rows") else None,
-                )
+        elif source_type == "open_apply_jobs_parquet":
+            source_rows = import_open_apply_jobs_parquet(
+                parquet_path=local_path,
+                source_name=source_name,
+                source_url=source_url,
+                crawl_time=crawl_time,
+                include_keywords=list(spec.get("include_keywords") or DEFAULT_OPEN_APPLY_KEYWORDS),
+                exclude_keywords=list(spec.get("exclude_keywords") or DEFAULT_OPEN_APPLY_EXCLUDE_KEYWORDS),
+                min_description_chars=int(spec.get("min_description_chars") or 600),
+                max_rows=int(spec["max_rows"]) if spec.get("max_rows") else None,
             )
-            continue
-        if source_type == "job_educational_parquet":
-            imported.extend(
-                import_job_educational_parquet(
-                    parquet_path=local_path,
-                    source_name=source_name,
-                    source_url=source_url,
-                    crawl_time=crawl_time,
-                    min_description_chars=int(spec.get("min_description_chars") or 40),
-                    max_rows=int(spec["max_rows"]) if spec.get("max_rows") else None,
-                )
+        elif source_type == "job_educational_parquet":
+            source_rows = import_job_educational_parquet(
+                parquet_path=local_path,
+                source_name=source_name,
+                source_url=source_url,
+                crawl_time=crawl_time,
+                min_description_chars=int(spec.get("min_description_chars") or 40),
+                max_rows=int(spec["max_rows"]) if spec.get("max_rows") else None,
             )
-            continue
-        raise ValueError(f"Unsupported public source type: {source_type}")
+        else:
+            raise ValueError(f"Unsupported public source type: {source_type}")
+
+        source_metadata = {
+            field: spec[field]
+            for field in SOURCE_METADATA_FIELDS
+            if field in spec
+        }
+        for row in source_rows:
+            row["meta"] = {**(row.get("meta") or {}), **source_metadata}
+        imported.extend(source_rows)
     return imported
 
 

@@ -3,11 +3,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import random
-from collections import defaultdict
 from typing import Any
 
 from jobmatch_tune.dataset.templates import SYSTEM_PROMPT, resume_parse_prompt
+from jobmatch_tune.dataset.grouped_split import split_linked_samples
 from jobmatch_tune.resume.privacy import redact_resume_pii
 from jobmatch_tune.utils.io import read_jsonl, write_jsonl
 
@@ -321,10 +320,12 @@ VARIANT_BUILDERS = [
 
 
 def build_resume_sample(row: dict[str, Any], variant_name: str, rendered_text: str) -> dict[str, Any]:
+    source_group = str(row.get("source_group") or row["id"])
+    source_group = source_group.removesuffix("_ocr")
     return {
         "id": f"{row['id']}_{variant_name}",
         "task_type": "resume_parse",
-        "source_group": row["id"],
+        "source_group": source_group,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": resume_parse_prompt(rendered_text)},
@@ -354,29 +355,7 @@ def deduplicate_samples(samples: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def split_grouped_samples(
     samples: list[dict[str, Any]], train_ratio: float, valid_ratio: float, seed: int
 ) -> dict[str, list[dict[str, Any]]]:
-    groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for sample in samples:
-        groups[sample["source_group"]].append(sample)
-
-    group_keys = list(groups)
-    rng = random.Random(seed)
-    rng.shuffle(group_keys)
-    n = len(group_keys)
-    if n < 3:
-        all_rows = [row for key in group_keys for row in groups[key]]
-        return {"train": all_rows, "valid": all_rows[:1], "test": all_rows[:1]}
-
-    valid_count = max(1, int(n * valid_ratio))
-    test_count = max(1, n - int(n * train_ratio) - valid_count)
-    train_count = max(1, n - valid_count - test_count)
-    train_keys = group_keys[:train_count]
-    valid_keys = group_keys[train_count : train_count + valid_count]
-    test_keys = group_keys[train_count + valid_count :]
-    return {
-        "train": [row for key in train_keys for row in groups[key]],
-        "valid": [row for key in valid_keys for row in groups[key]],
-        "test": [row for key in test_keys for row in groups[key]],
-    }
+    return split_linked_samples(samples, train_ratio, valid_ratio, seed)
 
 
 def main() -> None:

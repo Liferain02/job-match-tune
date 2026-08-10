@@ -82,8 +82,9 @@ def test_convert_resume_ner_rows_accepts_array_like_values():
         "schema": "resume_ner_rows",
         "path": "demo.parquet",
         "mapping": {"tokens": "tokens", "tags": "ner_tags"},
+        "tag_names": {1: "B-CONT", 2: "I-CONT"},
     }
     converted = convert_rows(source, [{"tokens": ArrayLike(["张", "三"]), "ner_tags": ArrayLike([1, 2])}])
 
     assert converted[0]["tokens"] == ["张", "三"]
-    assert converted[0]["ner_tags"] == ["1", "2"]
+    assert converted[0]["ner_tags"] == ["B-CONT", "I-CONT"]

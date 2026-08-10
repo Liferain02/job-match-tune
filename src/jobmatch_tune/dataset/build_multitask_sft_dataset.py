@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import random
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,11 @@ def content_hash(row: dict[str, Any]) -> str:
     return hashlib.sha1(f"{user}\n---\n{assistant}".encode("utf-8")).hexdigest()
 
 
+def source_group_key(row: dict[str, Any]) -> str:
+    """Return the original-example identity used to keep template variants together."""
+    return str(row.get("source_group") or row.get("source_id") or row.get("id") or content_hash(row))
+
+
 def sample_task_rows(
     rows: list[dict[str, Any]],
     *,
@@ -32,9 +38,33 @@ def sample_task_rows(
     split: str,
 ) -> list[dict[str, Any]]:
     rng = random.Random(f"{seed}:{task_name}:{split}")
-    shuffled = rows[:]
-    rng.shuffle(shuffled)
-    selected = shuffled[: min(sample_count, len(shuffled))]
+    groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        groups[source_group_key(row)].append(row)
+
+    group_keys = list(groups)
+    rng.shuffle(group_keys)
+    for group_rows in groups.values():
+        rng.shuffle(group_rows)
+
+    # Take one row from every source before taking a second template variant.
+    # This keeps large synthetic/template expansions from crowding out semantic
+    # source diversity while preserving the configured task sample counts.
+    selected: list[dict[str, Any]] = []
+    depth = 0
+    target = min(sample_count, len(rows))
+    while len(selected) < target:
+        added = False
+        for group_key in group_keys:
+            group_rows = groups[group_key]
+            if depth < len(group_rows):
+                selected.append(group_rows[depth])
+                added = True
+                if len(selected) >= target:
+                    break
+        if not added:
+            break
+        depth += 1
     output = []
     for row in selected:
         enriched = dict(row)
@@ -63,11 +93,12 @@ def build_split(
     *,
     split: str,
     seed: int,
-) -> tuple[list[dict[str, Any]], dict[str, int]]:
+) -> tuple[list[dict[str, Any]], dict[str, int], dict[str, dict[str, float | int]]]:
     path_key = f"{split}_file"
     count_key = f"{split}_samples"
     built = []
     stats = {}
+    diversity = {}
     for task_name, cfg in task_cfg.items():
         rows = list(read_jsonl(cfg[path_key]))
         requested = int(cfg[count_key])
@@ -80,18 +111,24 @@ def build_split(
         )
         built.extend(sampled)
         stats[task_name] = len(sampled)
+        unique_groups = len({source_group_key(row) for row in sampled})
+        diversity[task_name] = {
+            "rows": len(sampled),
+            "unique_source_groups": unique_groups,
+            "source_group_ratio": round(unique_groups / len(sampled), 4) if sampled else 0.0,
+        }
     built = deduplicate_rows(built)
     rng = random.Random(f"{seed}:shuffle:{split}")
     rng.shuffle(built)
-    return built, stats
+    return built, stats, diversity
 
 
 def build_multitask_dataset(registry: dict[str, Any], section: str) -> dict[str, Any]:
     cfg = registry[section]
     seed = int(cfg.get("seed", 42))
     task_cfg = cfg["tasks"]
-    train_rows, train_stats = build_split(task_cfg, split="train", seed=seed)
-    valid_rows, valid_stats = build_split(task_cfg, split="valid", seed=seed)
+    train_rows, train_stats, train_diversity = build_split(task_cfg, split="train", seed=seed)
+    valid_rows, valid_stats, valid_diversity = build_split(task_cfg, split="valid", seed=seed)
     write_jsonl(cfg["train_out"], train_rows)
     write_jsonl(cfg["valid_out"], valid_rows)
     return {
@@ -101,6 +138,8 @@ def build_multitask_dataset(registry: dict[str, Any], section: str) -> dict[str,
         "valid_total": len(valid_rows),
         "train_stats": train_stats,
         "valid_stats": valid_stats,
+        "train_diversity": train_diversity,
+        "valid_diversity": valid_diversity,
     }
 
 

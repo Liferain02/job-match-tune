@@ -13,18 +13,23 @@ def read_report(path: str | Path) -> dict[str, Any]:
     return json.loads(file_path.read_text(encoding="utf-8"))
 
 
-def summarize_blockers(report: dict[str, Any]) -> list[str]:
+READINESS_STAGES = ("sft", "jd_dpo", "product_dpo", "all")
+
+
+def summarize_blockers(report: dict[str, Any], stage: str = "all") -> list[str]:
+    if stage not in READINESS_STAGES:
+        raise ValueError(f"unknown training stage: {stage}")
     summary = report.get("summary") or {}
     blockers: list[str] = []
-    if not summary.get("all_ready_for_sft"):
+    if stage in {"sft", "all"} and not summary.get("all_ready_for_sft"):
         not_ready_tasks = summary.get("not_ready_tasks") or []
         blockers.append(f"SFT not ready; tasks={not_ready_tasks}")
-    if not summary.get("ready_for_dpo"):
+    if stage in {"jd_dpo", "all"} and not summary.get("ready_for_dpo"):
         blockers.append("JD preference DPO data is not ready")
-    if not summary.get("ready_for_product_dpo"):
+    if stage in {"product_dpo", "all"} and not summary.get("ready_for_product_dpo"):
         blockers.append("product preference DPO data is not ready")
     resume = ((report.get("tasks") or {}).get("resume") or {})
-    if resume and not resume.get("privacy_ready", True):
+    if stage in {"sft", "all"} and resume and not resume.get("privacy_ready", True):
         privacy_report = resume.get("privacy_report") or {}
         blockers.append(
             "resume privacy gate failed; "
@@ -33,11 +38,18 @@ def summarize_blockers(report: dict[str, Any]) -> list[str]:
     return blockers
 
 
-def assert_training_readiness(report: dict[str, Any]) -> dict[str, Any]:
+def assert_training_readiness(report: dict[str, Any], stage: str = "all") -> dict[str, Any]:
     summary = report.get("summary") or {}
-    blockers = summarize_blockers(report)
-    ready = bool(summary.get("all_ready_for_training")) and not blockers
+    blockers = summarize_blockers(report, stage)
+    stage_ready = {
+        "sft": bool(summary.get("all_ready_for_sft")),
+        "jd_dpo": bool(summary.get("ready_for_dpo")),
+        "product_dpo": bool(summary.get("ready_for_product_dpo")),
+        "all": bool(summary.get("all_ready_for_training")),
+    }[stage]
+    ready = stage_ready and not blockers
     return {
+        "stage": stage,
         "ready": ready,
         "blockers": blockers,
         "summary": summary,
@@ -47,9 +59,10 @@ def assert_training_readiness(report: dict[str, Any]) -> dict[str, Any]:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--report", default="outputs/eval_reports/data_readiness_report.json")
+    parser.add_argument("--stage", choices=READINESS_STAGES, default="all")
     args = parser.parse_args()
 
-    result = assert_training_readiness(read_report(args.report))
+    result = assert_training_readiness(read_report(args.report), args.stage)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     if not result["ready"]:
         raise SystemExit(1)

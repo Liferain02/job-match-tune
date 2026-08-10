@@ -79,3 +79,23 @@ def test_compute_match_rule_result_accepts_structured_resume_items() -> None:
     assert result["经验匹配"] is True
     assert result["命中技能"] == ["Python"]
     assert result["命中项目"]
+
+
+def test_compute_match_rule_result_understands_chinese_experience_years() -> None:
+    jd_data = {
+        "岗位方向": "后端开发",
+        "必备技能": ["Python"],
+        "学历要求": "",
+        "经验要求": "三年以上开发经验",
+    }
+    resume_data = {
+        "目标岗位": "后端开发",
+        "教育背景": [],
+        "核心技能": ["Python"],
+        "实习经历": ["两年服务端开发经验"],
+        "项目经历": [],
+    }
+
+    result = compute_match_rule_result(jd_data, resume_data, resume_text="两年后端开发经验")
+
+    assert result["经验匹配"] is False
