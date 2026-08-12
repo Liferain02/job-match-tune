@@ -4,6 +4,8 @@
 
 它的核心价值在于一条可审计的实验闭环：公开招聘数据进入清洗和分层流程，经 SFT 和可选偏好训练后，用人工留出评测集（holdout）、隐私门禁、数据泄漏检查和产品回归报告决定 adapter 是否可晋级。它目前不是完整 ATS，也不应被当作可直接公网部署的招聘决策系统。
 
+当前完整结论、技术讲解、实验复盘和秋招材料统一收录在[秋招项目总结](docs/秋招项目总结/README.md)。截至 2026-08-13，Match Gold V1 为 25 条且全部人工复核，`gold_ready=true`；Product Final 的技能命中/缺失 F1 为 0.990649/0.986667，匹配等级和方向 EM 均为 0.96。Resume、Match、Multitask readiness 仍均为 `false`，在新合法独立数据到来前不启动新训练。
+
 ## 当前能力
 
 - `jd_parse`：抽取岗位方向、职责、技能、经验和学历要求。
@@ -93,8 +95,8 @@ vLLM 模式会并行提交一次匹配中的 JD/简历解析，并对批量请�
 | `POST` | `/api/resume_file_parse` | 简历文件解析 |
 | `POST` | `/api/match` | 文本人岗匹配 |
 | `POST` | `/api/match_files` | 文本/文件混合匹配 |
-| `POST` | `/api/batch_parse` | 最多 64 条顺序解析 |
-| `POST` | `/api/batch_match` | 最多 32 组顺序匹配 |
+| `POST` | `/api/batch_parse` | 最多 64 条解析；是否并发取决于后端 |
+| `POST` | `/api/batch_match` | 最多 32 组匹配；是否并发取决于后端 |
 
 文本请求限制为 20,000 字符，单文件默认最多 10 MiB（`JOBMATCH_MAX_UPLOAD_BYTES` 可覆盖），默认 CORS 只接受本机来源（`JOBMATCH_CORS_ORIGINS` 可覆盖）。当前还没有认证、限流、MIME 验证或持久化审计，不要直接暴露到公网。
 
@@ -201,6 +203,7 @@ python -m compileall -q src
 
 ## 文档
 
+- [秋招项目总结（当前综合入口）](docs/秋招项目总结/README.md)
 - [产品与技术审查](docs/产品与技术审查_2026-08-09.md)
 - [产品交互与优化目标](docs/产品交互与优化目标.md)
 - [项目结构](docs/项目结构.md)
