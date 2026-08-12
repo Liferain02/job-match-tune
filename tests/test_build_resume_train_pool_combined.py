@@ -19,7 +19,11 @@ def test_is_usable_public_resume_row_requires_resume_parse_and_signals():
             "项目经历": ["订单中心重构"],
             "实习经历": [],
         },
-        "meta": {"language": "zh"},
+        "meta": {
+            "language": "zh",
+            "license_status": "confirmed",
+            "intended_usage": "training",
+        },
     }
     assert is_usable_public_resume_row(row) is True
 
@@ -51,7 +55,11 @@ def test_build_combined_rows_merges_and_deduplicates():
                 "项目经历": ["订单中心重构"],
                 "实习经历": [],
             },
-            "meta": {"language": "zh"},
+            "meta": {
+                "language": "zh",
+                "license_status": "confirmed",
+                "intended_usage": "training",
+            },
         },
         {
             "id": "public_2",
@@ -69,7 +77,11 @@ def test_build_combined_rows_merges_and_deduplicates():
                 "项目经历": ["订单中心重构"],
                 "实习经历": [],
             },
-            "meta": {"language": "zh"},
+            "meta": {
+                "language": "zh",
+                "license_status": "confirmed",
+                "intended_usage": "training",
+            },
         },
     ]
     synthetic_rows = [
@@ -101,3 +113,27 @@ def test_build_combined_rows_merges_and_deduplicates():
     ]
     combined = build_combined_rows(manual_rows, public_rows, synthetic_rows, sft_rows, bootstrap_rows)
     assert len(combined) == 5
+    assert all("姓名：" not in row["text"] for row in combined)
+
+
+def test_public_resume_candidate_only_source_never_enters_training_pool():
+    row = {
+        "id": "candidate_only",
+        "task": "resume_parse",
+        "source_type": "public_text",
+        "text": "目标岗位：后端开发\n教育背景：本科\n核心技能：Java、MySQL\n项目经历：负责订单中心开发和缓存优化，完成接口治理和压测。",
+        "label": {
+            "目标岗位": "后端开发",
+            "教育背景": ["本科"],
+            "核心技能": ["Java", "MySQL"],
+            "项目经历": ["订单中心"],
+        },
+        "meta": {
+            "language": "zh",
+            "license_status": "unconfirmed",
+            "intended_usage": "candidate_pool_only",
+        },
+    }
+
+    assert is_usable_public_resume_row(row) is False
+    assert build_combined_rows([], [row]) == []

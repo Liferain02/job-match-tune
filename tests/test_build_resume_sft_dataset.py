@@ -27,6 +27,17 @@ def test_variants_render_non_empty_text():
         assert builder(row).strip()
 
 
+def test_variants_stay_limited_to_core_input_shapes():
+    assert [name for name, _ in VARIANT_BUILDERS] == [
+        "original",
+        "profile_card",
+        "bullets",
+        "compact",
+        "ocr_like",
+        "mixed_cn_en",
+    ]
+
+
 def test_build_resume_sample_contains_resume_prompt():
     row = _row()
     sample = build_resume_sample(row, "original", row["text"])

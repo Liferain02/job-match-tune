@@ -5,10 +5,11 @@ from typing import Any
 
 
 EDUCATION_PATTERNS = [
-    r"((?:研究生|专科)\s*(?:及以上|以上)?\s*学历(?:优先)?)",
+    r"(博士(?:研究生)?(?:及以上)?(?:\s*(?:学历|学位))?\s*(?:优先)?)",
+    r"(硕士(?:研究生)?(?:及以上)?(?:\s*(?:学历|学位))?\s*(?:优先)?)",
+    r"(研究生\s*(?:及以上|以上)?\s*学历(?:优先)?)",
+    r"(专科\s*(?:及以上|以上)?\s*学历(?:优先)?)",
     r"(学士(?:及学士以上|及以上|以上)?(?:的)?(?:学历|学位)(?:优先)?)",
-    r"(博士(?:研究生)?(?:及以上)?)",
-    r"(硕士(?:研究生)?(?:及以上)?)",
     r"(本科(?:及以上)?)",
     r"(大专(?:及以上)?)",
     r"(全日制本科(?:及以上)?)",
@@ -31,7 +32,7 @@ EXPERIENCE_PATTERNS = [
 
 JOB_DIRECTION_RULES = [
     ("前端开发", ["前端", "react", "vue", "typescript", "javascript", "web 前端", "node", "next.js", "nextjs"]),
-    ("客户端开发", ["客户端", "ios", "android", "u3d", "unity", "ue", "cocos", "移动端", "桌面端", "sdk", "音视频引擎"]),
+    ("客户端开发", ["客户端", "ios", "android", "u3d", "unity", "ue", "ue4", "ue5", "unreal engine", "cocos", "移动端", "桌面端", "sdk", "音视频引擎"]),
     ("嵌入式开发", ["嵌入式", "firmware", "固件", "驱动", "单片机", "bsp", "rtos"]),
     ("硬件研发", ["硬件开发", "硬件工程师", "电力电子", "功率硬件", "结构设计", "系统集成", "npi工程师", "声学工程师", "电子电器", "硬件结构", "音响开发"]),
     ("网络与基础设施", ["网络规划", "网络开发", "网络工程师", "网络交付", "数据中心网络", "基础架构", "机房网络"]),
@@ -49,9 +50,9 @@ JOB_DIRECTION_RULES = [
 
 TITLE_PRIORITY_PATTERNS = [
     ("前端开发", [r"前端开发", r"web前端", r"前端工程师", r"react开发", r"vue开发", r"node开发"]),
-    ("客户端开发", [r"客户端开发", r"ios开发", r"android开发", r"移动端开发", r"unity开发", r"u3d开发", r"ue开发", r"cocos", r"桌面端开发工程师", r"音视频引擎sdk开发工程师", r"腾讯会议-(?:ios|android)研发工程师", r"软件开发工程师\s*\(sdk\)"]),
+    ("客户端开发", [r"客户端开发", r"ios开发", r"android开发", r"安卓开发", r"app开发", r"移动端开发", r"unity(?:3d)?开发", r"u3d开发", r"ue开发", r"\bue[45]\b.*(?:客户端|gameplay|引擎|渲染|图形|战斗|玩法)", r"cocos", r"桌面端开发工程师", r"音视频引擎sdk开发工程师", r"腾讯会议-(?:ios|android)研发工程师", r"软件开发工程师\s*\(sdk\)"]),
     ("嵌入式开发", [r"嵌入式", r"固件", r"驱动开发", r"\bbsp\b"]),
-    ("硬件研发", [r"硬件开发工程师", r"功率硬件工程师", r"电力电子硬件开发工程师", r"系统集成工程师", r"结构设计工程师", r"硬件结构设计", r"音响开发工程师", r"\bnpi工程师\b", r"电子电器"]),
+    ("硬件研发", [r"硬件开发工程师", r"硬件研发", r"功率硬件工程师", r"电力电子硬件开发工程师", r"系统集成工程师", r"结构设计工程师", r"硬件结构设计", r"音响开发工程师", r"\bnpi工程师\b", r"电子电器"]),
     ("网络与基础设施", [r"网络规划", r"网络开发", r"网络工程师", r"网络交付", r"基础架构工程师", r"数据中心网络", r"交换机软件研发工程师", r"云网络高级开发工程师", r"网络运营工程师", r"云接入网络运营工程师"]),
     ("AI Infra", [r"ai infra", r"ai infrastructure", r"机器学习平台", r"训练平台", r"推理平台", r"训推平台", r"rl infra"]),
     ("高性能计算", [r"高性能计算", r"\bhpc\b", r"ai编译优化工程师", r"编程语言&编译器工程师"]),
@@ -59,7 +60,7 @@ TITLE_PRIORITY_PATTERNS = [
     ("运维开发", [r"\bsre\b", r"运维开发", r"devops", r"平台运维", r"\bidc\b", r"网络交付工程师", r"网络工程师", r"运营运维工程师", r"秒送物流sre", r"运营开发工程师", r"运营开发高级工程师"]),
     ("安全工程", [r"安全工程师", r"渗透测试", r"漏洞研究", r"安全研发", r"攻防", r"安全运营工程师", r"安全运营专家", r"安全运营岗", r"大模型安全运营"]),
     ("测试开发", [r"测试开发", r"测试工程师", r"测试负责人", r"\bqa\b", r"开发质量工程师（软件）"]),
-    ("后端开发", [r"后台开发", r"后端开发", r"服务端", r"后台工程师", r"研发岗", r"资深架构师岗", r"软件架构开发工程", r"服务器开发工程师", r"服务器高级工程师", r"游戏服务器工程师", r"游戏玩法开发专家", r"操作系统高级研发工程师", r"linux内核高级研发工程师", r"云存储高级研发工程师"]),
+    ("后端开发", [r"后台开发", r"后端开发", r"服务端", r"后台工程师", r"\bjava(?:web)?(?:软件)?开发(?:工程师|实习生)?", r"^java(?:工程师)?(?:\s|（|\(|$)", r"研发岗", r"资深架构师岗", r"软件架构开发工程", r"服务器开发工程师", r"服务器高级工程师", r"游戏服务器工程师", r"游戏玩法开发专家", r"操作系统高级研发工程师", r"linux内核高级研发工程师", r"云存储高级研发工程师"]),
     ("数据开发", [r"大数据开发工程师", r"数据开发工程师"]),
     ("算法工程", [r"algorithm engineer", r"\bnlp\b", r"\btts\b", r"\basr\b", r"对齐策略研发工程师", r"自然语言处理", r"游戏ai开发工程师"]),
 ]
@@ -174,6 +175,32 @@ def _normalize_text(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def _contains_direction_keyword(lowered_text: str, keyword: str) -> bool:
+    """Match ASCII direction terms as tokens, not pieces of ordinary words."""
+    lowered_keyword = keyword.lower()
+    if not re.search(r"[a-z]", lowered_keyword) or re.search(r"[\u4e00-\u9fff]", lowered_keyword):
+        return keyword.lower() in lowered_text
+    offset = 0
+    while (index := lowered_text.find(lowered_keyword, offset)) >= 0:
+        end = index + len(lowered_keyword)
+        left_char = lowered_text[index - 1] if index else ""
+        right_char = lowered_text[end] if end < len(lowered_text) else ""
+        left_ok = (
+            not lowered_keyword[0].isalnum()
+            or not left_char
+            or not (left_char.isascii() and left_char.isalnum())
+        )
+        right_ok = (
+            not lowered_keyword[-1].isalnum()
+            or not right_char
+            or not (right_char.isascii() and right_char.isalnum())
+        )
+        if left_ok and right_ok:
+            return True
+        offset = index + 1
+    return False
+
+
 def split_bullets(text: str) -> list[str]:
     lines = []
     for raw_line in text.splitlines():
@@ -187,11 +214,16 @@ def split_bullets(text: str) -> list[str]:
 
 
 def extract_education_requirement(text: str) -> str:
+    matches = []
     for pattern in EDUCATION_PATTERNS:
         match = re.search(pattern, text, flags=re.I)
         if match:
-            return match.group(1)
-    return ""
+            matches.append(match)
+    if not matches:
+        return ""
+    # The first qualification in the JD is the baseline requirement. A later
+    # “硕士优先” must not overwrite an earlier “本科及以上学历”.
+    return min(matches, key=lambda item: item.start()).group(1).strip()
 
 
 def extract_experience_requirement(text: str) -> str:
@@ -238,23 +270,38 @@ def extract_experience_requirement_from_meta(meta: dict[str, Any] | None) -> str
 
 def extract_skills_from_text(text: str, schema: dict[str, Any]) -> list[str]:
     found = []
+    lowered_text = text.lower()
     for canonical, aliases in schema.get("skill_alias", {}).items():
         candidates = [canonical, *aliases]
-        if any(_contains_skill_candidate(text, str(candidate)) for candidate in candidates):
+        if any(_contains_skill_candidate(lowered_text, str(candidate)) for candidate in candidates):
             found.append(canonical)
     return found
 
 
-def _contains_skill_candidate(text: str, candidate: str) -> bool:
-    candidate = candidate.strip()
+def _contains_skill_candidate(lowered_text: str, candidate: str) -> bool:
+    candidate = candidate.strip().lower()
     if not candidate:
         return False
-    if re.search(r"[A-Za-z0-9+#._/-]", candidate):
-        if candidate.lower() == "c":
-            return bool(re.search(r"(?<![A-Za-z0-9])c(?![A-Za-z0-9+]|\s*语言)", text, flags=re.I))
-        pattern = rf"(?<![A-Za-z0-9]){re.escape(candidate)}(?![A-Za-z0-9])"
-        return bool(re.search(pattern, text, flags=re.I))
-    return candidate in text
+    has_ascii_marker = any(
+        char.isascii() and (char.isalnum() or char in "+#._/-") for char in candidate
+    )
+    if not has_ascii_marker:
+        return candidate in lowered_text
+    offset = 0
+    while (index := lowered_text.find(candidate, offset)) >= 0:
+        end = index + len(candidate)
+        left_char = lowered_text[index - 1] if index else ""
+        right_char = lowered_text[end] if end < len(lowered_text) else ""
+        left_ok = not (left_char.isascii() and left_char.isalnum())
+        right_ok = not (right_char.isascii() and right_char.isalnum())
+        if candidate == "c":
+            right_ok = right_ok and right_char != "+" and not re.match(
+                r"\s*语言", lowered_text[end:]
+            )
+        if left_ok and right_ok:
+            return True
+        offset = index + 1
+    return False
 
 
 def infer_job_direction(title: str, text: str, schema: dict[str, Any]) -> str:
@@ -274,12 +321,32 @@ def infer_job_direction(title: str, text: str, schema: dict[str, Any]) -> str:
         and not re.search(r"(应用算法|算法应用|大模型应用)", normalized_title, flags=re.I)
     ):
         return "算法工程"
-    if re.search(
+    explicit_security_title = re.search(
         r"(网络(?:与)?(?:信息|数据)?安全|信息安全|数据安全|安全研发|渗透测试|漏洞研究|安全攻防)",
         normalized_title,
         flags=re.I,
-    ):
+    )
+    security_research_title = re.search(
+        r"(安全[^\n]{0,8}研究员|研究员[^\n]{0,8}安全)", normalized_title, flags=re.I
+    ) and not re.search(r"(食品|药物|生物|质量|生产)安全", normalized_title, flags=re.I)
+    if explicit_security_title or security_research_title:
         return "安全工程"
+    if "研究员" in normalized_title and not (
+        any(re.search(pattern, normalized_title, flags=re.I) for pattern in STRONG_TECH_TITLE_PATTERNS)
+        or re.search(
+            r"(算法|人工智能|机器学习|深度学习|大模型|量化|嵌入式|仿真|机器视觉|计算机视觉|"
+            r"自然语言处理|世界模型|图模型|机器人|医学影像|图像处理|系统智能|"
+            r"(?<![a-z])ai(?:研究员|技术|安全|框架|智能|创新|融合|与|\s*os|\s*infra|\s*for\s*science)|"
+            r"(?<![a-z])ai4science)",
+            normalized_title,
+            flags=re.I,
+        )
+        or (
+            re.search(r"(大模型|\bllm\b)", normalized_text, flags=re.I)
+            and re.search(r"(模型训练|多模态|扩散模型|生成模型|算法)", normalized_text, flags=re.I)
+        )
+    ):
+        return ""
     if any(re.search(pattern, normalized_title, flags=re.I) for pattern in BUSINESS_ROLE_PATTERNS):
         if not any(re.search(pattern, normalized_title, flags=re.I) for pattern in STRONG_TECH_TITLE_PATTERNS):
             return ""
@@ -306,7 +373,7 @@ def infer_job_direction(title: str, text: str, schema: dict[str, Any]) -> str:
 
     title_rules = [
         ("前端开发", ["前端", "web前端", "web 前端", "react", "vue", "node"]),
-        ("客户端开发", ["客户端", "ios", "android", "unity", "u3d", "ue", "cocos", "sdk", "游戏客户端", "音视频引擎", "桌面端"]),
+        ("客户端开发", ["客户端", "ios", "android", "安卓", "app开发", "unity", "unity3d", "u3d", "ue", "unreal engine", "cocos", "sdk", "游戏客户端", "音视频引擎", "桌面端"]),
         ("嵌入式开发", ["嵌入式", "固件", "驱动", "bsp", "firmware"]),
         ("硬件研发", ["硬件开发", "硬件工程师", "功率硬件", "电力电子", "结构设计工程师", "系统集成工程师", "硬件结构", "音响开发", "npi工程师", "电子电器"]),
         ("网络与基础设施", ["网络规划", "网络开发", "网络工程师", "网络交付", "基础架构工程师", "数据中心网络", "交换机软件", "云网络", "网络运营", "云接入网络"]),
@@ -318,19 +385,19 @@ def infer_job_direction(title: str, text: str, schema: dict[str, Any]) -> str:
         ("测试开发", ["测试", "qa", "评测", "开发质量工程师"]),
         ("后端开发", ["后台", "后端", "服务端", "全栈", "引擎", "存储", "框架研发", "平台研发", "dba", "数据库", "研发岗", "架构师岗", "软件架构开发", "服务器开发", "游戏服务器", "游戏玩法开发", "操作系统研发", "linux内核", "云存储"]),
         ("数据开发", ["数据开发", "大数据开发", "数据平台", "数仓", "etl"]),
-        ("算法工程", ["算法", "研究员", "推理", "训练", "蒸馏", "强化学习", "rl", "多模态", "aigc", "游戏ai"]),
+        ("产品经理", ["产品经理", "技术产品经理", "产品岗", "产品实习生"]),
+        ("算法工程", ["算法", "自然语言处理", "世界模型", "图模型", "推理", "训练", "蒸馏", "强化学习", "rl", "多模态", "aigc", "游戏ai"]),
         ("AI应用开发", ["应用开发工程师", "application engineer", "应用架构师", "应用研究工程师", "agent开发工程师", "agent 应用", "llm application"]),
-        ("产品经理", ["产品经理", "技术产品经理"]),
     ]
     for direction, keywords in title_rules:
-        if any(keyword in normalized_title for keyword in keywords):
+        if any(_contains_direction_keyword(normalized_title, keyword) for keyword in keywords):
             return direction
 
     haystack = f"{title}\n{text}".lower()
     best_direction = ""
     best_score = 0
     for direction, keywords in JOB_DIRECTION_RULES:
-        score = sum(1 for keyword in keywords if keyword.lower() in haystack)
+        score = sum(1 for keyword in keywords if _contains_direction_keyword(haystack, keyword))
         if score > best_score:
             best_score = score
             best_direction = direction

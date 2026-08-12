@@ -32,11 +32,18 @@ def test_extract_education_covers_degree_and_postgraduate_phrases() -> None:
     assert extract_education_requirement("相关专业研究生及以上学历") == "研究生及以上学历"
     assert extract_education_requirement("相关领域的学士及以上学位") == "学士及以上学位"
     assert extract_education_requirement("专科及以上学历，五年以上经验") == "专科及以上学历"
+    assert extract_education_requirement("招聘要求：博士研究生学历") == "博士研究生学历"
+    assert extract_education_requirement("招聘要求：硕士研究生学历") == "硕士研究生学历"
 
 
 def test_extract_education_preserves_preferred_semantics() -> None:
     assert extract_education_requirement("研究生及以上学历优先") == "研究生及以上学历优先"
+    assert extract_education_requirement("硕士优先") == "硕士优先"
     assert extract_education_requirement("学士及学士以上的学历") == "学士及学士以上的学历"
+
+
+def test_extract_education_uses_baseline_before_later_preference() -> None:
+    assert extract_education_requirement("本科及以上学历，计算机专业，硕士优先") == "本科及以上"
 
 
 def test_extract_skills_covers_common_client_game_and_hardware_tools() -> None:
@@ -68,6 +75,126 @@ def test_infer_job_direction_does_not_fallback_to_first_schema_class() -> None:
         schema,
     )
     assert direction == ""
+
+
+def test_infer_job_direction_does_not_treat_domain_researcher_as_algorithm_role() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "微生物研究员",
+        "负责菌株培养、微生物检测和实验结果记录。",
+        schema,
+    )
+    assert direction == ""
+
+
+def test_domain_researcher_does_not_use_incidental_technical_body_word() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "理化助理研究员",
+        "负责实验室样品检测、仪器系统记录和设备日常运维。",
+        schema,
+    )
+    assert direction == ""
+
+
+def test_technical_researcher_can_use_explicit_algorithm_context() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "机器视觉研究员",
+        "负责计算机视觉算法、深度学习模型训练和推理优化。",
+        schema,
+    )
+    assert direction == "算法工程"
+
+
+def test_security_researcher_keeps_security_direction() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "鸿蒙安全研究员",
+        "负责操作系统漏洞挖掘、安全攻防和检测工具开发。",
+        schema,
+    )
+    assert direction == "安全工程"
+
+
+def test_domain_safety_researcher_is_not_network_security() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "食品安全方向研究员",
+        "负责食品安全风险评估和微生物实验研究。",
+        schema,
+    )
+    assert direction == ""
+
+
+def test_world_model_researcher_keeps_algorithm_direction() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "实时全模态交互世界模型研究员",
+        "负责多模态基础模型训练、推理和生成算法研发。",
+        schema,
+    )
+    assert direction == "算法工程"
+
+
+def test_generic_researcher_requires_multiple_strong_model_signals() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "高级研究员",
+        "研究游戏大模型架构，负责模型训练、多模态和扩散模型方案。",
+        schema,
+    )
+    assert direction == "算法工程"
+
+
+def test_domain_researcher_is_not_rescued_by_incidental_deep_learning_reference() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "生物信息多组学研究员",
+        "负责多组学实验分析，协助AI工程师构建深度学习模型。",
+        schema,
+    )
+    assert direction == ""
+
+
+def test_ai_industry_researcher_is_not_treated_as_algorithm_engineer() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "AI行业研究员",
+        "跟踪生成式AI和大模型市场趋势，撰写投资研究和赛道分析报告。",
+        schema,
+    )
+    assert direction == ""
+
+
+def test_ai_technology_researcher_with_chinese_prefix_keeps_algorithm_direction() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "行业AI技术研究员",
+        "负责机器学习、深度学习算法研发，使用PyTorch训练模型。",
+        schema,
+    )
+    assert direction == "算法工程"
+
+
+def test_hardware_research_and_development_title_keeps_hardware_direction() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "硬件研发工程师",
+        "负责电源板原理图设计、硬件调试和EMC测试。",
+        schema,
+    )
+    assert direction == "硬件研发"
+
+
+def test_infer_job_direction_maps_explicit_product_intern_to_product_manager() -> None:
+    schema = _schema()
+    direction = infer_job_direction(
+        "AIGC产品实习生",
+        "负责用户需求分析、产品方案和版本迭代，协同算法团队。",
+        schema,
+    )
+    assert direction == "产品经理"
 
 
 def test_infer_job_direction_keeps_real_backend_research_title() -> None:
@@ -356,3 +483,62 @@ def test_infer_job_direction_rejects_platform_operations_title() -> None:
         schema,
     )
     assert direction == ""
+
+
+def test_common_english_words_do_not_trigger_short_client_tokens() -> None:
+    direction = infer_job_direction(
+        "PR & Communications",
+        "Support social content, daily administrative requests and reports.",
+        _schema(),
+    )
+    assert direction == ""
+
+
+def test_standalone_ue_title_still_maps_to_client_development() -> None:
+    direction = infer_job_direction(
+        "UE 开发工程师",
+        "负责游戏客户端功能开发。",
+        _schema(),
+    )
+    assert direction == "客户端开发"
+
+
+def test_ue5_title_still_maps_to_client_development() -> None:
+    direction = infer_job_direction(
+        "UE5 资深 Gameplay 工程师",
+        "负责战斗玩法和游戏引擎功能开发。",
+        _schema(),
+    )
+    assert direction == "客户端开发"
+
+
+def test_ue5_backend_title_stays_backend() -> None:
+    direction = infer_job_direction(
+        "UE5 后台开发工程师（DS 方向）",
+        "负责游戏服务器和 UE5 Dedicated Server 开发。",
+        _schema(),
+    )
+    assert direction == "后端开发"
+
+
+def test_explicit_java_title_beats_incidental_frontend_body_terms() -> None:
+    direction = infer_job_direction(
+        "Java 开发工程师",
+        "负责 Java 服务，也需要与 JavaScript、React 前端协作。",
+        _schema(),
+    )
+    assert direction == "后端开发"
+
+
+def test_android_and_unity3d_titles_stay_client_development() -> None:
+    assert infer_job_direction("安卓 APP开发工程师", "负责移动应用。", _schema()) == "客户端开发"
+    assert infer_job_direction("Unity3D开发工程师", "负责游戏功能。", _schema()) == "客户端开发"
+
+
+def test_javascript_does_not_also_count_as_java_backend_evidence() -> None:
+    direction = infer_job_direction(
+        "软件工程师",
+        "使用 JavaScript、TypeScript 和 React 负责 Web 页面开发。",
+        _schema(),
+    )
+    assert direction == "前端开发"

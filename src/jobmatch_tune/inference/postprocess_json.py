@@ -321,15 +321,36 @@ def normalize_parsed_data(data: Any, context_text: str = "") -> Any:
 
 
 def parse_json_output(text: str, context_text: str = "") -> dict[str, Any]:
+    strict = parse_strict_json_output(text)
     repaired = repair_json_text(text)
     try:
         return {
             "ok": True,
             "data": normalize_parsed_data(json.loads(repaired), context_text=context_text),
             "raw_output": text,
+            "raw_json_ok": strict["ok"],
+            "raw_data": strict["data"],
+            "raw_json_error": strict.get("error", ""),
         }
     except json.JSONDecodeError as exc:
-        return {"ok": False, "data": None, "raw_output": text, "error": str(exc)}
+        return {
+            "ok": False,
+            "data": None,
+            "raw_output": text,
+            "error": str(exc),
+            "raw_json_ok": strict["ok"],
+            "raw_data": strict["data"],
+            "raw_json_error": strict.get("error", ""),
+        }
+
+
+def parse_strict_json_output(text: str) -> dict[str, Any]:
+    """Parse the model payload without JSON repair or business normalization."""
+    raw_json = remove_thinking(text)
+    try:
+        return {"ok": True, "data": json.loads(raw_json)}
+    except json.JSONDecodeError as exc:
+        return {"ok": False, "data": None, "error": str(exc)}
 
 
 def main() -> None:

@@ -5,6 +5,7 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
+from jobmatch_tune.resume.privacy import sanitize_resume_text_for_training
 from jobmatch_tune.utils.io import read_jsonl, write_jsonl
 
 
@@ -17,6 +18,14 @@ def is_usable_public_resume_row(row: dict[str, Any]) -> bool:
     if str(row.get("task") or "") != "resume_parse":
         return False
     meta = row.get("meta") or {}
+    if str(meta.get("license_status") or "").lower() != "confirmed":
+        return False
+    if str(meta.get("intended_usage") or "").lower() not in {
+        "training",
+        "sft_training",
+        "training_and_evaluation",
+    }:
+        return False
     language = str(meta.get("language") or "zh").lower()
     if language and not language.startswith("zh"):
         return False
@@ -42,7 +51,9 @@ def deduplicate_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     seen = set()
     deduped = []
     for row in rows:
-        text = _normalize_text(row.get("text"))
+        row = dict(row)
+        text = sanitize_resume_text_for_training(_normalize_text(row.get("text")))
+        row["text"] = text
         key = hashlib.sha1(text.encode("utf-8")).hexdigest()
         if key in seen:
             continue
@@ -74,6 +85,7 @@ def build_combined_rows(
                     "source_type": row.get("source_type", "public_text"),
                     "text": row["text"],
                     "label": row.get("label") or {},
+                    "meta": row.get("meta") or {},
                 }
             )
     return deduplicate_rows(combined)

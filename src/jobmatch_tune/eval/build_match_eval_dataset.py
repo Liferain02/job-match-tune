@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from pathlib import Path
 
 from jobmatch_tune.utils.io import write_jsonl
 
@@ -249,6 +250,120 @@ ROWS = [
 ]
 
 
+LEGACY_DIFFICULTY_TAGS = {
+    "match_eval_001": ["AI算法后端交叉"],
+    "match_eval_002": ["单项硬门槛不满足"],
+    "match_eval_003": ["可迁移技能"],
+    "match_eval_004": ["AI算法后端交叉"],
+    "match_eval_005": ["技能仅在项目中"],
+    "match_eval_006": ["技能同义词"],
+    "match_eval_007": ["OCR噪声"],
+    "match_eval_008": ["OCR噪声"],
+    "match_eval_009": ["技能仅在项目中"],
+    "match_eval_010": ["相近岗位方向"],
+    "match_eval_011": ["技能仅在项目中"],
+    "match_eval_012": ["相近岗位方向"],
+    "match_eval_013": ["技能仅在项目中"],
+    "match_eval_014": ["学历不完全满足", "相近岗位方向"],
+    "match_eval_015": ["OCR噪声"],
+    "match_eval_016": ["OCR噪声", "AI算法后端交叉"],
+}
+
+
+CHALLENGE_ROWS = [
+    {
+        "id": "match_gold_candidate_001",
+        "task": "match",
+        "source_type": "text",
+        "jd_text": "岗位名称：数据平台后端工程师\n任职要求：熟悉 Python、PostgreSQL、Redis，本科及以上学历。",
+        "resume_text": "目标岗位：后端开发\n教育背景：本科\n核心技能：Python、Postgres、Redis\n项目经历：使用 Postgres 开发数据服务。",
+        "label": {"匹配等级": "高匹配", "岗位方向匹配": True, "学历匹配": True, "经验匹配": True, "命中技能": ["Python", "PostgreSQL", "Redis"], "缺失技能": []},
+        "difficulty_tags": ["技能同义词"],
+        "draft_rationale": "Postgres 是 PostgreSQL 的常见同义表达。",
+    },
+    {
+        "id": "match_gold_candidate_002",
+        "task": "match",
+        "source_type": "text",
+        "jd_text": "岗位名称：React 前端工程师\n任职要求：熟悉 TypeScript、React、Vite，本科及以上学历。",
+        "resume_text": "目标岗位：前端开发\n教育背景：本科\n核心技能：TypeScript、Vue、Vite\n项目经历：独立开发大型 Vue 中后台并维护组件库。",
+        "label": {"匹配等级": "较匹配", "岗位方向匹配": True, "学历匹配": True, "经验匹配": True, "命中技能": ["TypeScript", "Vite"], "缺失技能": ["React"]},
+        "difficulty_tags": ["可迁移技能"],
+        "draft_rationale": "Vue 经验可迁移，但不能当作已经掌握 React。",
+    },
+    {
+        "id": "match_gold_candidate_003",
+        "task": "match",
+        "source_type": "text",
+        "jd_text": "岗位名称：AI 应用后端工程师\n岗位职责：负责 RAG 服务和 API 开发。\n任职要求：Python、FastAPI、RAG。",
+        "resume_text": "目标岗位：Python 后端开发\n核心技能：Python、FastAPI、MySQL\n项目经历：开发检索增强问答系统并上线接口服务。",
+        "label": {"匹配等级": "高匹配", "岗位方向匹配": True, "学历匹配": True, "经验匹配": True, "命中技能": ["Python", "FastAPI", "RAG"], "缺失技能": []},
+        "difficulty_tags": ["相近岗位方向", "AI算法后端交叉", "技能仅在项目中"],
+        "draft_rationale": "目标岗位名称不同，但项目内容与 AI 应用后端核心职责一致。",
+    },
+    {
+        "id": "match_gold_candidate_004",
+        "task": "match",
+        "source_type": "text",
+        "jd_text": "岗位名称：后端开发工程师\n任职要求：Java、Spring Boot、MySQL，三年以上工作经验，本科及以上学历。",
+        "resume_text": "目标岗位：后端开发\n教育背景：本科\n核心技能：Java、Spring Boot、MySQL\n工作经历：一年后端开发\n项目经历：独立负责百万日订单系统重构和压测。",
+        "label": {"匹配等级": "较匹配", "岗位方向匹配": True, "学历匹配": True, "经验匹配": False, "命中技能": ["Java", "Spring Boot", "MySQL"], "缺失技能": []},
+        "difficulty_tags": ["年限不足但项目强", "单项硬门槛不满足"],
+        "draft_rationale": "项目证据强，但明确的一年经历仍未满足三年硬要求。",
+    },
+    {
+        "id": "match_gold_candidate_005",
+        "task": "match",
+        "source_type": "text",
+        "jd_text": "岗位名称：测试开发工程师\n任职要求：Python、Pytest、Selenium，本科及以上学历。",
+        "resume_text": "目标岗位：测试开发\n教育背景：大专，软件技术\n核心技能：Python、Pytest、Selenium\n项目经历：搭建接口与 UI 自动化测试平台。",
+        "label": {"匹配等级": "较匹配", "岗位方向匹配": True, "学历匹配": False, "经验匹配": True, "命中技能": ["Python", "Pytest", "Selenium"], "缺失技能": []},
+        "difficulty_tags": ["学历不完全满足", "单项硬门槛不满足"],
+        "draft_rationale": "技能和方向符合，但大专不满足本科硬要求。",
+    },
+    {
+        "id": "match_gold_candidate_006",
+        "task": "match",
+        "source_type": "text",
+        "jd_text": "岗位名称：Python 后端工程师\n任职要求：Python、FastAPI、Redis。",
+        "resume_text": "目标岗位：后端开发\n核心技能：Python、Redis\n项目经历：使用 FastAPI 开发网关服务，承担鉴权和限流模块。",
+        "label": {"匹配等级": "高匹配", "岗位方向匹配": True, "学历匹配": True, "经验匹配": True, "命中技能": ["Python", "FastAPI", "Redis"], "缺失技能": []},
+        "difficulty_tags": ["技能仅在项目中"],
+        "draft_rationale": "FastAPI 未列在技能栏，但项目中有明确使用证据。",
+    },
+    {
+        "id": "match_gold_candidate_007",
+        "task": "match",
+        "source_type": "text",
+        "jd_text": "岗位名称：算法平台工程师\n岗位职责：负责模型服务、特征流水线和平台 API。\n任职要求：Python、PyTorch、FastAPI、Docker。",
+        "resume_text": "目标岗位：AI 后端工程师\n核心技能：Python、PyTorch、FastAPI、Docker\n项目经历：部署分类模型并开发在线推理 API。",
+        "label": {"匹配等级": "高匹配", "岗位方向匹配": True, "学历匹配": True, "经验匹配": True, "命中技能": ["Python", "PyTorch", "FastAPI", "Docker"], "缺失技能": []},
+        "difficulty_tags": ["AI算法后端交叉", "相近岗位方向"],
+        "draft_rationale": "算法、平台和后端交叉岗位，应依据职责和项目而非岗位名称判定。",
+    },
+    {
+        "id": "match_gold_candidate_008",
+        "task": "match",
+        "source_type": "ocr_like",
+        "jd_text": "岗位名称：AI Infra 工程师\n任职要求：Python、Kubernetes、C++、MySQL。",
+        "resume_text": "目标岗位:AI Infra\n核心技能:Py thon Kubernet es C + + My SOL\n项目经历:负责 GPU 任务调度和集群监控",
+        "label": {"匹配等级": "高匹配", "岗位方向匹配": True, "学历匹配": True, "经验匹配": True, "命中技能": ["Python", "Kubernetes", "C++", "MySQL"], "缺失技能": []},
+        "difficulty_tags": ["OCR噪声"],
+        "draft_rationale": "四个技能均有典型 OCR 断词或误识别形式。",
+    },
+    {
+        "id": "match_gold_candidate_009",
+        "task": "match",
+        "source_type": "text",
+        "jd_text": "岗位名称：高性能计算工程师\n任职要求：C++、CUDA、NCCL、Linux，硕士及以上学历，五年以上经验。",
+        "resume_text": "目标岗位：高性能计算\n教育背景：硕士\n核心技能：C++、CUDA、NCCL、Linux\n工作经历：两年 GPU 通信优化\n项目经历：优化多机训练集合通信性能。",
+        "label": {"匹配等级": "较匹配", "岗位方向匹配": True, "学历匹配": True, "经验匹配": False, "命中技能": ["C++", "CUDA", "NCCL", "Linux"], "缺失技能": []},
+        "difficulty_tags": ["单项硬门槛不满足", "年限不足但项目强"],
+        "draft_rationale": "唯一明确不满足的是五年经验门槛，不应掩盖其余强匹配证据。",
+    },
+]
+
+
 def to_ocr_like(text: str) -> str:
     text = text.replace("：", ":")
     text = text.replace("，", ",")
@@ -300,26 +415,57 @@ def build_variant_rows(rows: list[dict]) -> list[dict]:
     return variants
 
 
-def build_train_pool_rows(rows: list[dict]) -> list[dict]:
-    base = rows + build_variant_rows(rows)
-    extra: list[dict] = []
-    for row in base:
+def build_legacy_review_rows(rows: list[dict]) -> list[dict]:
+    reviewed = []
+    for row in rows:
         copied = deepcopy(row)
-        copied["id"] = f"{row['id']}_reason"
-        copied["jd_text"] = copied["jd_text"].replace("岗位名称：", "招聘岗位：")
-        copied["resume_text"] = copied["resume_text"].replace("目标岗位：", "候选人目标：")
-        extra.append(copied)
-    return base + extra
+        copied["source_group"] = row["id"]
+        copied["meta"] = {
+            "annotation_status": "legacy_unverified",
+            "annotation_provenance": "repository_seed_without_reviewer_record",
+            "training_eligible": False,
+            "intended_usage": "evaluation_review_only",
+            "difficulty_tags": LEGACY_DIFFICULTY_TAGS[row["id"]],
+        }
+        reviewed.append(copied)
+    return reviewed
+
+
+def build_gold_review_candidates(rows: list[dict]) -> list[dict]:
+    candidates = build_legacy_review_rows(rows)
+    for row in CHALLENGE_ROWS:
+        copied = deepcopy(row)
+        difficulty_tags = copied.pop("difficulty_tags")
+        draft_rationale = copied.pop("draft_rationale")
+        copied["source_group"] = copied["id"]
+        copied["meta"] = {
+            "annotation_status": "needs_human_review",
+            "annotation_provenance": "ai_draft_for_human_review",
+            "annotator_id": "",
+            "reviewed_at": "",
+            "rationale": draft_rationale,
+            "difficulty_tags": difficulty_tags,
+            "training_eligible": False,
+            "intended_usage": "gold_candidate_review_only",
+        }
+        candidates.append(copied)
+    return candidates
 
 
 def main() -> None:
-    all_rows = ROWS + build_variant_rows(ROWS)
-    train_pool = build_train_pool_rows(ROWS)
-    write_jsonl("data/eval/match_manual_eval_seed.jsonl", all_rows)
-    write_jsonl("data/eval/match_manual_train_pool.jsonl", train_pool)
+    review_rows = build_legacy_review_rows(ROWS)
+    gold_candidates = build_gold_review_candidates(ROWS)
+    robustness_rows = build_variant_rows(review_rows)
+    write_jsonl("data/eval/match_manual_eval_seed.jsonl", review_rows)
+    write_jsonl("data/eval/match_gold_review_candidates.jsonl", gold_candidates)
+    write_jsonl("data/eval/match_format_robustness_seed.jsonl", robustness_rows)
+    legacy_train_pool = Path("data/eval/match_manual_train_pool.jsonl")
+    removed_legacy_train_pool = legacy_train_pool.exists()
+    legacy_train_pool.unlink(missing_ok=True)
     print(
-        f"wrote {len(all_rows)} eval rows to data/eval/match_manual_eval_seed.jsonl "
-        f"and {len(train_pool)} train-pool rows to data/eval/match_manual_train_pool.jsonl"
+        f"wrote {len(review_rows)} legacy review rows, {len(gold_candidates)} Gold review candidates "
+        f"and {len(robustness_rows)} robustness rows; "
+        f"removed_leaked_train_pool={removed_legacy_train_pool}"
     )
 
 

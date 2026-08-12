@@ -2,6 +2,7 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
+source scripts/train/_dpo_pause_gate.sh
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 source scripts/train/_training_readiness_gate.sh
 run_training_readiness_gate jd_dpo

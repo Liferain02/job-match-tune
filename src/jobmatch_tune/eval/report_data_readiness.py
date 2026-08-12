@@ -3,11 +3,20 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
 from jobmatch_tune.dataset.grouped_split import normalized_input_hash
 from jobmatch_tune.dataset.pipeline_freshness import build_pipeline_freshness_report
+from jobmatch_tune.match.rule_engine import compute_match_rule_result
+from jobmatch_tune.match.rule_engine import _extract_required_years
+from jobmatch_tune.preprocess.jd_field_rules import (
+    extract_education_requirement,
+    extract_experience_requirement,
+)
+from jobmatch_tune.resume.privacy import detect_resume_pii
 from jobmatch_tune.utils.io import read_jsonl, write_text
 
 
@@ -101,6 +110,150 @@ def count_holdout_overlap(paths: list[str], holdout_path: str) -> int:
     return overlap
 
 
+def profile_match_training_sources(path: str) -> dict[str, Any]:
+    source_types: Counter[str] = Counter()
+    generators: Counter[str] = Counter()
+    total = 0
+    synthetic_rows = 0
+    verified_non_synthetic_rows = 0
+    educational_source_rows = 0
+    file_path = Path(path)
+    if file_path.exists():
+        for row in read_jsonl(file_path):
+            total += 1
+            educational_source_rows += int(
+                "synthetic_match_hf_job_educational_" in str(row.get("id") or "")
+            )
+            source_type = str(row.get("source_type") or "missing")
+            generator = str((row.get("meta") or {}).get("generator") or "missing")
+            source_types[source_type] += 1
+            generators[generator] += 1
+            if source_type.startswith("synthetic") or generator.startswith("synthetic"):
+                synthetic_rows += 1
+            elif str((row.get("meta") or {}).get("annotation_status") or "") == "human_verified":
+                verified_non_synthetic_rows += 1
+    non_synthetic_rows = total - synthetic_rows
+    if not total:
+        origin = "empty"
+    elif synthetic_rows == total:
+        origin = "synthetic_only"
+    elif synthetic_rows:
+        origin = "mixed"
+    else:
+        origin = "non_synthetic_only"
+    return {
+        "total_rows": total,
+        "source_type_counts": dict(source_types),
+        "generator_counts": dict(generators),
+        "synthetic_rows": synthetic_rows,
+        "non_synthetic_rows": non_synthetic_rows,
+        "human_verified_non_synthetic_rows": verified_non_synthetic_rows,
+        "synthetic_rate": round(synthetic_rows / total, 4) if total else 0.0,
+        "educational_source_rows": educational_source_rows,
+        "educational_source_rate": (
+            round(educational_source_rows / total, 4) if total else 0.0
+        ),
+        "max_educational_source_rate": 0.4,
+        "source_concentration_ready": bool(
+            total and educational_source_rows / total <= 0.4
+        ),
+        "training_origin": origin,
+        "supports_real_pair_quality_claim": verified_non_synthetic_rows > 0,
+    }
+
+
+def profile_match_training_privacy(path: str) -> dict[str, Any]:
+    total = 0
+    rows_with_findings = 0
+    finding_counts: Counter[str] = Counter()
+    file_path = Path(path)
+    if file_path.exists():
+        for row in read_jsonl(file_path):
+            total += 1
+            findings = detect_resume_pii(str(row.get("resume_text") or ""))
+            if findings:
+                rows_with_findings += 1
+                finding_counts.update(finding.kind for finding in findings)
+    return {
+        "total_rows": total,
+        "rows_with_privacy_findings": rows_with_findings,
+        "privacy_finding_rate": round(rows_with_findings / total, 4) if total else 0.0,
+        "finding_counts": dict(finding_counts),
+        "privacy_ready": total > 0 and rows_with_findings == 0,
+    }
+
+
+def profile_match_education_consistency(path: str) -> dict[str, Any]:
+    total = 0
+    disagreement_rows = 0
+    examples = []
+    file_path = Path(path)
+    if file_path.exists():
+        for row in read_jsonl(file_path):
+            total += 1
+            requirement = extract_education_requirement(str(row.get("jd_text") or ""))
+            result = compute_match_rule_result(
+                {"学历要求": requirement},
+                {"教育背景": [str(row.get("resume_text") or "")]},
+                resume_text=str(row.get("resume_text") or ""),
+            )
+            actual = bool((row.get("label") or {}).get("学历匹配"))
+            expected = bool(result["学历匹配"])
+            if actual != expected:
+                disagreement_rows += 1
+                if len(examples) < 10:
+                    examples.append(
+                        {
+                            "id": row.get("id"),
+                            "requirement": requirement,
+                            "label": actual,
+                            "expected": expected,
+                        }
+                    )
+    return {
+        "total_rows": total,
+        "disagreement_rows": disagreement_rows,
+        "examples": examples,
+        "education_consistency_ready": total > 0 and disagreement_rows == 0,
+    }
+
+
+def profile_match_experience_distribution(path: str) -> dict[str, Any]:
+    total = 0
+    required_rows = 0
+    matched_rows = 0
+    split_counts: dict[str, Counter[str]] = {}
+    file_path = Path(path)
+    if file_path.exists():
+        for row in read_jsonl(file_path):
+            total += 1
+            requirement = extract_experience_requirement(str(row.get("jd_text") or ""))
+            if _extract_required_years(requirement) <= 0:
+                continue
+            required_rows += 1
+            matched = bool((row.get("label") or {}).get("经验匹配"))
+            matched_rows += int(matched)
+            split = str((row.get("meta") or {}).get("entity_split") or "missing")
+            counts = split_counts.setdefault(split, Counter())
+            counts["required"] += 1
+            counts["matched"] += int(matched)
+            counts["unmatched"] += int(not matched)
+    rendered_splits = {split: dict(counts) for split, counts in split_counts.items()}
+    covered_splits = bool(rendered_splits) and all(
+        counts.get("matched", 0) > 0 and counts.get("unmatched", 0) > 0
+        for counts in rendered_splits.values()
+    )
+    return {
+        "total_rows": total,
+        "required_rows": required_rows,
+        "matched_rows": matched_rows,
+        "unmatched_rows": required_rows - matched_rows,
+        "matched_rate": round(matched_rows / required_rows, 4) if required_rows else 0.0,
+        "split_counts": rendered_splits,
+        "experience_distribution_ready": required_rows > 0 and covered_splits,
+    }
+
+
 def audit_sft_files(task_name: str, paths: list[str]) -> dict[str, Any]:
     total = 0
     invalid_json = 0
@@ -108,11 +261,21 @@ def audit_sft_files(task_name: str, paths: list[str]) -> dict[str, Any]:
     ids: set[str] = set()
     content_seen: dict[str, str] = {}
     normalized_input_seen: dict[str, str] = {}
+    linked_group_seen: dict[str, str] = {}
+    cross_split_linked_groups: set[str] = set()
     cross_split_duplicate_hashes = 0
     cross_split_normalized_input_hashes = 0
     split_counts: dict[str, int] = {}
     empty_counts = {field: 0 for field in REQUIRED_FIELDS[task_name]}
     task_types: dict[str, int] = {}
+    placeholder_match_recommendation_rows = 0
+    match_rows_missing_project_evidence_field = 0
+    placeholder_recommendations = {
+        "当前 JD 对应方向",
+        "同方向相近岗位",
+        "技能相近岗位",
+        "技能相近或低门槛过渡岗位",
+    }
 
     for path in paths:
         file_path = Path(path)
@@ -137,6 +300,13 @@ def audit_sft_files(task_name: str, paths: list[str]) -> dict[str, Any]:
                     messages = row["messages"]
                     user_text = str(messages[1].get("content") or "")
                     assistant = json.loads(row["messages"][-1]["content"])
+                    if task_type == "match" and any(
+                        str(role) in placeholder_recommendations
+                        for role in assistant.get("推荐投递岗位方向") or []
+                    ):
+                        placeholder_match_recommendation_rows += 1
+                    if task_type == "match" and '"命中项目"' not in user_text:
+                        match_rows_missing_project_evidence_field += 1
                     assistant_text = json.dumps(assistant, ensure_ascii=False, sort_keys=True)
                     content_hash = hashlib.sha1(f"{user_text}\n---\n{assistant_text}".encode("utf-8")).hexdigest()
                     previous_split = content_seen.get(content_hash)
@@ -148,6 +318,12 @@ def audit_sft_files(task_name: str, paths: list[str]) -> dict[str, Any]:
                     if previous_input_split and previous_input_split != split_name:
                         cross_split_normalized_input_hashes += 1
                     normalized_input_seen.setdefault(input_hash, split_name)
+                    for linked_group in row.get("linked_source_groups") or []:
+                        linked_group = str(linked_group)
+                        previous_linked_split = linked_group_seen.get(linked_group)
+                        if previous_linked_split and previous_linked_split != split_name:
+                            cross_split_linked_groups.add(linked_group)
+                        linked_group_seen.setdefault(linked_group, split_name)
                 except Exception:
                     invalid_json += 1
                     continue
@@ -169,8 +345,14 @@ def audit_sft_files(task_name: str, paths: list[str]) -> dict[str, Any]:
         "duplicate_ids": duplicate_ids,
         "cross_split_duplicate_hashes": cross_split_duplicate_hashes,
         "cross_split_normalized_input_hashes": cross_split_normalized_input_hashes,
+        "cross_split_linked_source_groups": len(cross_split_linked_groups),
+        "cross_split_linked_source_group_types": dict(
+            Counter(group.split(":", 1)[0] for group in cross_split_linked_groups)
+        ),
         "split_counts": split_counts,
         "task_types": task_types,
+        "placeholder_match_recommendation_rows": placeholder_match_recommendation_rows,
+        "match_rows_missing_project_evidence_field": match_rows_missing_project_evidence_field,
         "empty_counts": empty_counts,
         "empty_rates": empty_rates,
         "max_empty_rates": MAX_EMPTY_RATE[task_name],
@@ -228,6 +410,9 @@ def build_multitask_report(train_path: str, valid_path: str) -> dict[str, Any]:
         and audit["duplicate_ids"] == 0
         and audit["cross_split_duplicate_hashes"] == 0
         and audit.get("cross_split_normalized_input_hashes", 0) == 0
+        and audit.get("cross_split_linked_source_groups", 0) == 0
+        and audit.get("placeholder_match_recommendation_rows", 0) == 0
+        and audit.get("match_rows_missing_project_evidence_field", 0) == 0
         and cross_split_source_groups == 0
     )
     ready = count_ready and format_ready and has_required_mix and source_diversity_ready
@@ -270,6 +455,9 @@ def build_task_report(
         audit["invalid_json"] == 0
         and audit["cross_split_duplicate_hashes"] == 0
         and audit.get("cross_split_normalized_input_hashes", 0) == 0
+        and audit.get("cross_split_linked_source_groups", 0) == 0
+        and audit.get("placeholder_match_recommendation_rows", 0) == 0
+        and audit.get("match_rows_missing_project_evidence_field", 0) == 0
     )
     ready = count_ready and format_ready and bool(audit["field_quality_ok"])
     return {
@@ -317,6 +505,45 @@ def build_report() -> dict[str, object]:
             "data/sft_multitask/valid.jsonl",
         ),
     }
+    match_source_profile = profile_match_training_sources(
+        "data/eval/match_train_pool_combined.jsonl"
+    )
+    tasks["match"]["source_profile"] = match_source_profile
+    tasks["match"]["real_pair_quality_evidence_ready"] = bool(
+        match_source_profile["supports_real_pair_quality_claim"]
+    )
+    tasks["match"]["source_concentration_ready"] = bool(
+        match_source_profile["source_concentration_ready"]
+    )
+    match_privacy_profile = profile_match_training_privacy(
+        "data/eval/match_train_pool_combined.jsonl"
+    )
+    tasks["match"]["privacy_profile"] = match_privacy_profile
+    tasks["match"]["privacy_ready"] = bool(
+        match_privacy_profile["privacy_ready"] or match_privacy_profile["total_rows"] == 0
+    )
+    match_education_profile = profile_match_education_consistency(
+        "data/eval/match_train_pool_combined.jsonl"
+    )
+    tasks["match"]["education_consistency_profile"] = match_education_profile
+    tasks["match"]["education_consistency_ready"] = bool(
+        match_education_profile["education_consistency_ready"]
+        or match_education_profile["total_rows"] == 0
+    )
+    match_experience_profile = profile_match_experience_distribution(
+        "data/eval/match_train_pool_combined.jsonl"
+    )
+    tasks["match"]["experience_distribution_profile"] = match_experience_profile
+    tasks["match"]["experience_distribution_ready"] = bool(
+        match_experience_profile["experience_distribution_ready"]
+    )
+    tasks["match"]["ready_for_sft"] = bool(
+        tasks["match"]["ready_for_sft"]
+        and tasks["match"]["privacy_ready"]
+        and tasks["match"]["source_concentration_ready"]
+        and tasks["match"]["education_consistency_ready"]
+        and tasks["match"]["experience_distribution_ready"]
+    )
     jd_quality_profile = read_json_file("outputs/eval_reports/jd_quality_profile.json")
     if jd_quality_profile:
         tasks["jd"]["quality_profile"] = jd_quality_profile
@@ -357,11 +584,16 @@ def build_report() -> dict[str, object]:
     product_preference_report = read_json_file(
         "outputs/eval_reports/preference_product_bootstrap_readiness_report.json"
     )
-    all_ready_for_sft = all(task["ready_for_sft"] for task in tasks.values())
+    sft_pipeline_fresh = bool(pipeline_freshness.get("sft_fresh", pipeline_freshness["fresh"]))
+    dpo_pipeline_fresh = bool(pipeline_freshness.get("dpo_fresh", pipeline_freshness["fresh"]))
+    all_ready_for_sft = bool(
+        all(task["ready_for_sft"] for task in tasks.values()) and sft_pipeline_fresh
+    )
     ready_for_dpo = bool(preference_report.get("ready_for_dpo"))
     ready_for_dpo_smoke = bool(preference_report.get("ready_for_dpo_smoke"))
     ready_for_product_dpo = bool(product_preference_report.get("ready_for_dpo"))
     ready_for_product_dpo_smoke = bool(product_preference_report.get("ready_for_dpo_smoke"))
+    dpo_paused = os.environ.get("JOBMATCH_ALLOW_DPO", "0") != "1"
     all_ready_for_training = (
         all_ready_for_sft
         and ready_for_dpo
@@ -376,8 +608,17 @@ def build_report() -> dict[str, object]:
             "ready_for_dpo": ready_for_dpo,
             "ready_for_product_dpo_smoke": ready_for_product_dpo_smoke,
             "ready_for_product_dpo": ready_for_product_dpo,
+            "dpo_paused_by_quality_goal": dpo_paused,
+            "dpo_execution_ready": bool(
+                not dpo_paused and ready_for_dpo and ready_for_product_dpo
+            ),
             "not_ready_tasks": [name for name, task in tasks.items() if not task["ready_for_sft"]],
             "pipeline_fresh": pipeline_freshness["fresh"],
+            "sft_pipeline_fresh": sft_pipeline_fresh,
+            "dpo_pipeline_fresh": dpo_pipeline_fresh,
+            "match_real_pair_quality_evidence_ready": tasks["match"][
+                "real_pair_quality_evidence_ready"
+            ],
         },
         "pipeline_freshness": pipeline_freshness,
         "tasks": tasks,

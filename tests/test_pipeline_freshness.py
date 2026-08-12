@@ -2,6 +2,7 @@ import os
 
 from jobmatch_tune.database import init_db, upsert_jd_raw
 from jobmatch_tune.dataset.pipeline_freshness import (
+    DPO_DEPENDENCY_NAMES,
     DERIVED_DEPENDENCIES,
     PACKAGE_ROOT,
     normalization_transform_sha256,
@@ -90,7 +91,24 @@ def test_core_derived_dependencies_include_builder_code():
         in dependencies["单任务SFT到多任务SFT"]
     )
     assert (
+        str(PACKAGE_ROOT / "dataset" / "build_resume_train_pool_combined.py")
+        in dependencies["简历原始池到组合池"]
+    )
+    assert (
+        str(PACKAGE_ROOT / "match" / "rule_engine.py")
+        in dependencies["JD简历组合池到匹配合成池"]
+    )
+    assert (
+        str(PACKAGE_ROOT / "resume" / "privacy.py")
+        in dependencies["JD简历组合池到匹配合成池"]
+    )
+    assert (
+        str(PACKAGE_ROOT / "dataset" / "build_match_train_pool_combined.py")
+        in dependencies["匹配合成池到组合池"]
+    )
+    assert (
         str(PACKAGE_ROOT / "dataset" / "build_preference_bootstrap_dataset.py")
         in dependencies["多任务SFT到产品偏好数据"]
     )
     assert all(not path.endswith(".py") for derived in outputs.values() for path in derived)
+    assert DPO_DEPENDENCY_NAMES == {"JDSFT到偏好数据", "多任务SFT到产品偏好数据"}

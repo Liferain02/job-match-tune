@@ -4,6 +4,7 @@ from jobmatch_tune.resume.privacy import (
     redact_resume_pii,
     redact_resume_metadata,
     sanitize_resume_row,
+    sanitize_resume_text_for_training,
 )
 
 
@@ -88,3 +89,27 @@ def test_build_resume_privacy_report_summarizes_rows():
     assert report["row_count"] == 2
     assert report["rows_with_pii"] == 1
     assert report["pii_counts"]["phone"] == 1
+
+
+def test_training_sanitizer_removes_markdown_profile_and_sensitive_attributes():
+    text = "\n".join(
+        [
+            "- **姓名**：张斌",
+            "- **电话**：138-1234-5678",
+            "- **邮箱**：张斌@163.com",
+            "- **婚姻状况**：离异",
+            "- **身体状况**：肢体四级残疾",
+            "- **政治面貌**：群众",
+            "### 教育背景",
+            "本科，计算机科学与技术",
+            "### 项目经历",
+            "负责 Python 服务开发",
+        ]
+    )
+
+    sanitized = sanitize_resume_text_for_training(text)
+
+    for private_value in ("张斌", "138-1234-5678", "离异", "肢体四级残疾", "群众"):
+        assert private_value not in sanitized
+    assert "本科，计算机科学与技术" in sanitized
+    assert "负责 Python 服务开发" in sanitized

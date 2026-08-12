@@ -16,6 +16,7 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 DATASET_ROOT = PACKAGE_ROOT / "dataset"
 PREPROCESS_ROOT = PACKAGE_ROOT / "preprocess"
 RESUME_ROOT = PACKAGE_ROOT / "resume"
+MATCH_ROOT = PACKAGE_ROOT / "match"
 PROJECT_ROOT = PACKAGE_ROOT.parents[1]
 NORMALIZATION_TRANSFORM_FILES = (
     PACKAGE_ROOT / "preprocess" / "clean_text.py",
@@ -81,6 +82,19 @@ DERIVED_DEPENDENCIES = (
         ),
     ),
     (
+        "简历原始池到组合池",
+        (
+            "data/eval/resume_manual_train_pool.jsonl",
+            "data/external/public_resume_imports.jsonl",
+            "data/eval/resume_train_pool_synthetic.jsonl",
+            "data/eval/resume_train_pool_bootstrap.jsonl",
+            str(DATASET_ROOT / "build_resume_train_pool_synthetic.py"),
+            str(DATASET_ROOT / "build_resume_train_pool_combined.py"),
+            str(RESUME_ROOT / "privacy.py"),
+        ),
+        ("data/eval/resume_train_pool_combined.jsonl",),
+    ),
+    (
         "简历组合池到SFT",
         (
             "data/eval/resume_train_pool_combined.jsonl",
@@ -90,6 +104,27 @@ DERIVED_DEPENDENCIES = (
             str(RESUME_ROOT / "privacy.py"),
         ),
         ("data/sft_resume/train.jsonl", "data/sft_resume/valid.jsonl", "data/sft_resume/test.jsonl"),
+    ),
+    (
+        "JD简历组合池到匹配合成池",
+        (
+            "data/eval/jd_train_pool_combined.jsonl",
+            "data/eval/resume_train_pool_combined.jsonl",
+            str(DATASET_ROOT / "build_match_train_pool_synthetic.py"),
+            str(MATCH_ROOT / "rule_engine.py"),
+            str(PREPROCESS_ROOT / "jd_field_rules.py"),
+            str(RESUME_ROOT / "privacy.py"),
+            str(PROJECT_ROOT / "configs" / "label_schema.yaml"),
+        ),
+        ("data/eval/match_train_pool_synthetic.jsonl",),
+    ),
+    (
+        "匹配合成池到组合池",
+        (
+            "data/eval/match_train_pool_synthetic.jsonl",
+            str(DATASET_ROOT / "build_match_train_pool_combined.py"),
+        ),
+        ("data/eval/match_train_pool_combined.jsonl",),
     ),
     (
         "匹配组合池到SFT",
@@ -139,6 +174,11 @@ DERIVED_DEPENDENCIES = (
         ),
     ),
 )
+
+DPO_DEPENDENCY_NAMES = {
+    "JDSFT到偏好数据",
+    "多任务SFT到产品偏好数据",
+}
 
 
 def sha256_file(path: str | Path) -> str:
@@ -267,9 +307,17 @@ def verify_dependency(
 def build_pipeline_freshness_report() -> dict[str, Any]:
     normalization = verify_normalization_manifest()
     dependencies = [verify_dependency(name, inputs, outputs) for name, inputs, outputs in DERIVED_DEPENDENCIES]
+    sft_dependencies = [item for item in dependencies if item["name"] not in DPO_DEPENDENCY_NAMES]
+    dpo_dependencies = [item for item in dependencies if item["name"] in DPO_DEPENDENCY_NAMES]
+    sft_fresh = bool(normalization["fresh"] and all(item["fresh"] for item in sft_dependencies))
+    dpo_fresh = bool(all(item["fresh"] for item in dpo_dependencies))
     return {
-        "fresh": bool(normalization["fresh"] and all(item["fresh"] for item in dependencies)),
+        "fresh": bool(sft_fresh and dpo_fresh),
+        "sft_fresh": sft_fresh,
+        "dpo_fresh": dpo_fresh,
         "normalization": normalization,
         "dependencies": dependencies,
         "stale_dependencies": [item["name"] for item in dependencies if not item["fresh"]],
+        "stale_sft_dependencies": [item["name"] for item in sft_dependencies if not item["fresh"]],
+        "stale_dpo_dependencies": [item["name"] for item in dpo_dependencies if not item["fresh"]],
     }

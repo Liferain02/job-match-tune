@@ -17,5 +17,5 @@ def test_build_rows_renders_multiple_resume_variants():
         }
     ]
     built = build_rows(rows)
-    assert len(built) >= 10
+    assert len(built) == 6
     assert all(row["task"] == "resume_parse" for row in built)

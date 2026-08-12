@@ -10,6 +10,10 @@ from jobmatch_tune.eval.report_data_readiness import (
     build_report,
     build_task_report,
     count_holdout_overlap,
+    profile_match_education_consistency,
+    profile_match_experience_distribution,
+    profile_match_training_sources,
+    profile_match_training_privacy,
     _float_or_default,
 )
 
@@ -19,6 +23,21 @@ def _fresh_pipeline_for_readiness_unit_tests():
     with patch(
         "jobmatch_tune.eval.report_data_readiness.build_pipeline_freshness_report",
         return_value={"fresh": True, "normalization": {}, "dependencies": []},
+    ), patch(
+        "jobmatch_tune.eval.report_data_readiness.profile_match_training_sources",
+        return_value={
+            "supports_real_pair_quality_claim": False,
+            "source_concentration_ready": True,
+        },
+    ), patch(
+        "jobmatch_tune.eval.report_data_readiness.profile_match_training_privacy",
+        return_value={"total_rows": 1, "privacy_ready": True},
+    ), patch(
+        "jobmatch_tune.eval.report_data_readiness.profile_match_education_consistency",
+        return_value={"total_rows": 1, "education_consistency_ready": True},
+    ), patch(
+        "jobmatch_tune.eval.report_data_readiness.profile_match_experience_distribution",
+        return_value={"experience_distribution_ready": True},
     ):
         yield
 
@@ -38,7 +57,11 @@ def test_build_task_report_not_ready_when_pool_missing():
     assert report["ready_for_sft"] is False
 
 
-def test_build_report_summarizes_not_ready_tasks():
+@patch(
+    "jobmatch_tune.eval.report_data_readiness.build_multitask_report",
+    return_value={"task": "multitask", "ready_for_sft": True},
+)
+def test_build_report_summarizes_not_ready_tasks(_multitask):
     with patch("jobmatch_tune.eval.report_data_readiness.count_jsonl") as mocked:
         mocked.side_effect = [
             4000, 500, 500, 8000,  # jd
@@ -71,7 +94,11 @@ def test_build_report_summarizes_not_ready_tasks():
     assert report["tasks"]["jd"]["risk_ready"] is True
 
 
-def test_build_report_requires_resume_privacy_and_product_preference():
+@patch(
+    "jobmatch_tune.eval.report_data_readiness.build_multitask_report",
+    return_value={"task": "multitask", "ready_for_sft": True},
+)
+def test_build_report_requires_resume_privacy_and_product_preference(_multitask):
     with patch("jobmatch_tune.eval.report_data_readiness.count_jsonl") as mocked:
         mocked.side_effect = [
             4240, 530, 530, 8000,  # jd
@@ -101,10 +128,16 @@ def test_build_report_requires_resume_privacy_and_product_preference():
                     report = build_report()
     assert report["summary"]["all_ready_for_training"] is True
     assert report["summary"]["ready_for_product_dpo"] is True
+    assert report["summary"]["dpo_paused_by_quality_goal"] is True
+    assert report["summary"]["dpo_execution_ready"] is False
     assert report["tasks"]["resume"]["privacy_ready"] is True
 
 
-def test_build_report_blocks_training_when_resume_privacy_fails():
+@patch(
+    "jobmatch_tune.eval.report_data_readiness.build_multitask_report",
+    return_value={"task": "multitask", "ready_for_sft": True},
+)
+def test_build_report_blocks_training_when_resume_privacy_fails(_multitask):
     with patch("jobmatch_tune.eval.report_data_readiness.count_jsonl") as mocked:
         mocked.side_effect = [
             4240, 530, 530, 8000,
@@ -205,6 +238,48 @@ def test_audit_sft_files_detects_cross_split_normalized_input_overlap(tmp_path: 
     assert audit["cross_split_normalized_input_hashes"] == 1
 
 
+def test_audit_sft_files_detects_shared_match_entity_across_splits(tmp_path: Path):
+    train = tmp_path / "train.jsonl"
+    valid = tmp_path / "valid.jsonl"
+    train_row = _sample("match_train")
+    train_row["linked_source_groups"] = ["match_jd:shared", "match_resume:train"]
+    valid_row = _sample("match_valid")
+    valid_row["messages"][1]["content"] = "不同的匹配输入"
+    valid_row["linked_source_groups"] = ["match_jd:shared", "match_resume:valid"]
+    train.write_text(json.dumps(train_row, ensure_ascii=False) + "\n", encoding="utf-8")
+    valid.write_text(json.dumps(valid_row, ensure_ascii=False) + "\n", encoding="utf-8")
+
+    audit = audit_sft_files("jd", [str(train), str(valid)])
+
+    assert audit["cross_split_linked_source_groups"] == 1
+    assert audit["cross_split_linked_source_group_types"] == {"match_jd": 1}
+
+
+def test_audit_sft_files_detects_placeholder_match_recommendation(tmp_path: Path):
+    train = tmp_path / "train.jsonl"
+    row = _sample("match_placeholder")
+    row["task_type"] = "match"
+    assistant = json.loads(row["messages"][-1]["content"])
+    assistant["推荐投递岗位方向"] = ["技能相近岗位"]
+    row["messages"][-1]["content"] = json.dumps(assistant, ensure_ascii=False)
+    train.write_text(json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
+
+    audit = audit_sft_files("jd", [str(train)])
+
+    assert audit["placeholder_match_recommendation_rows"] == 1
+
+
+def test_audit_sft_files_detects_match_prompt_without_project_evidence_field(tmp_path: Path):
+    train = tmp_path / "train.jsonl"
+    row = _sample("match_without_projects")
+    row["task_type"] = "match"
+    train.write_text(json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
+
+    audit = audit_sft_files("jd", [str(train)])
+
+    assert audit["match_rows_missing_project_evidence_field"] == 1
+
+
 def test_build_multitask_report_requires_all_tasks(tmp_path: Path):
     train = tmp_path / "train.jsonl"
     valid = tmp_path / "valid.jsonl"
@@ -275,3 +350,140 @@ def test_count_holdout_overlap_normalizes_jd_parse_suffix(tmp_path: Path):
     holdout.write_text(json.dumps({"source_id": "jd_1"}) + "\n", encoding="utf-8")
 
     assert count_holdout_overlap([str(train)], str(holdout)) == 1
+
+
+def test_profile_match_training_sources_exposes_synthetic_only_pool(tmp_path: Path):
+    pool = tmp_path / "match.jsonl"
+    rows = [
+        {
+            "id": "synthetic_match_hf_job_educational_a",
+            "source_type": "synthetic_text",
+            "meta": {"generator": "pairing_v1"},
+        },
+        {"id": "b", "source_type": "synthetic_text", "meta": {"generator": "pairing_v1"}},
+        {"id": "c", "source_type": "synthetic_text", "meta": {"generator": "pairing_v1"}},
+    ]
+    pool.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+
+    profile = profile_match_training_sources(str(pool))
+
+    assert profile["training_origin"] == "synthetic_only"
+    assert profile["synthetic_rate"] == 1.0
+    assert profile["supports_real_pair_quality_claim"] is False
+    assert profile["educational_source_rate"] == 0.3333
+    assert profile["source_concentration_ready"] is True
+
+
+def test_profile_match_training_sources_rejects_educational_source_dominance(tmp_path: Path):
+    pool = tmp_path / "match.jsonl"
+    rows = [
+        {"id": f"synthetic_match_hf_job_educational_{index}", "source_type": "synthetic_text"}
+        for index in range(3)
+    ] + [{"id": "synthetic_match_official_1", "source_type": "synthetic_text"}]
+    pool.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+
+    profile = profile_match_training_sources(str(pool))
+
+    assert profile["educational_source_rate"] == 0.75
+    assert profile["source_concentration_ready"] is False
+
+
+def test_profile_match_training_privacy_detects_sensitive_resume_fields(tmp_path: Path):
+    pool = tmp_path / "match.jsonl"
+    rows = [
+        {"id": "a", "resume_text": "婚姻状况：已婚\n核心技能：Python"},
+        {"id": "b", "resume_text": "核心技能：Java"},
+    ]
+    pool.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+
+    profile = profile_match_training_privacy(str(pool))
+
+    assert profile["rows_with_privacy_findings"] == 1
+    assert profile["finding_counts"]["marital_status"] == 1
+    assert profile["privacy_ready"] is False
+
+
+def test_profile_match_education_consistency_detects_stale_label(tmp_path: Path):
+    pool = tmp_path / "match.jsonl"
+    rows = [
+        {
+            "id": "wrong",
+            "jd_text": "任职要求：硕士研究生及以上学历",
+            "resume_text": "教育背景：本科",
+            "label": {"学历匹配": True},
+        },
+        {
+            "id": "preferred",
+            "jd_text": "任职要求：硕士优先",
+            "resume_text": "教育背景：本科",
+            "label": {"学历匹配": True},
+        },
+    ]
+    pool.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+
+    profile = profile_match_education_consistency(str(pool))
+
+    assert profile["disagreement_rows"] == 1
+    assert profile["examples"][0]["id"] == "wrong"
+    assert profile["education_consistency_ready"] is False
+
+
+def test_profile_match_experience_distribution_requires_both_labels_per_split(tmp_path: Path):
+    pool = tmp_path / "match.jsonl"
+    rows = [
+        {
+            "id": "matched",
+            "jd_text": "任职要求：两年以上开发经验",
+            "label": {"经验匹配": True},
+            "meta": {"entity_split": "train"},
+        },
+        {
+            "id": "unmatched",
+            "jd_text": "任职要求：三年以上开发经验",
+            "label": {"经验匹配": False},
+            "meta": {"entity_split": "train"},
+        },
+    ]
+    pool.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+
+    profile = profile_match_experience_distribution(str(pool))
+
+    assert profile["matched_rows"] == 1
+    assert profile["unmatched_rows"] == 1
+    assert profile["experience_distribution_ready"] is True
+
+
+def test_profile_match_experience_distribution_rejects_single_class_split(tmp_path: Path):
+    pool = tmp_path / "match.jsonl"
+    pool.write_text(
+        json.dumps(
+            {
+                "id": "only_negative",
+                "jd_text": "任职要求：三年以上开发经验",
+                "label": {"经验匹配": False},
+                "meta": {"entity_split": "valid"},
+            },
+            ensure_ascii=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    profile = profile_match_experience_distribution(str(pool))
+
+    assert profile["experience_distribution_ready"] is False

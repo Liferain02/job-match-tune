@@ -1,5 +1,6 @@
 from jobmatch_tune.dataset.build_match_train_pool_combined import (
     build_combined_rows,
+    cap_educational_source_rows,
     is_usable_public_match_row,
 )
 
@@ -113,3 +114,16 @@ def test_build_combined_rows_merges_and_deduplicates():
     ]
     combined = build_combined_rows(manual_rows, public_rows, synthetic_rows)
     assert len(combined) == 3
+
+
+def test_final_match_pool_reapplies_educational_cap_after_deduplication():
+    rows = [
+        {"id": f"synthetic_match_hf_job_educational_{index}"}
+        for index in range(5)
+    ] + [{"id": f"synthetic_match_official_{index}"} for index in range(6)]
+
+    capped = cap_educational_source_rows(rows, max_rate=0.4)
+
+    educational = sum("hf_job_educational_" in row["id"] for row in capped)
+    assert len(capped) == 10
+    assert educational == 4

@@ -1,6 +1,8 @@
 from jobmatch_tune.eval.build_match_eval_dataset import (
+    CHALLENGE_ROWS,
     ROWS,
-    build_train_pool_rows,
+    build_gold_review_candidates,
+    build_legacy_review_rows,
     build_variant_rows,
 )
 
@@ -13,9 +15,31 @@ def test_build_variant_rows_expands_each_base_row():
     assert variants[2]["id"].endswith("_compact")
 
 
-def test_build_train_pool_rows_contains_reason_variants():
-    rows = ROWS[:2]
-    train_pool = build_train_pool_rows(rows)
-    assert len(train_pool) == 16
-    assert any(row["id"].endswith("_reason") for row in train_pool)
-    assert any("招聘岗位：" in row["jd_text"] for row in train_pool if row["id"].endswith("_reason"))
+def test_build_legacy_review_rows_are_not_training_eligible():
+    rows = build_legacy_review_rows(ROWS[:1])
+
+    assert rows[0]["source_group"] == ROWS[0]["id"]
+    assert rows[0]["meta"]["annotation_status"] == "legacy_unverified"
+    assert rows[0]["meta"]["training_eligible"] is False
+    assert rows[0]["meta"]["difficulty_tags"]
+
+
+def test_gold_review_candidates_cover_requested_difficulties_without_claiming_human_review():
+    rows = build_gold_review_candidates(ROWS)
+    challenge_rows = rows[-len(CHALLENGE_ROWS) :]
+    tags = {tag for row in rows for tag in row["meta"]["difficulty_tags"]}
+
+    assert len(rows) == 25
+    assert all(row["meta"]["annotation_status"] == "needs_human_review" for row in challenge_rows)
+    assert all(row["meta"]["training_eligible"] is False for row in rows)
+    assert tags == {
+        "技能同义词",
+        "可迁移技能",
+        "相近岗位方向",
+        "年限不足但项目强",
+        "学历不完全满足",
+        "技能仅在项目中",
+        "AI算法后端交叉",
+        "OCR噪声",
+        "单项硬门槛不满足",
+    }

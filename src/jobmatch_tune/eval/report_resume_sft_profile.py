@@ -55,10 +55,10 @@ def build_resume_sft_profile(paths: list[str]) -> dict[str, Any]:
         "profile_ready": (
             unique_source_groups >= 3000
             and expansion_ratio <= 20.0
-            # A manual resume can have 20 template variants plus one OCR-form
-            # source row. They now share a group to prevent cross-split leakage.
-            and max_source_group_size <= 21
-            and max_variant_rate <= 0.1
+            # Six deliberately distinct renderings cover the core input shapes
+            # without inflating every source into twenty hand-written templates.
+            and max_source_group_size <= 7
+            and max_variant_rate <= 0.25
             and bootstrap_source_group_rate <= 0.8
         ),
     }

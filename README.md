@@ -2,7 +2,7 @@
 
 面向中文招聘场景的模型后训练与评测工作台，覆盖 JD 解析、简历解析和可解释的人岗匹配。当前默认推理组合是 `Qwen3-14B + LoRA adapter + 规则后处理`。
 
-它的核心价值在于一条可审计的实验闭环：公开招聘数据进入清洗和分层流程，经 SFT / DPO 训练后，用人工留出评测集（holdout）、隐私门禁、数据泄漏检查和产品回归报告决定 adapter 是否可晋级。它目前不是完整 ATS，也不应被当作可直接公网部署的招聘决策系统。
+它的核心价值在于一条可审计的实验闭环：公开招聘数据进入清洗和分层流程，经 SFT 和可选偏好训练后，用人工留出评测集（holdout）、隐私门禁、数据泄漏检查和产品回归报告决定 adapter 是否可晋级。它目前不是完整 ATS，也不应被当作可直接公网部署的招聘决策系统。
 
 ## 当前能力
 
@@ -130,13 +130,16 @@ JD DPO:      summary.ready_for_dpo = true
 完整链路:    summary.all_ready_for_training = true
 ```
 
-14B smoke、SFT 和产品 DPO：
+这些是允许训练的目标状态，不是当前状态。2026-08-12 简化模板并完整重建后，Resume SFT 为 15,464 条、2,652 个有效来源组，其中 2,524 个来源组（95.17%）仍来自 bootstrap；多任务 Resume 来源组比例为 train 75.75%、valid 78.70%。Match 中 1,996 条明确年限要求样本又全部为“不满足”，因此当前 `not_ready_tasks=[resume, match, multitask]`；不要绕过 readiness 启动新训练。FairCV 因许可未确认且只允许候选审计，已从 Resume/Match 训练链路移除。
+
+14B smoke 和 SFT：
 
 ```bash
 bash scripts/train/train_qwen3_14b_smoke.sh
 bash scripts/train/train_qwen3_14b_multitask_sft.sh
-bash scripts/train/train_qwen3_14b_product_dpo.sh
 ```
+
+新增 DPO 当前暂停：现有 preference 全为合成数据，且 Match Gold 尚未完成人工复核。训练脚本默认拒绝 DPO，恢复条件和人工审核方法见[人岗匹配持续质量目标](docs/人岗匹配持续质量目标.md)。
 
 训练入口会写入 `run_manifest.json`，记录 Git commit、配置和数据 hash、任务构成、原始来源多样性、偏好数据出处、readiness 摘要和 CLI 覆盖项。正式 adapter 仍需同时通过绝对产品阈值与基线回归阈值：
 
@@ -149,7 +152,7 @@ bash scripts/eval/run_product_adapter_suite.sh
 
 ## 数据边界
 
-Git 只保留人工 gold、人工标注种子和必要的小型 review seed。以下内容均为运行产物，不纳入版本控制：
+Git 保留评测候选的 builder 和审核契约；当前 `data/` 整体属于本地运行资产，不纳入版本控制。人工审核文件默认放在 `data/private/`，避免误提交真实简历或标注信息：
 
 - `models/`、`outputs/`；
 - SQLite、raw、interim、SFT、preference 数据；
@@ -173,14 +176,14 @@ node tests/frontend_report_smoke.mjs
 python -m compileall -q src
 ```
 
-当前仓库基线为 331 个 Python 测试和 1 个前端报告 smoke。测试主要覆盖规则、数据 builder、评测、隐私处理和 API service helper；不包含真实 14B GPU 推理回归。
+测试主要覆盖规则、数据 builder、评测、隐私处理和 API service helper；真实 14B GPU 推理回归需要单独运行，不包含在日常单元测试中。
 
 ## 目录
 
 - `src/jobmatch_tune/`：crawler、预处理、数据构造、训练、推理、匹配、评测和 API。
 - `scripts/`：当前可执行数据、训练、服务和评测入口。
 - `configs/`：schema、数据源、数据配比与当前 14B 训练配置。
-- `data/eval/`：版本化人工 gold / seed；不保存派生训练池。
+- `data/eval/`：本地生成的评测候选、seed 和派生数据；可复现定义位于 `src/jobmatch_tune/eval/`。
 - `frontend/`：无构建步骤的 Vue 3 ESM 工作台。
 - `docs/`：架构审查、数据与历史实验文档。
 
@@ -193,7 +196,8 @@ python -m compileall -q src
 - API service、上传解析和路由集中在单个较大的模块中，响应没有统一 Pydantic contract。
 - 前端依赖 CDN，没有版本锁定、构建产物和浏览器自动化测试。
 - 仓库没有 CI、容器定义、依赖 lock file、许可证和安全策略。
-- 人工留出评测集规模较小，训练池中合成/模板数据占比较高；指标不能等价为真实招聘决策质量。
+- Match 候选留出集已有 25 条且与训练池无重合，但尚未完成人工复核；历史 Match 分数不能等价为真实招聘决策质量。
+- Match 配对池已经清除个人资料与敏感字段，但仍为 100% 合成配对；Resume 和多任务来源多样性门禁当前未通过。
 
 ## 文档
 
@@ -208,6 +212,7 @@ python -m compileall -q src
 - [岗位方向标注口径](docs/岗位方向标注口径.md)
 - [公开数据源清单](docs/公开数据源清单.md)
 - [中文人岗匹配数据核验](docs/中文人岗匹配数据核验.md)
+- [人岗匹配持续质量目标](docs/人岗匹配持续质量目标.md)
 - [训练评测记录（2026-06-01）](docs/训练评测记录_2026-06-01.md)
 - [项目建设历程](docs/项目建设历程.md)
 

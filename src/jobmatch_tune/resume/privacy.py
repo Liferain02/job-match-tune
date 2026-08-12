@@ -11,14 +11,39 @@ from jobmatch_tune.resume.ingest import ingest_resume
 from jobmatch_tune.utils.io import read_jsonl, write_jsonl, write_text
 
 
-PHONE_RE = re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)")
-EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+PHONE_RE = re.compile(r"(?<!\d)1[3-9]\d(?:[-\s]?\d){8}(?!\d)")
+EMAIL_RE = re.compile(r"[\w.%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 WECHAT_RE = re.compile(r"(?i)\b(?:微信|wechat|vx)[:：]?\s*([A-Za-z][A-Za-z0-9_-]{5,})")
 QQ_RE = re.compile(r"(?:QQ|qq)[:：]?\s*([1-9][0-9]{4,11})")
 AGE_RE = re.compile(r"(?<!\d)([1-5]?\d)\s*岁")
 NAME_LINE_RE = re.compile(r"^(?:姓名[:：]?\s*)?([\u4e00-\u9fff]{2,4})$")
 PRIVATE_CONTEXT_RE = re.compile(r"(电话|手机|邮箱|年龄|政治面貌|\[手机号\]|\[邮箱\]|\[年龄\])")
 RESUME_FILE_NAME_RE = re.compile(r"(?<=[-_])[\u4e00-\u9fff]{2,4}(?=\.)")
+PRIVATE_PROFILE_FIELDS = {
+    "姓名": "name",
+    "年龄": "age",
+    "性别": "gender",
+    "婚姻状况": "marital_status",
+    "户口地": "hukou",
+    "籍贯": "hukou",
+    "身体状况": "health_status",
+    "残障情况": "health_status",
+    "政治面貌": "political_status",
+    "出生日期": "birth_date",
+    "民族": "ethnicity",
+}
+TRAINING_PRIVATE_FIELDS = tuple(
+    PRIVATE_PROFILE_FIELDS
+    | {
+        "电话": "phone",
+        "手机": "phone",
+        "联系电话": "phone",
+        "邮箱": "email",
+        "联系邮箱": "email",
+        "微信": "wechat",
+        "QQ": "qq",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -53,6 +78,15 @@ def detect_resume_pii(text: str) -> list[PiiFinding]:
         explicit_name_field = stripped.startswith("姓名")
         if match and (explicit_name_field or near_private_context):
             findings.append(PiiFinding(kind="name", value=match.group(1)))
+        normalized_line = re.sub(r"^[\s#>*+\-]+", "", stripped).replace("**", "")
+        profile_match = re.match(r"([^：:]+)\s*[：:]\s*(.+)$", normalized_line)
+        if profile_match:
+            field = profile_match.group(1).strip()
+            kind = PRIVATE_PROFILE_FIELDS.get(field)
+            if kind == "age" and AGE_RE.search(stripped):
+                continue
+            if kind and kind != "name":
+                findings.append(PiiFinding(kind=kind, value=profile_match.group(2).strip()))
     return findings
 
 
@@ -79,6 +113,19 @@ def redact_resume_pii(text: str) -> str:
         else:
             lines.append(line)
     return "\n".join(lines)
+
+
+def sanitize_resume_text_for_training(text: str) -> str:
+    redacted = redact_resume_pii(text)
+    kept_lines = []
+    for line in redacted.splitlines():
+        normalized_line = re.sub(r"^[\s#>*+\-]+", "", line.strip()).replace("**", "")
+        if normalized_line in {"[姓名]", "[手机号]", "[邮箱]"}:
+            continue
+        if any(re.match(rf"{re.escape(field)}\s*[：:]", normalized_line) for field in TRAINING_PRIVATE_FIELDS):
+            continue
+        kept_lines.append(line)
+    return "\n".join(kept_lines)
 
 
 def redact_resume_metadata(value: str) -> str:
@@ -109,13 +156,14 @@ def sanitize_resume_row(row: dict[str, Any]) -> dict[str, Any]:
     sanitized = dict(row)
     for field in text_fields:
         if field in sanitized and isinstance(sanitized[field], str):
-            sanitized[field] = redact_resume_pii(sanitized[field])
+            sanitized[field] = sanitize_resume_text_for_training(sanitized[field])
     for field in ["file_name", "file_path"]:
         if field in sanitized and isinstance(sanitized[field], str):
             sanitized[field] = redact_resume_metadata(sanitized[field])
     if isinstance(sanitized.get("sections"), dict):
         sanitized["sections"] = {
-            key: redact_resume_pii(str(value)) for key, value in sanitized["sections"].items()
+            key: sanitize_resume_text_for_training(str(value))
+            for key, value in sanitized["sections"].items()
         }
     sanitized["privacy"] = summarize_pii(findings)
     sanitized["privacy"]["redacted"] = bool(findings)

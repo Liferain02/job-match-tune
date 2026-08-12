@@ -53,10 +53,36 @@ def deduplicate_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return deduped
 
 
+def cap_educational_source_rows(
+    rows: list[dict[str, Any]], max_rate: float = 0.4
+) -> list[dict[str, Any]]:
+    if not 0.0 <= max_rate <= 1.0:
+        raise ValueError("max_rate must be between 0 and 1")
+    if max_rate == 1.0:
+        return rows
+    educational = [
+        row
+        for row in rows
+        if "synthetic_match_hf_job_educational_" in str(row.get("id") or "")
+    ]
+    other_count = len(rows) - len(educational)
+    max_educational = int(max_rate * other_count / (1.0 - max_rate))
+    if len(educational) <= max_educational:
+        return rows
+    keep_ids = {id(row) for row in educational[:max_educational]}
+    return [
+        row
+        for row in rows
+        if "synthetic_match_hf_job_educational_" not in str(row.get("id") or "")
+        or id(row) in keep_ids
+    ]
+
+
 def build_combined_rows(
     manual_rows: list[dict[str, Any]],
     public_rows: list[dict[str, Any]],
     synthetic_rows: list[dict[str, Any]] | None = None,
+    max_educational_source_rate: float = 0.4,
 ) -> list[dict[str, Any]]:
     combined = list(manual_rows)
     for row in synthetic_rows or []:
@@ -74,21 +100,37 @@ def build_combined_rows(
                     "meta": row.get("meta") or {},
                 }
             )
-    return deduplicate_rows(combined)
+    return cap_educational_source_rows(
+        deduplicate_rows(combined), max_rate=max_educational_source_rate
+    )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--manual-input", default="data/eval/match_manual_train_pool.jsonl")
+    parser.add_argument(
+        "--manual-input",
+        default=None,
+        help="Optional independently annotated training pairs; never point this at a Gold/eval file.",
+    )
     parser.add_argument("--public-input", default="data/external/public_match_imports.jsonl")
     parser.add_argument("--synthetic-input", default="data/eval/match_train_pool_synthetic.jsonl")
+    parser.add_argument("--max-educational-source-rate", type=float, default=0.4)
     parser.add_argument("--out", default="data/eval/match_train_pool_combined.jsonl")
     args = parser.parse_args()
 
-    manual_rows = list(read_jsonl(args.manual_input))
+    manual_rows = (
+        list(read_jsonl(args.manual_input))
+        if args.manual_input and Path(args.manual_input).exists()
+        else []
+    )
     public_rows = list(read_jsonl(args.public_input)) if Path(args.public_input).exists() else []
     synthetic_rows = list(read_jsonl(args.synthetic_input)) if Path(args.synthetic_input).exists() else []
-    combined = build_combined_rows(manual_rows, public_rows, synthetic_rows)
+    combined = build_combined_rows(
+        manual_rows,
+        public_rows,
+        synthetic_rows,
+        max_educational_source_rate=args.max_educational_source_rate,
+    )
     write_jsonl(args.out, combined)
     print(
         f"manual={len(manual_rows)} public={len(public_rows)} synthetic={len(synthetic_rows)} combined={len(combined)}"

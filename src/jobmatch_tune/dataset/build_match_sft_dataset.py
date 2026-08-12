@@ -5,14 +5,20 @@ import json
 from typing import Any
 
 from jobmatch_tune.dataset.templates import SYSTEM_PROMPT, match_prompt
-from jobmatch_tune.dataset.grouped_split import split_linked_samples
+from jobmatch_tune.dataset.grouped_split import normalized_input_hash, split_linked_samples
 from jobmatch_tune.utils.io import read_jsonl, write_jsonl
 
 
-def build_analysis_from_label(label: dict[str, Any]) -> dict[str, Any]:
+def build_analysis_from_label(
+    label: dict[str, Any],
+    *,
+    jd_direction: str = "",
+    resume_direction: str = "",
+) -> dict[str, Any]:
     level = str(label.get("匹配等级") or "")
     matched = list(label.get("命中技能") or [])
     missing = list(label.get("缺失技能") or [])
+    matched_projects = list(label.get("命中项目") or [])
     direction_match = bool(label.get("岗位方向匹配"))
     education_match = bool(label.get("学历匹配"))
     experience_match = bool(label.get("经验匹配"))
@@ -33,6 +39,8 @@ def build_analysis_from_label(label: dict[str, Any]) -> dict[str, Any]:
         strengths.append("经验背景满足岗位要求")
     if matched:
         strengths.append("已覆盖关键技能：" + "、".join(matched[:6]))
+    if matched_projects:
+        strengths.append("项目经历提供直接岗位证据：" + "；".join(matched_projects[:2]))
     if not strengths:
         strengths.append("已有简历信息可作为初步评估基础")
 
@@ -59,14 +67,14 @@ def build_analysis_from_label(label: dict[str, Any]) -> dict[str, Any]:
         suggestions.append("保持当前简历结构，继续强化核心项目成果与量化结果")
 
     recommended_roles = []
-    if direction_match:
-        recommended_roles.append("当前 JD 对应方向")
-    if level == "高匹配":
-        recommended_roles.append("同方向相近岗位")
-    elif matched:
-        recommended_roles.append("技能相近岗位")
-    if not recommended_roles:
-        recommended_roles.append("技能相近或低门槛过渡岗位")
+    if direction_match and jd_direction:
+        recommended_roles.append(jd_direction)
+    elif resume_direction:
+        recommended_roles.append(resume_direction)
+    elif jd_direction:
+        recommended_roles.append(jd_direction)
+    else:
+        recommended_roles.append("请补充明确的目标岗位")
 
     return {
         "匹配结论": conclusion,
@@ -85,8 +93,14 @@ def build_match_sample(row: dict[str, Any]) -> dict[str, Any]:
         "经验匹配": row["label"].get("经验匹配", False),
         "命中技能": row["label"].get("命中技能", []),
         "缺失技能": row["label"].get("缺失技能", []),
+        "命中项目": row["label"].get("命中项目", []),
     }
-    assistant = build_analysis_from_label(row["label"])
+    row_meta = row.get("meta") or {}
+    assistant = build_analysis_from_label(
+        row["label"],
+        jd_direction=str(row_meta.get("jd_direction") or ""),
+        resume_direction=str(row_meta.get("resume_direction") or ""),
+    )
     row_id = str(row["id"])
     if row_id.endswith("_ocr"):
         source_group = row_id.removesuffix("_ocr")
@@ -94,10 +108,19 @@ def build_match_sample(row: dict[str, Any]) -> dict[str, Any]:
         source_group = row_id.rsplit("_", 1)[0]
     else:
         source_group = row_id
+    jd_entity_hash = str(row_meta.get("jd_entity_hash") or normalized_input_hash(row["jd_text"]))
+    resume_entity_hash = str(
+        row_meta.get("resume_entity_hash") or normalized_input_hash(row["resume_text"])
+    )
     return {
         "id": row["id"],
         "task_type": "match",
         "source_group": str(row.get("source_group") or source_group),
+        "linked_source_groups": [
+            f"match_jd:{jd_entity_hash}",
+            f"match_resume:{resume_entity_hash}",
+        ],
+        "meta": {"entity_split": str(row_meta.get("entity_split") or "")},
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {
@@ -119,6 +142,16 @@ def split_grouped_samples(
     return split_linked_samples(samples, train_ratio, valid_ratio, seed)
 
 
+def split_preassigned_samples(samples: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    splits = {"train": [], "valid": [], "test": []}
+    for sample in samples:
+        split = str((sample.get("meta") or {}).get("entity_split") or "")
+        if split not in splits:
+            raise ValueError(f"Missing or invalid Match entity split for {sample.get('id')}")
+        splits[split].append(sample)
+    return splits
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", default="data/eval/match_train_pool_combined.jsonl")
@@ -130,7 +163,10 @@ def main() -> None:
 
     rows = list(read_jsonl(args.input))
     samples = [build_match_sample(row) for row in rows]
-    splits = split_grouped_samples(samples, args.train_ratio, args.valid_ratio, args.seed)
+    if samples and all((sample.get("meta") or {}).get("entity_split") for sample in samples):
+        splits = split_preassigned_samples(samples)
+    else:
+        splits = split_grouped_samples(samples, args.train_ratio, args.valid_ratio, args.seed)
     for split, split_rows in splits.items():
         write_jsonl(f"{args.out_dir}/{split}.jsonl", split_rows)
         print(f"{split}: {len(split_rows)}")

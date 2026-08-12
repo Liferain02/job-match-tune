@@ -42,6 +42,8 @@ def split_linked_samples(
         user_text = str(messages[1].get("content") or "") if len(messages) > 1 else ""
         group_key = f"group:{group}"
         find(group_key)
+        for linked_group in sample.get("linked_source_groups") or []:
+            union(group_key, f"linked:{linked_group}")
         if user_text:
             input_key = f"input:{normalized_input_hash(user_text)}"
             union(group_key, input_key)
