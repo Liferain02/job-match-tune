@@ -481,6 +481,7 @@ def build_ocr_like_rows(rows: list[dict]) -> list[dict]:
     for row in rows:
         copied = deepcopy(row)
         copied["id"] = f"{row['id']}_ocr"
+        copied["source_group"] = str(row.get("source_group") or row["id"])
         copied["text"] = to_ocr_like(row["text"])
         copied["source_type"] = "ocr_like"
         output.append(copied)
@@ -493,6 +494,7 @@ def build_text_variant_rows(rows: list[dict]) -> list[dict]:
         label = row["label"]
         copied = deepcopy(row)
         copied["id"] = f"{row['id']}_alt"
+        copied["source_group"] = str(row.get("source_group") or row["id"])
         copied["text"] = "\n".join(
             part
             for part in [
@@ -509,6 +511,7 @@ def build_text_variant_rows(rows: list[dict]) -> list[dict]:
         output.append(copied)
         copied2 = deepcopy(row)
         copied2["id"] = f"{row['id']}_compact"
+        copied2["source_group"] = str(row.get("source_group") or row["id"])
         copied2["text"] = "\n".join(
             part
             for part in [
@@ -524,6 +527,7 @@ def build_text_variant_rows(rows: list[dict]) -> list[dict]:
         output.append(copied2)
         copied3 = deepcopy(row)
         copied3["id"] = f"{row['id']}_brief"
+        copied3["source_group"] = str(row.get("source_group") or row["id"])
         copied3["text"] = "\n".join(
             part
             for part in [
@@ -542,9 +546,12 @@ def build_text_variant_rows(rows: list[dict]) -> list[dict]:
 def main() -> None:
     write_jsonl("data/eval/resume_manual_eval_seed.jsonl", BASE_ROWS)
     write_jsonl("data/eval/resume_manual_eval_text_seed.jsonl", BASE_ROWS)
-    augmented_rows = BASE_ROWS + build_text_variant_rows(BASE_ROWS)
+    training_base_rows = [
+        {**row, "source_group": str(row["id"])} for row in BASE_ROWS
+    ]
+    augmented_rows = training_base_rows + build_text_variant_rows(training_base_rows)
     write_jsonl("data/eval/resume_manual_eval_augmented.jsonl", augmented_rows)
-    ocr_rows = build_ocr_like_rows(BASE_ROWS)
+    ocr_rows = build_ocr_like_rows(training_base_rows)
     write_jsonl("data/eval/resume_manual_eval_ocr_seed.jsonl", ocr_rows)
     write_jsonl("data/eval/resume_manual_train_pool.jsonl", augmented_rows + ocr_rows)
     print(

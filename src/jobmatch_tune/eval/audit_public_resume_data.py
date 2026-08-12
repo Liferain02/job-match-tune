@@ -23,7 +23,7 @@ def compute_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
     ner_tag_set = set()
     ner_tag_counter = Counter()
     sensitive_ner_rows = 0
-    sensitive_tag_prefixes = {"B-CONT", "B-LOC", "B-NAME", "B-ORG", "B-RACE"}
+    sensitive_entity_types = {"CONT", "LOC", "NAME", "ORG", "RACE"}
     resume_parse_rows = 0
 
     for row in rows:
@@ -53,7 +53,7 @@ def compute_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
             row_tags = [str(tag) for tag in (row.get("ner_tags") or [])]
             ner_tag_set.update(row_tags)
             ner_tag_counter.update(row_tags)
-            if sensitive_tag_prefixes.intersection(row_tags):
+            if any(tag.split("-", 1)[-1] in sensitive_entity_types for tag in row_tags):
                 sensitive_ner_rows += 1
 
     total = len(rows)

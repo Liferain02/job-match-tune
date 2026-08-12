@@ -15,6 +15,7 @@ PHONE_RE = re.compile(r"(?<!\d)1[3-9]\d(?:[-\s]?\d){8}(?!\d)")
 EMAIL_RE = re.compile(r"[\w.%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 WECHAT_RE = re.compile(r"(?i)\b(?:微信|wechat|vx)[:：]?\s*([A-Za-z][A-Za-z0-9_-]{5,})")
 QQ_RE = re.compile(r"(?:QQ|qq)[:：]?\s*([1-9][0-9]{4,11})")
+ID_NUMBER_RE = re.compile(r"(?<!\d)(?:\d{17}[0-9Xx]|\d{15})(?!\d)")
 AGE_RE = re.compile(r"(?<!\d)([1-5]?\d)\s*岁")
 NAME_LINE_RE = re.compile(r"^(?:姓名[:：]?\s*)?([\u4e00-\u9fff]{2,4})$")
 PRIVATE_CONTEXT_RE = re.compile(r"(电话|手机|邮箱|年龄|政治面貌|\[手机号\]|\[邮箱\]|\[年龄\])")
@@ -31,6 +32,16 @@ PRIVATE_PROFILE_FIELDS = {
     "政治面貌": "political_status",
     "出生日期": "birth_date",
     "民族": "ethnicity",
+    "地址": "address",
+    "住址": "address",
+    "居住地址": "address",
+    "现居住地": "address",
+    "通讯地址": "address",
+    "身份证": "id_number",
+    "身份证号": "id_number",
+    "证件号码": "id_number",
+    "个人账号": "personal_account",
+    "社交账号": "personal_account",
 }
 TRAINING_PRIVATE_FIELDS = tuple(
     PRIVATE_PROFILE_FIELDS
@@ -59,6 +70,7 @@ def detect_resume_pii(text: str) -> list[PiiFinding]:
         ("email", EMAIL_RE),
         ("wechat", WECHAT_RE),
         ("qq", QQ_RE),
+        ("id_number", ID_NUMBER_RE),
         ("age", AGE_RE),
     ]
     for kind, pattern in patterns:
@@ -85,8 +97,9 @@ def detect_resume_pii(text: str) -> list[PiiFinding]:
             kind = PRIVATE_PROFILE_FIELDS.get(field)
             if kind == "age" and AGE_RE.search(stripped):
                 continue
-            if kind and kind != "name":
-                findings.append(PiiFinding(kind=kind, value=profile_match.group(2).strip()))
+            finding = PiiFinding(kind=kind, value=profile_match.group(2).strip()) if kind else None
+            if finding and finding not in findings:
+                findings.append(finding)
     return findings
 
 
@@ -95,6 +108,7 @@ def redact_resume_pii(text: str) -> str:
     redacted = EMAIL_RE.sub("[邮箱]", redacted)
     redacted = WECHAT_RE.sub(lambda match: match.group(0).replace(match.group(1), "[微信]"), redacted)
     redacted = QQ_RE.sub(lambda match: match.group(0).replace(match.group(1), "[QQ]"), redacted)
+    redacted = ID_NUMBER_RE.sub("[证件号码]", redacted)
     redacted = AGE_RE.sub("[年龄]", redacted)
 
     source_lines = redacted.splitlines()

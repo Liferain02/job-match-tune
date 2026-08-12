@@ -11,7 +11,10 @@ from typing import Any
 from jobmatch_tune.dataset.grouped_split import normalized_input_hash
 from jobmatch_tune.dataset.pipeline_freshness import build_pipeline_freshness_report
 from jobmatch_tune.match.rule_engine import compute_match_rule_result
-from jobmatch_tune.match.rule_engine import _extract_required_years
+from jobmatch_tune.match.rule_engine import (
+    _extract_required_education_rank,
+    _extract_required_years,
+)
 from jobmatch_tune.preprocess.jd_field_rules import (
     extract_education_requirement,
     extract_experience_requirement,
@@ -117,6 +120,7 @@ def profile_match_training_sources(path: str) -> dict[str, Any]:
     synthetic_rows = 0
     verified_non_synthetic_rows = 0
     educational_source_rows = 0
+    pair_type_counts: Counter[str] = Counter()
     file_path = Path(path)
     if file_path.exists():
         for row in read_jsonl(file_path):
@@ -130,8 +134,14 @@ def profile_match_training_sources(path: str) -> dict[str, Any]:
             generators[generator] += 1
             if source_type.startswith("synthetic") or generator.startswith("synthetic"):
                 synthetic_rows += 1
+                pair_type_counts["synthetic_rule_pair"] += 1
             elif str((row.get("meta") or {}).get("annotation_status") or "") == "human_verified":
                 verified_non_synthetic_rows += 1
+                pair_type_counts["human_reviewed_pair"] += 1
+            elif str((row.get("meta") or {}).get("pair_type") or "") == "real_observed_pair":
+                pair_type_counts["real_observed_pair"] += 1
+            else:
+                pair_type_counts["unknown_non_synthetic_pair"] += 1
     non_synthetic_rows = total - synthetic_rows
     if not total:
         origin = "empty"
@@ -148,7 +158,25 @@ def profile_match_training_sources(path: str) -> dict[str, Any]:
         "synthetic_rows": synthetic_rows,
         "non_synthetic_rows": non_synthetic_rows,
         "human_verified_non_synthetic_rows": verified_non_synthetic_rows,
+        "pair_type_counts": {
+            "synthetic_rule_pair": pair_type_counts.get("synthetic_rule_pair", 0),
+            "human_reviewed_pair": pair_type_counts.get("human_reviewed_pair", 0),
+            "real_observed_pair": pair_type_counts.get("real_observed_pair", 0),
+            "unknown_non_synthetic_pair": pair_type_counts.get(
+                "unknown_non_synthetic_pair", 0
+            ),
+        },
         "synthetic_rate": round(synthetic_rows / total, 4) if total else 0.0,
+        "human_reviewed_pair_ratio": (
+            round(pair_type_counts.get("human_reviewed_pair", 0) / total, 4)
+            if total
+            else 0.0
+        ),
+        "real_pair_ratio": (
+            round(pair_type_counts.get("real_observed_pair", 0) / total, 4)
+            if total
+            else 0.0
+        ),
         "educational_source_rows": educational_source_rows,
         "educational_source_rate": (
             round(educational_source_rows / total, 4) if total else 0.0
@@ -218,19 +246,59 @@ def profile_match_education_consistency(path: str) -> dict[str, Any]:
     }
 
 
+def profile_match_education_distribution(path: str) -> dict[str, Any]:
+    total = 0
+    required_rows = 0
+    matched_rows = 0
+    requirement_counts: Counter[str] = Counter()
+    split_counts: dict[str, Counter[str]] = {}
+    rank_names = {1: "中专", 2: "大专", 3: "本科", 4: "硕士/研究生", 5: "博士"}
+    file_path = Path(path)
+    if file_path.exists():
+        for row in read_jsonl(file_path):
+            total += 1
+            requirement = extract_education_requirement(str(row.get("jd_text") or ""))
+            rank = _extract_required_education_rank(requirement)
+            if rank <= 0:
+                continue
+            required_rows += 1
+            requirement_counts[rank_names.get(rank, f"rank_{rank}")] += 1
+            matched = bool((row.get("label") or {}).get("学历匹配"))
+            matched_rows += int(matched)
+            split = str((row.get("meta") or {}).get("entity_split") or "missing")
+            counts = split_counts.setdefault(split, Counter())
+            counts["required"] += 1
+            counts["matched"] += int(matched)
+            counts["unmatched"] += int(not matched)
+    return {
+        "total_rows": total,
+        "explicit_education_requirement_count": required_rows,
+        "matched_rows": matched_rows,
+        "unmatched_rows": required_rows - matched_rows,
+        "matched_rate": round(matched_rows / required_rows, 4) if required_rows else 0.0,
+        "requirement_level_counts": dict(requirement_counts),
+        "split_counts": {
+            split: dict(counts) for split, counts in split_counts.items()
+        },
+    }
+
+
 def profile_match_experience_distribution(path: str) -> dict[str, Any]:
     total = 0
     required_rows = 0
     matched_rows = 0
     split_counts: dict[str, Counter[str]] = {}
+    threshold_counts: Counter[str] = Counter()
     file_path = Path(path)
     if file_path.exists():
         for row in read_jsonl(file_path):
             total += 1
             requirement = extract_experience_requirement(str(row.get("jd_text") or ""))
-            if _extract_required_years(requirement) <= 0:
+            required_years = _extract_required_years(requirement)
+            if required_years <= 0:
                 continue
             required_rows += 1
+            threshold_counts[f"{required_years}年"] += 1
             matched = bool((row.get("label") or {}).get("经验匹配"))
             matched_rows += int(matched)
             split = str((row.get("meta") or {}).get("entity_split") or "missing")
@@ -245,10 +313,13 @@ def profile_match_experience_distribution(path: str) -> dict[str, Any]:
     )
     return {
         "total_rows": total,
+        "explicit_experience_requirement_count": required_rows,
         "required_rows": required_rows,
         "matched_rows": matched_rows,
         "unmatched_rows": required_rows - matched_rows,
+        "positive_rate": round(matched_rows / required_rows, 4) if required_rows else 0.0,
         "matched_rate": round(matched_rows / required_rows, 4) if required_rows else 0.0,
+        "threshold_counts": dict(threshold_counts),
         "split_counts": rendered_splits,
         "experience_distribution_ready": required_rows > 0 and covered_splits,
     }
@@ -530,6 +601,11 @@ def build_report() -> dict[str, object]:
         match_education_profile["education_consistency_ready"]
         or match_education_profile["total_rows"] == 0
     )
+    tasks["match"]["education_distribution_profile"] = (
+        profile_match_education_distribution(
+            "data/eval/match_train_pool_combined.jsonl"
+        )
+    )
     match_experience_profile = profile_match_experience_distribution(
         "data/eval/match_train_pool_combined.jsonl"
     )
@@ -543,6 +619,7 @@ def build_report() -> dict[str, object]:
         and tasks["match"]["source_concentration_ready"]
         and tasks["match"]["education_consistency_ready"]
         and tasks["match"]["experience_distribution_ready"]
+        and tasks["match"]["real_pair_quality_evidence_ready"]
     )
     jd_quality_profile = read_json_file("outputs/eval_reports/jd_quality_profile.json")
     if jd_quality_profile:
@@ -580,6 +657,66 @@ def build_report() -> dict[str, object]:
         tasks["resume"]["privacy_report"] = resume_privacy_report
         tasks["resume"]["privacy_ready"] = bool(resume_privacy_report.get("ready_for_resume_training"))
         tasks["resume"]["ready_for_sft"] = bool(tasks["resume"]["ready_for_sft"] and tasks["resume"]["privacy_ready"])
+
+    def split_leakage_ready(task: dict[str, Any]) -> bool:
+        audit = task.get("quality_audit") or {}
+        return all(
+            int(audit.get(key, 0)) == 0
+            for key in (
+                "cross_split_duplicate_hashes",
+                "cross_split_normalized_input_hashes",
+                "cross_split_linked_source_groups",
+            )
+        )
+
+    # License/provenance describe the rows that actually entered the current
+    # training pools. Candidate public resume sources remain outside those pools
+    # until source admission explicitly marks them training_allowed.
+    tasks["resume"]["readiness_dimensions"] = {
+        "format_ready": bool(tasks["resume"]["format_ready"]),
+        "privacy_ready": bool(tasks["resume"].get("privacy_ready", False)),
+        "license_ready": True,
+        "provenance_ready": True,
+        "source_diversity_ready": bool(tasks["resume"].get("profile_ready", False)),
+        "condition_distribution_ready": None,
+        "real_pair_quality_evidence_ready": None,
+        "split_leakage_ready": split_leakage_ready(tasks["resume"]),
+    }
+    tasks["match"]["readiness_dimensions"] = {
+        "format_ready": bool(tasks["match"]["format_ready"]),
+        "privacy_ready": bool(tasks["match"]["privacy_ready"]),
+        "license_ready": True,
+        "provenance_ready": True,
+        "source_diversity_ready": bool(tasks["match"]["source_concentration_ready"]),
+        "condition_distribution_ready": bool(
+            tasks["match"]["education_consistency_ready"]
+            and tasks["match"]["experience_distribution_ready"]
+        ),
+        "real_pair_quality_evidence_ready": bool(
+            tasks["match"]["real_pair_quality_evidence_ready"]
+        ),
+        "split_leakage_ready": split_leakage_ready(tasks["match"]),
+    }
+    tasks["multitask"]["readiness_dimensions"] = {
+        "format_ready": bool(tasks["multitask"].get("format_ready", True)),
+        "privacy_ready": bool(
+            tasks["resume"].get("privacy_ready", False)
+            and tasks["match"]["privacy_ready"]
+        ),
+        "license_ready": True,
+        "provenance_ready": True,
+        "source_diversity_ready": bool(
+            tasks["multitask"].get("source_diversity_ready", True)
+        ),
+        "condition_distribution_ready": bool(
+            tasks["match"]["education_consistency_ready"]
+            and tasks["match"]["experience_distribution_ready"]
+        ),
+        "real_pair_quality_evidence_ready": bool(
+            tasks["match"]["real_pair_quality_evidence_ready"]
+        ),
+        "split_leakage_ready": split_leakage_ready(tasks["multitask"]),
+    }
     preference_report = read_json_file("outputs/eval_reports/preference_readiness_report.json")
     product_preference_report = read_json_file(
         "outputs/eval_reports/preference_product_bootstrap_readiness_report.json"

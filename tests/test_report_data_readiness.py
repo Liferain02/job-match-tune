@@ -11,6 +11,7 @@ from jobmatch_tune.eval.report_data_readiness import (
     build_task_report,
     count_holdout_overlap,
     profile_match_education_consistency,
+    profile_match_education_distribution,
     profile_match_experience_distribution,
     profile_match_training_sources,
     profile_match_training_privacy,
@@ -26,7 +27,7 @@ def _fresh_pipeline_for_readiness_unit_tests():
     ), patch(
         "jobmatch_tune.eval.report_data_readiness.profile_match_training_sources",
         return_value={
-            "supports_real_pair_quality_claim": False,
+            "supports_real_pair_quality_claim": True,
             "source_concentration_ready": True,
         },
     ), patch(
@@ -131,6 +132,16 @@ def test_build_report_requires_resume_privacy_and_product_preference(_multitask)
     assert report["summary"]["dpo_paused_by_quality_goal"] is True
     assert report["summary"]["dpo_execution_ready"] is False
     assert report["tasks"]["resume"]["privacy_ready"] is True
+    assert report["tasks"]["resume"]["readiness_dimensions"] == {
+        "format_ready": True,
+        "privacy_ready": True,
+        "license_ready": True,
+        "provenance_ready": True,
+        "source_diversity_ready": True,
+        "condition_distribution_ready": None,
+        "real_pair_quality_evidence_ready": None,
+        "split_leakage_ready": True,
+    }
 
 
 @patch(
@@ -168,6 +179,57 @@ def test_build_report_blocks_training_when_resume_privacy_fails(_multitask):
     assert report["summary"]["all_ready_for_training"] is False
     assert report["summary"]["not_ready_tasks"] == ["resume"]
     assert report["tasks"]["resume"]["privacy_ready"] is False
+
+
+@patch(
+    "jobmatch_tune.eval.report_data_readiness.build_multitask_report",
+    return_value={"task": "multitask", "ready_for_sft": True},
+)
+def test_build_report_blocks_match_without_real_pair_quality_evidence(_multitask):
+    with patch("jobmatch_tune.eval.report_data_readiness.count_jsonl") as mocked:
+        mocked.side_effect = [
+            4240, 530, 530, 8000,
+            10000, 1000, 1000, 3000,
+            3000, 400, 400, 4500,
+            9540, 1180,
+        ]
+        with patch("jobmatch_tune.eval.report_data_readiness.audit_sft_files") as audit:
+            audit.return_value = {
+                "invalid_json": 0,
+                "duplicate_ids": 0,
+                "cross_split_duplicate_hashes": 0,
+                "field_quality_ok": True,
+            }
+            with patch(
+                "jobmatch_tune.eval.report_data_readiness.profile_match_training_sources",
+                return_value={
+                    "supports_real_pair_quality_claim": False,
+                    "source_concentration_ready": True,
+                },
+            ), patch(
+                "jobmatch_tune.eval.report_data_readiness.count_holdout_overlap",
+                return_value=0,
+            ), patch(
+                "jobmatch_tune.eval.report_data_readiness.read_json_file"
+            ) as read_json_file:
+                read_json_file.side_effect = [
+                    {},
+                    {},
+                    {},
+                    {},
+                    {"profile_ready": True},
+                    {"ready_for_resume_training": True},
+                    {"ready_for_dpo": True, "ready_for_dpo_smoke": True},
+                    {"ready_for_dpo": True, "ready_for_dpo_smoke": True},
+                ]
+                report = build_report()
+
+    assert report["tasks"]["match"]["real_pair_quality_evidence_ready"] is False
+    assert report["tasks"]["match"]["ready_for_sft"] is False
+    assert report["tasks"]["match"]["readiness_dimensions"][
+        "real_pair_quality_evidence_ready"
+    ] is False
+    assert "match" in report["summary"]["not_ready_tasks"]
 
 
 def test_zero_high_risk_rate_stays_zero():
@@ -372,9 +434,17 @@ def test_profile_match_training_sources_exposes_synthetic_only_pool(tmp_path: Pa
 
     assert profile["training_origin"] == "synthetic_only"
     assert profile["synthetic_rate"] == 1.0
+    assert profile["human_reviewed_pair_ratio"] == 0.0
+    assert profile["real_pair_ratio"] == 0.0
     assert profile["supports_real_pair_quality_claim"] is False
     assert profile["educational_source_rate"] == 0.3333
     assert profile["source_concentration_ready"] is True
+    assert profile["pair_type_counts"] == {
+        "synthetic_rule_pair": 3,
+        "human_reviewed_pair": 0,
+        "real_observed_pair": 0,
+        "unknown_non_synthetic_pair": 0,
+    }
 
 
 def test_profile_match_training_sources_rejects_educational_source_dominance(tmp_path: Path):
@@ -463,9 +533,42 @@ def test_profile_match_experience_distribution_requires_both_labels_per_split(tm
 
     profile = profile_match_experience_distribution(str(pool))
 
+    assert profile["explicit_experience_requirement_count"] == 2
     assert profile["matched_rows"] == 1
     assert profile["unmatched_rows"] == 1
+    assert profile["positive_rate"] == 0.5
     assert profile["experience_distribution_ready"] is True
+    assert profile["threshold_counts"] == {"2年": 1, "3年": 1}
+
+
+def test_profile_match_education_distribution_reports_levels_and_splits(tmp_path: Path):
+    pool = tmp_path / "match.jsonl"
+    rows = [
+        {
+            "id": "bachelor",
+            "jd_text": "任职要求：本科及以上学历",
+            "label": {"学历匹配": True},
+            "meta": {"entity_split": "train"},
+        },
+        {
+            "id": "master",
+            "jd_text": "任职要求：硕士研究生及以上学历",
+            "label": {"学历匹配": False},
+            "meta": {"entity_split": "valid"},
+        },
+    ]
+    pool.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+
+    profile = profile_match_education_distribution(str(pool))
+
+    assert profile["explicit_education_requirement_count"] == 2
+    assert profile["matched_rows"] == 1
+    assert profile["unmatched_rows"] == 1
+    assert profile["requirement_level_counts"] == {"本科": 1, "硕士/研究生": 1}
+    assert profile["split_counts"]["train"]["matched"] == 1
 
 
 def test_profile_match_experience_distribution_rejects_single_class_split(tmp_path: Path):

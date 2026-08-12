@@ -19,3 +19,5 @@ def test_resume_sft_profile_counts_groups_and_variants(tmp_path: Path):
     assert report["unique_source_groups"] == 2
     assert report["variant_counts"] == {"original": 2, "bullets": 1}
     assert report["expansion_ratio"] == 1.5
+    assert report["source_group_counts_by_category"] == {"resume": 2}
+    assert report["split_unique_source_groups"] == {"train": 2}

@@ -130,7 +130,7 @@ JD DPO:      summary.ready_for_dpo = true
 完整链路:    summary.all_ready_for_training = true
 ```
 
-这些是允许训练的目标状态，不是当前状态。2026-08-12 简化模板并完整重建后，Resume SFT 为 15,464 条、2,652 个有效来源组，其中 2,524 个来源组（95.17%）仍来自 bootstrap；多任务 Resume 来源组比例为 train 75.75%、valid 78.70%。Match 中 1,996 条明确年限要求样本又全部为“不满足”，因此当前 `not_ready_tasks=[resume, match, multitask]`；不要绕过 readiness 启动新训练。FairCV 因许可未确认且只允许候选审计，已从 Resume/Match 训练链路移除。
+这些是允许训练的目标状态，不是当前状态。2026-08-13 修正“格式变体被算作独立来源”并完整重建后，Resume SFT 为 15,470 条、2,557 个有效来源组，其中 2,525 个来源组（98.75%）来自 bootstrap；多任务 Resume 来源组比例为 train 73.04%、valid 75.74%。Match 中 1,944 条明确年限要求样本全部为“不满足”，4,798 个 Pair 也全部为规则合成，因此当前 `not_ready_tasks=[resume, match, multitask]`；不要绕过 readiness 启动新训练。两个公开 Resume 候选均未通过训练准入，详见[简历与匹配数据质量阶段报告](docs/简历与匹配数据质量阶段报告.md)。
 
 14B smoke 和 SFT：
 
@@ -139,7 +139,7 @@ bash scripts/train/train_qwen3_14b_smoke.sh
 bash scripts/train/train_qwen3_14b_multitask_sft.sh
 ```
 
-新增 DPO 当前暂停：现有 preference 全为合成数据，且 Match Gold 尚未完成人工复核。训练脚本默认拒绝 DPO，恢复条件和人工审核方法见[人岗匹配持续质量目标](docs/人岗匹配持续质量目标.md)。
+新增 DPO 当前暂停：现有 preference 全为合成数据；Match Gold V1 虽已人工复核并冻结，但 Resume / Match / Multitask 数据门禁仍未通过。训练脚本默认拒绝 DPO，恢复条件见[人岗匹配持续质量目标](docs/人岗匹配持续质量目标.md)。
 
 训练入口会写入 `run_manifest.json`，记录 Git commit、配置和数据 hash、任务构成、原始来源多样性、偏好数据出处、readiness 摘要和 CLI 覆盖项。正式 adapter 仍需同时通过绝对产品阈值与基线回归阈值：
 
@@ -196,7 +196,7 @@ python -m compileall -q src
 - API service、上传解析和路由集中在单个较大的模块中，响应没有统一 Pydantic contract。
 - 前端依赖 CDN，没有版本锁定、构建产物和浏览器自动化测试。
 - 仓库没有 CI、容器定义、依赖 lock file、许可证和安全策略。
-- Match 候选留出集已有 25 条且与训练池无重合，但尚未完成人工复核；历史 Match 分数不能等价为真实招聘决策质量。
+- Match Gold V1 已有 25 条人工复核样本且与训练池无重合；它是冻结的开发回归基线，仍不能等价为真实招聘决策质量。
 - Match 配对池已经清除个人资料与敏感字段，但仍为 100% 合成配对；Resume 和多任务来源多样性门禁当前未通过。
 
 ## 文档

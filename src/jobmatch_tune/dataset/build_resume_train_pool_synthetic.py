@@ -21,6 +21,7 @@ def build_rows(rows: list[dict]) -> list[dict]:
                     "id": f"{base_id}_{variant_name}",
                     "task": "resume_parse",
                     "source_type": source_type,
+                    "source_group": str(row.get("source_group") or base_id),
                     "text": rendered,
                     "label": label,
                     "meta": {"language": "zh", "generator": "resume_variant_render_v1"},

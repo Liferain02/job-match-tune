@@ -1,10 +1,21 @@
 sources:
   - name: faircv_resume_parse
+    source_url: https://huggingface.co/datasets/OhMyKing/FairCV
+    upstream_revision: ece2a0e45439c0c1c5d70c92d30bf662756dd656
+    origin: OhMyKing/FairCV generated simulation dataset
     schema: resume_parse_rows
     language: zh
     source_type: public_text
     license_status: unconfirmed
+    allowed_usage: academic_research_only_noncommercial_by_readme_without_standard_license
     intended_usage: candidate_pool_only
+    provenance_status: synthetic_template_generation_documented
+    collection_method: template_and_variable_combination_generation
+    annotation_method: local_deterministic_markdown_section_extraction
+    privacy_status: simulated_identity_and_sensitive_demographic_fields_present
+    pii_risk: high_sensitive_demographic_content
+    admission_decision: rejected
+    rejection_reason: no_standard_license_and_template_generated_content_is_not_independent_real_resume_data
     path: data/external/public_resume_exports/faircv_resume_parse.jsonl
     mapping:
       text: text
@@ -16,13 +27,24 @@ sources:
       strengths: label.优势标签
 
   - name: resume_ner_zh
+    source_url: https://huggingface.co/datasets/PassbyGrocer/resume-ner
+    upstream_revision: 53c676f7b6340061bc2d15391ecf2a0e98be3a8f
+    origin: PassbyGrocer/resume-ner Hugging Face dataset
     schema: resume_ner_rows
     language: zh
     source_type: public_text
     tag_scheme: BIO
     license: Apache-2.0
     license_status: declared_upstream_provenance_incomplete
+    allowed_usage: package_declares_apache_2_0_but_source_data_rights_are_undocumented
     intended_usage: audit_only
+    provenance_status: source_collection_and_original_producer_undocumented
+    collection_method: undocumented
+    annotation_method: undocumented_bio_token_classification
+    privacy_status: sensitive_entities_present_and_anonymization_undocumented
+    pii_risk: high_name_contact_location_organization_ethnicity_entities
+    admission_decision: audit_only
+    rejection_reason: not_resume_parse_schema_and_source_annotation_privacy_provenance_are_undocumented
     path: data/external/public_resume_exports/resume_ner_train.parquet
     mapping:
       tokens: tokens

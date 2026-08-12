@@ -16,6 +16,17 @@ def build_resume_sft_profile(paths: list[str]) -> dict[str, Any]:
     total = 0
     bootstrap_samples = 0
     bootstrap_source_groups: set[str] = set()
+    split_source_groups: dict[str, set[str]] = {}
+    source_category_groups: dict[str, set[str]] = {}
+    split_source_category_groups: dict[str, dict[str, set[str]]] = {}
+
+    def source_category(source_group: str) -> str:
+        if source_group.startswith("resume_bootstrap_"):
+            return "bootstrap_from_jd"
+        if source_group.startswith("resume_eval_"):
+            return "repository_curated_seed"
+        return source_group.split("_", 1)[0] or "unknown"
+
     for path in paths:
         split = Path(path).stem
         if not Path(path).exists():
@@ -25,6 +36,12 @@ def build_resume_sft_profile(paths: list[str]) -> dict[str, Any]:
             split_counts[split] += 1
             source_group = str(row.get("source_group") or row.get("id") or "")
             source_group_counts[source_group] += 1
+            split_source_groups.setdefault(split, set()).add(source_group)
+            category = source_category(source_group)
+            source_category_groups.setdefault(category, set()).add(source_group)
+            split_source_category_groups.setdefault(split, {}).setdefault(category, set()).add(
+                source_group
+            )
             row_id = str(row.get("id") or "")
             prefix = f"{source_group}_"
             variant = row_id[len(prefix) :] if row_id.startswith(prefix) else "unknown"
@@ -50,6 +67,19 @@ def build_resume_sft_profile(paths: list[str]) -> dict[str, Any]:
         "bootstrap_rate": round(bootstrap_samples / total, 4) if total else 0.0,
         "bootstrap_source_groups": len(bootstrap_source_groups),
         "bootstrap_source_group_rate": bootstrap_source_group_rate,
+        "source_group_counts_by_category": {
+            category: len(groups) for category, groups in sorted(source_category_groups.items())
+        },
+        "split_unique_source_groups": {
+            split: len(groups) for split, groups in sorted(split_source_groups.items())
+        },
+        "split_source_group_counts_by_category": {
+            split: {
+                category: len(groups)
+                for category, groups in sorted(categories.items())
+            }
+            for split, categories in sorted(split_source_category_groups.items())
+        },
         "variant_counts": dict(variant_counts.most_common()),
         "max_variant_rate": max_variant_rate,
         "profile_ready": (

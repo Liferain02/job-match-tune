@@ -1,4 +1,9 @@
-from jobmatch_tune.eval.build_resume_eval_dataset import BASE_ROWS, build_ocr_like_rows, to_ocr_like
+from jobmatch_tune.eval.build_resume_eval_dataset import (
+    BASE_ROWS,
+    build_ocr_like_rows,
+    build_text_variant_rows,
+    to_ocr_like,
+)
 
 
 def test_to_ocr_like_changes_text_shape():
@@ -15,3 +20,11 @@ def test_build_ocr_like_rows_preserves_labels():
     assert rows[0]["task"] == "resume_parse"
     assert rows[0]["label"] == BASE_ROWS[0]["label"]
     assert rows[0]["source_type"] == "ocr_like"
+    assert rows[0]["source_group"] == BASE_ROWS[0]["id"]
+
+
+def test_format_variants_share_the_original_resume_source_group():
+    rows = build_text_variant_rows(BASE_ROWS[:1])
+
+    assert len(rows) == 3
+    assert {row["source_group"] for row in rows} == {BASE_ROWS[0]["id"]}

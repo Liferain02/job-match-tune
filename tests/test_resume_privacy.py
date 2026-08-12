@@ -16,6 +16,8 @@ def test_detect_resume_pii_finds_common_private_fields():
             "邮箱：candidate@example.com",
             "微信: liferain02",
             "QQ：123456789",
+            "身份证号：110101199001011234",
+            "通讯地址：北京市海淀区示例路 1 号",
             "年龄：23岁",
             "专业技能：Java Spring Redis",
         ]
@@ -28,6 +30,8 @@ def test_detect_resume_pii_finds_common_private_fields():
     assert counts["email"] == 1
     assert counts["wechat"] == 1
     assert counts["qq"] == 1
+    assert counts["id_number"] == 1
+    assert counts["address"] == 1
     assert counts["age"] == 1
     assert counts["name"] == 1
 
@@ -100,6 +104,8 @@ def test_training_sanitizer_removes_markdown_profile_and_sensitive_attributes():
             "- **婚姻状况**：离异",
             "- **身体状况**：肢体四级残疾",
             "- **政治面貌**：群众",
+            "- **身份证号**：110101199001011234",
+            "- **现居住地**：北京市海淀区示例路 1 号",
             "### 教育背景",
             "本科，计算机科学与技术",
             "### 项目经历",
@@ -109,7 +115,15 @@ def test_training_sanitizer_removes_markdown_profile_and_sensitive_attributes():
 
     sanitized = sanitize_resume_text_for_training(text)
 
-    for private_value in ("张斌", "138-1234-5678", "离异", "肢体四级残疾", "群众"):
+    for private_value in (
+        "张斌",
+        "138-1234-5678",
+        "离异",
+        "肢体四级残疾",
+        "群众",
+        "110101199001011234",
+        "北京市海淀区示例路 1 号",
+    ):
         assert private_value not in sanitized
     assert "本科，计算机科学与技术" in sanitized
     assert "负责 Python 服务开发" in sanitized
