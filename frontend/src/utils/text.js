@@ -69,7 +69,7 @@ function buildMatchSection(payload) {
     "## 匹配分析",
     "",
     `- 匹配等级：${scalar(rule["匹配等级"])}`,
-    `- 匹配分数：${scalar(rule["匹配分数"])}`,
+    `- 启发式匹配分数：${scalar(rule["匹配分数"])}`,
     `- 岗位方向匹配：${scalar(rule["岗位方向匹配"])}`,
     `- 学历匹配：${scalar(rule["学历匹配"])}`,
     `- 经验匹配：${scalar(rule["经验匹配"])}`,
@@ -106,7 +106,7 @@ function buildBatchSection(payload, task) {
         "",
         `- 状态：${item.ok ? "成功" : "失败"}`,
         `- 匹配等级：${scalar(item.rule_result?.["匹配等级"])}`,
-        `- 匹配分数：${scalar(item.rule_result?.["匹配分数"])}`,
+        `- 启发式匹配分数：${scalar(item.rule_result?.["匹配分数"])}`,
         `- 命中技能数：${(item.rule_result?.["命中技能"] || []).length}`,
         `- 缺失技能数：${(item.rule_result?.["缺失技能"] || []).length}`,
       ].join("\n");

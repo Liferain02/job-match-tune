@@ -53,6 +53,8 @@ assert.match(report, /```json/);
 
 const appSource = await readFile(new URL("../frontend/src/App.js", import.meta.url), "utf8");
 assert.match(appSource, /task: "match"/);
+assert.match(appSource, /from "vue"/);
+assert.doesNotMatch(appSource, /unpkg\.com/);
 assert.doesNotMatch(appSource, /SummaryGrid/);
 assert.match(AppHeader.template, /看清岗位与简历是否匹配/);
 assert.match(ControlPanel.template, /核心流程/);

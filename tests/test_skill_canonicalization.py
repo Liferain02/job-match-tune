@@ -69,3 +69,8 @@ def test_short_skill_names_do_not_enable_character_spaced_fuzzy_matching() -> No
 def test_compact_key_collision_is_not_canonicalized() -> None:
     schema = {"skill_alias": {"AB": ["A-B"], "A B": []}}
     assert canonicalize_skill_list(["A  B"], schema, keep_unknown=True) == ["A B"]
+
+
+def test_standalone_c_does_not_match_compound_language_names() -> None:
+    assert not contains_skill_candidate("掌握 C 语言和 C++，也维护 C# 服务", "C")
+    assert contains_skill_candidate("掌握 C、Python", "C")

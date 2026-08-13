@@ -1,4 +1,4 @@
-import { computed, onMounted, reactive } from "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js";
+import { computed, onMounted, reactive } from "vue";
 
 import AppHeader from "./components/AppHeader.js";
 import ControlPanel from "./components/ControlPanel.js";
@@ -30,7 +30,7 @@ function createOverviewItems(state) {
   if (state.task === "match") {
     return [
       { label: "匹配等级", value: "-" },
-      { label: "匹配分数", value: "0" },
+      { label: "启发式匹配分数", value: "0" },
       { label: "命中技能", value: "0" },
       { label: "缺失技能", value: "0" },
     ];
@@ -101,7 +101,7 @@ export default {
         const rule = state.lastPayload.rule_result || {};
         return [
           { label: "匹配等级", value: rule["匹配等级"] || "-" },
-          { label: "匹配分数", value: String(rule["匹配分数"] ?? "-") },
+          { label: "启发式匹配分数", value: String(rule["匹配分数"] ?? "-") },
           { label: "命中技能", value: String((rule["命中技能"] || []).length) },
           { label: "缺失技能", value: String((rule["缺失技能"] || []).length) },
         ];

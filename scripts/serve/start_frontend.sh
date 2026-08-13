@@ -5,29 +5,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 cd "${PROJECT_ROOT}"
 
-pick_port() {
-  local start_port="$1"
-  python - "$start_port" <<'PY'
-import socket
-import sys
-
-port = int(sys.argv[1])
-for candidate in range(port, port + 20):
-    sock = socket.socket()
-    try:
-        sock.bind(("127.0.0.1", candidate))
-    except OSError:
-        sock.close()
-        continue
-    sock.close()
-    print(candidate)
-    raise SystemExit(0)
-raise SystemExit(1)
-PY
-}
-
-PORT="$(pick_port "${JOBMATCH_FRONTEND_PORT:-5173}")"
+PORT="${JOBMATCH_FRONTEND_PORT:-5173}"
+if [[ ! -d frontend/node_modules ]]; then
+  echo "frontend dependencies missing; run: npm ci --prefix frontend"
+  exit 1
+fi
+npm run build --prefix frontend >/dev/null
 echo "frontend serving on http://127.0.0.1:${PORT}"
 python -m http.server "${PORT}" \
   --bind "${JOBMATCH_FRONTEND_HOST:-127.0.0.1}" \
-  --directory frontend
+  --directory frontend/dist

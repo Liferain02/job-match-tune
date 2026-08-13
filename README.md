@@ -6,6 +6,8 @@
 
 当前完整结论、技术讲解、实验复盘和秋招材料统一收录在[秋招项目总结](docs/秋招项目总结/README.md)。截至 2026-08-13，Match Gold V1 为 25 条且全部人工复核，`gold_ready=true`；Product Final 的技能命中/缺失 F1 为 0.990649/0.986667，匹配等级和方向 EM 均为 0.96。Resume、Match、Multitask readiness 仍均为 `false`，在新合法独立数据到来前不启动新训练。
 
+本轮语义边界修改后的保存预测重放达到六项结构指标 1.0，但该集合已被检查，报告明确标记 `REGRESSION AFTER INSPECTION`，不能当作新的盲测泛化结果；旧解释的 evidence-grounding 为 0.92。
+
 ## 当前能力
 
 - `jd_parse`：抽取岗位方向、职责、技能、经验和学历要求。
@@ -54,7 +56,9 @@ conda activate tune-demo
 pip install -r requirements.txt
 ```
 
-`pyproject.toml` 是依赖元数据的唯一来源；`requirements.txt` 只是兼容入口。依赖目前只有最低版本约束、没有 lock file，因此历史训练环境还不能做到字节级复现。
+CPU 开发、GPU 推理、GPU 训练和前端的分离复现方案见[环境复现](docs/环境复现.md)。
+
+`pyproject.toml` 是 Python 依赖元数据的唯一来源；`requirements*.txt` 配合 `constraints/` 提供开发、GPU 推理和训练的兼容边界。CUDA 相关依赖仍需按目标驱动选择，因此历史训练环境不能承诺跨机器字节级复现；前端依赖则由 package-lock 精确锁定。
 
 下载默认模型：
 
@@ -74,7 +78,7 @@ bash scripts/serve/start_project.sh
 bash scripts/serve/stop_project.sh
 ```
 
-默认地址是 `http://localhost:8000` 和 `http://localhost:5174`，日志写入 `outputs/logs/`，PID 写入 `outputs/runtime/`。本机 `5173` 已由另一个项目使用，所以统一脚本固定使用 `5174`。前端依赖 CDN 版 Vue 3，因此首次打开需要网络。通过登录节点访问 GPU 节点时的双层端口转发见 [项目启动与访问](docs/项目启动与访问.md)。
+默认地址是 `http://localhost:8000` 和 `http://localhost:5174`，日志写入 `outputs/logs/`，PID 写入 `outputs/runtime/`。本机 `5173` 已由另一个项目使用，所以统一脚本固定使用 `5174`。前端使用锁定版本的 Vue/Vite 本地构建；首次运行先执行 `npm ci --prefix frontend`。通过登录节点访问 GPU 节点时的双层端口转发见 [项目启动与访问](docs/项目启动与访问.md)。
 
 vLLM 需要另行安装；统一脚本可以同时管理 vLLM、API 和前端：
 
@@ -98,7 +102,7 @@ vLLM 模式会并行提交一次匹配中的 JD/简历解析，并对批量请�
 | `POST` | `/api/batch_parse` | 最多 64 条解析；是否并发取决于后端 |
 | `POST` | `/api/batch_match` | 最多 32 组匹配；是否并发取决于后端 |
 
-文本请求限制为 20,000 字符，单文件默认最多 10 MiB（`JOBMATCH_MAX_UPLOAD_BYTES` 可覆盖），默认 CORS 只接受本机来源（`JOBMATCH_CORS_ORIGINS` 可覆盖）。当前还没有认证、限流、MIME 验证或持久化审计，不要直接暴露到公网。
+文本请求限制为 20,000 字符，单文件默认最多 10 MiB（`JOBMATCH_MAX_UPLOAD_BYTES` 可覆盖），默认 CORS 只接受本机来源（`JOBMATCH_CORS_ORIGINS` 可覆盖）。上传已校验扩展名、内容签名和可解析性；当前仍没有认证、限流、恶意文件沙箱或持久化审计，不要直接暴露到公网。
 
 ## 数据与训练
 
@@ -186,7 +190,7 @@ python -m compileall -q src
 - `scripts/`：当前可执行数据、训练、服务和评测入口。
 - `configs/`：schema、数据源、数据配比与当前 14B 训练配置。
 - `data/eval/`：本地生成的评测候选、seed 和派生数据；可复现定义位于 `src/jobmatch_tune/eval/`。
-- `frontend/`：无构建步骤的 Vue 3 ESM 工作台。
+- `frontend/`：使用 Vite 构建、package-lock 锁定依赖的 Vue 3 工作台。
 - `docs/`：架构审查、数据与历史实验文档。
 
 详细目录职责见 [项目结构](docs/项目结构.md)，本轮产品与技术审查见 [产品与技术审查](docs/产品与技术审查_2026-08-09.md)，后训练与数据优化见 [后训练与数据流程优化](docs/后训练与数据流程优化_2026-08-09.md)，外部技能 gold 处理见 [外部技能标注数据处理](docs/外部技能标注数据处理.md)，中文匹配数据的来源与许可判断见 [中文人岗匹配数据核验](docs/中文人岗匹配数据核验.md)，产品主流程与后续交互优先级见 [产品交互与优化目标](docs/产品交互与优化目标.md)。
@@ -196,14 +200,16 @@ python -m compileall -q src
 - 匹配技能仍以 taxonomy 归一化后的精确集合重叠为主，没有语义召回或 reranker。
 - Transformers 后端用进程内锁串行生成；vLLM 后端已支持 JD/简历并行和受控批量并发，但当前环境尚未安装 vLLM，仍需真实 GPU 对照。
 - API service、上传解析和路由集中在单个较大的模块中，响应没有统一 Pydantic contract。
-- 前端依赖 CDN，没有版本锁定、构建产物和浏览器自动化测试。
-- 仓库没有 CI、容器定义、依赖 lock file、许可证和安全策略。
+- 前端已使用 package-lock 锁定 Vue/Vite 并提供本地构建与静态 smoke test；仍缺真实浏览器端到端测试。
+- 仓库没有 CI、容器定义、Python 全平台 lock file、许可证和安全策略；前端已有 package-lock，Python 使用分环境 constraints。
 - Match Gold V1 已有 25 条人工复核样本且与训练池无重合；它是冻结的开发回归基线，仍不能等价为真实招聘决策质量。
 - Match 配对池已经清除个人资料与敏感字段，但仍为 100% 合成配对；Resume 和多任务来源多样性门禁当前未通过。
 
 ## 文档
 
 - [秋招项目总结（当前综合入口）](docs/秋招项目总结/README.md)
+- [实现深挖（真实函数调用链）](docs/秋招项目总结/实现深挖/README.md)
+- [环境复现](docs/环境复现.md)
 - [产品与技术审查](docs/产品与技术审查_2026-08-09.md)
 - [产品交互与优化目标](docs/产品交互与优化目标.md)
 - [项目结构](docs/项目结构.md)

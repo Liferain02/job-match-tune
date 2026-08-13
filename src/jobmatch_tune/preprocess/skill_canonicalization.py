@@ -78,11 +78,15 @@ def canonicalize_skill_list(
 
 
 def _exact_candidate_pattern(candidate: str) -> str:
-    escaped = re.escape(_text(candidate))
-    first = candidate[:1]
-    last = candidate[-1:]
+    normalized = _text(candidate)
+    escaped = re.escape(normalized)
+    first = normalized[:1]
+    last = normalized[-1:]
     left = r"(?<![A-Za-z0-9])" if ASCII_WORD_CHAR.search(first) else ""
     right = r"(?![A-Za-z0-9-])" if ASCII_WORD_CHAR.search(last) else ""
+    if normalized.casefold() == "c":
+        # A standalone C skill must not be double-counted inside C++, C# or C 语言.
+        right = r"(?!\s*(?:\+|#|语言))(?![A-Za-z0-9-])"
     return f"{left}{escaped}{right}"
 
 

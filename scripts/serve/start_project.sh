@@ -92,6 +92,10 @@ if ! "${RUNNER[@]}" python -c "import fastapi, torch, transformers, uvicorn" >/d
   echo "环境 ${CONDA_ENV_NAME} 缺少服务依赖，请先执行：pip install -r requirements.txt"
   exit 1
 fi
+if [[ ! -d frontend/node_modules ]]; then
+  echo "前端依赖未安装，请先执行：npm ci --prefix frontend"
+  exit 1
+fi
 if [[ "${INFERENCE_BACKEND}" == "vllm" ]] && \
   ! "${RUNNER[@]}" python -c "import openai, vllm" >/dev/null 2>&1; then
   echo "环境 ${CONDA_ENV_NAME} 缺少 vLLM 服务依赖，请先安装 vllm 和 openai。"

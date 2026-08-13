@@ -1,0 +1,2 @@
+-e .[dev]
+-c constraints/base.txt

@@ -1,0 +1,8 @@
+-c gpu-inference.txt
+
+datasets>=2.20,<5
+trl>=0.10,<2
+kernels>=0.11.1,<1
+liger-kernel>=0.8,<1
+scikit-learn>=1.5,<2
+tqdm>=4.66,<5

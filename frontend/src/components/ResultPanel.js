@@ -81,7 +81,7 @@ export default {
               </div>
               <div class="batch-result-meta">
                 <span>匹配等级：{{ item.rule_result?.['匹配等级'] || '-' }}</span>
-                <span>匹配分数：{{ item.rule_result?.['匹配分数'] ?? '-' }}</span>
+                <span>启发式匹配分数：{{ item.rule_result?.['匹配分数'] ?? '-' }}</span>
                 <span>命中技能：{{ (item.rule_result?.['命中技能'] || []).length }}</span>
                 <span>缺失技能：{{ (item.rule_result?.['缺失技能'] || []).length }}</span>
               </div>
@@ -91,7 +91,7 @@ export default {
             <section class="result-card match-summary-card">
               <div class="score-block">
                 <strong>{{ parseData.rule_result?.['匹配分数'] ?? '-' }}</strong>
-                <span>匹配分数</span>
+                <span>启发式匹配分数</span>
               </div>
               <div class="match-summary-copy">
                 <span class="match-level">{{ parseData.rule_result?.['匹配等级'] || '待判断' }}</span>

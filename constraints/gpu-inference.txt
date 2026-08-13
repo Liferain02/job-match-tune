@@ -1,0 +1,14 @@
+-c base.txt
+
+# Validated environment snapshot: Python 3.11.15, torch 2.11.0+cu130,
+# transformers 5.8.0, three NVIDIA L20 GPUs. Use the PyTorch CUDA wheel/index
+# appropriate to the target driver instead of blindly copying a local wheel.
+torch>=2.3,<3
+transformers>=4.51,<6
+accelerate>=0.34,<2
+peft>=0.12,<1
+bitsandbytes>=0.43,<1
+openai>=1.30,<3
+
+# vLLM is deliberately not pinned here: choose a release whose published
+# torch/CUDA matrix matches the target host, then record it in the benchmark.
