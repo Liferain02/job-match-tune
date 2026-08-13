@@ -13,10 +13,14 @@ from jobmatch_tune.preprocess.jd_field_rules import (
     canonicalize_job_direction,
     extract_education_requirement,
     extract_experience_requirement,
-    extract_skills_from_text,
     merge_unique,
     split_bullets,
 )
+from jobmatch_tune.preprocess.jd_skill_evidence import (
+    collect_jd_skill_evidence,
+    required_skills_from_evidence,
+)
+from jobmatch_tune.preprocess.skill_canonicalization import canonicalize_skill_list
 
 
 JOB_DIRECTION_ALIASES = {
@@ -180,40 +184,7 @@ def _canonicalize_skills(
     *,
     keep_unknown: bool = False,
 ) -> list[str]:
-    canonical_map = {}
-    for canonical, aliases in schema.get("skill_alias", {}).items():
-        canonical_map[canonical.lower()] = canonical
-        for alias in aliases:
-            canonical_map[str(alias).strip().lower()] = canonical
-    result = []
-    for skill in skills:
-        normalized = _normalize_string(skill)
-        canonical = canonical_map.get(normalized.lower())
-        if canonical or (keep_unknown and normalized):
-            result.append(canonical or normalized)
-    return merge_unique(result)
-
-
-def _contains_skill_alias(text: str, canonical: str, schema: dict[str, Any]) -> bool:
-    haystack = _normalize_string(text)
-    if not haystack:
-        return False
-    aliases = [canonical, *schema.get("skill_alias", {}).get(canonical, [])]
-    for alias in aliases:
-        alias_text = _normalize_string(alias)
-        if not alias_text:
-            continue
-        if re.search(r"[A-Za-z0-9+#._-]", alias_text):
-            pattern = rf"(?<![A-Za-z0-9]){re.escape(alias_text)}(?![A-Za-z0-9])"
-            if re.search(pattern, haystack, flags=re.I):
-                return True
-        elif alias_text in haystack:
-            return True
-    return False
-
-
-def _filter_skills_by_evidence(skills: list[str], evidence_text: str, schema: dict[str, Any]) -> list[str]:
-    return [skill for skill in skills if _contains_skill_alias(evidence_text, skill, schema)]
+    return canonicalize_skill_list(skills, schema, keep_unknown=keep_unknown)
 
 
 def _extract_responsibility_lines(context_text: str) -> list[str]:
@@ -276,15 +247,15 @@ def _split_misplaced_fields(data: dict[str, Any], context_text: str = "") -> dic
 
     cleaned_responsibilities = _merge_missing_responsibilities(cleaned_responsibilities, context_text)
     combined_text = "\n".join(cleaned_responsibilities + all_requirement_lines + bonus + skills + [context_text])
-    evidence_text = "\n".join(cleaned_responsibilities + all_requirement_lines + bonus + [context_text])
     schema = load_label_schema()
-    inferred_skills = extract_skills_from_text(combined_text, schema)
 
     data["核心职责"] = merge_unique(cleaned_responsibilities)
     data["任职要求"] = merge_unique(all_requirement_lines)
-    canonical_skills = _canonicalize_skills(skills + inferred_skills, schema)
-    data["必备技能"] = merge_unique(_filter_skills_by_evidence(canonical_skills, evidence_text, schema))
     data["加分项"] = merge_unique(bonus)
+    data["必备技能"] = _canonicalize_skills(skills, schema)
+    skill_evidence = collect_jd_skill_evidence(data, context_text, schema)
+    data["必备技能"] = required_skills_from_evidence(skill_evidence)
+    data["技能证据"] = [item.as_dict() for item in skill_evidence]
     data["经验要求"] = _normalize_string(data.get("经验要求") or extract_experience_requirement(combined_text))
     data["学历要求"] = _normalize_string(data.get("学历要求") or extract_education_requirement(combined_text))
     if "核心技能" in data and not data.get("核心技能"):

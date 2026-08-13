@@ -4,7 +4,21 @@ import re
 from typing import Any
 
 from jobmatch_tune.inference.postprocess_json import load_label_schema
+from jobmatch_tune.match.direction_compatibility import evaluate_direction_compatibility
+from jobmatch_tune.match.scoring import (
+    DEFAULT_SCORING_POLICY,
+    MatchScoringPolicy,
+    compute_score_breakdown,
+)
 from jobmatch_tune.preprocess.jd_field_rules import extract_skills_from_text, merge_unique
+from jobmatch_tune.preprocess.jd_skill_evidence import (
+    collect_jd_skill_evidence,
+    required_skills_from_evidence,
+)
+from jobmatch_tune.preprocess.skill_canonicalization import (
+    canonicalize_skill_list,
+    merge_skill_aliases,
+)
 
 
 EDUCATION_ORDER = {
@@ -132,16 +146,6 @@ def _extract_required_education_rank(text: str) -> int:
     return _extract_education_rank(normalized)
 
 
-def _direction_matches(jd_direction: str, resume_direction: str) -> bool:
-    left = _normalize_text(jd_direction)
-    right = _normalize_text(resume_direction)
-    if not left or not right:
-        return False
-    if left == right:
-        return True
-    return left in right or right in left
-
-
 def _skill_lists(
     jd_data: dict[str, Any],
     resume_data: dict[str, Any],
@@ -149,11 +153,19 @@ def _skill_lists(
     jd_text: str,
     resume_text: str,
 ) -> tuple[list[str], list[str], list[str]]:
-    match_evidence_schema = {"skill_alias": MATCH_EVIDENCE_SKILL_ALIASES}
-    jd_skills = merge_unique(
-        _normalize_items(jd_data.get("必备技能"))
-        + extract_skills_from_text(jd_text, match_evidence_schema)
+    match_evidence_schema = merge_skill_aliases(
+        load_label_schema(),
+        {"skill_alias": MATCH_EVIDENCE_SKILL_ALIASES},
     )
+    if jd_text.strip():
+        jd_evidence = collect_jd_skill_evidence(jd_data, jd_text, match_evidence_schema)
+        jd_skills = required_skills_from_evidence(jd_evidence)
+    else:
+        jd_skills = canonicalize_skill_list(
+            _normalize_items(jd_data.get("必备技能")),
+            match_evidence_schema,
+            keep_unknown=True,
+        )
     resume_evidence = "\n".join(
         _normalize_items(resume_data.get("核心技能"))
         + _normalize_items(resume_data.get("项目经历"))
@@ -162,7 +174,6 @@ def _skill_lists(
     )
     resume_skills = merge_unique(
         _normalize_items(resume_data.get("核心技能"))
-        + extract_skills_from_text(resume_evidence, load_label_schema())
         + extract_skills_from_text(resume_evidence, match_evidence_schema)
     )
     resume_keys = {_normalize_skill_key(item): item for item in resume_skills}
@@ -188,26 +199,16 @@ def _match_projects(jd_skills: list[str], resume_data: dict[str, Any]) -> list[s
     return merge_unique(matched)
 
 
-def _score_level(score: int) -> str:
-    if score >= 85:
-        return "高匹配"
-    if score >= 65:
-        return "较匹配"
-    if score >= 45:
-        return "基本匹配"
-    return "低匹配"
-
-
 def compute_match_rule_result(
     jd_data: dict[str, Any],
     resume_data: dict[str, Any],
     *,
     jd_text: str = "",
     resume_text: str = "",
+    scoring_policy: MatchScoringPolicy = DEFAULT_SCORING_POLICY,
 ) -> dict[str, Any]:
     jd_direction = _normalize_text(jd_data.get("岗位方向"))
     resume_direction = _normalize_text(resume_data.get("目标岗位"))
-    direction_match = _direction_matches(jd_direction, resume_direction)
 
     jd_skills, matched_skills, missing_skills = _skill_lists(
         jd_data,
@@ -216,6 +217,26 @@ def compute_match_rule_result(
         resume_text=resume_text,
     )
     matched_projects = _match_projects(jd_skills, resume_data)
+    jd_direction_context = "\n".join(
+        [jd_text]
+        + _normalize_items(jd_data.get("核心职责"))
+        + _normalize_items(jd_data.get("任职要求"))
+        + jd_skills
+    )
+    resume_direction_context = "\n".join(
+        [resume_text]
+        + _normalize_items(resume_data.get("项目经历"))
+        + _normalize_items(resume_data.get("实习经历"))
+        + _normalize_items(resume_data.get("核心技能"))
+    )
+    direction_decision = evaluate_direction_compatibility(
+        jd_direction,
+        resume_direction,
+        jd_context=jd_direction_context,
+        resume_context=resume_direction_context,
+        shared_skills=matched_skills,
+    )
+    direction_match = direction_decision.matches
 
     jd_education_rank = _extract_required_education_rank(jd_data.get("学历要求"))
     resume_education_rank = max(
@@ -231,24 +252,38 @@ def compute_match_rule_result(
     resume_years = max(_extract_years(resume_text), _extract_years(experience_text))
     experience_match = jd_years == 0 or (resume_years > 0 and resume_years >= jd_years)
 
-    score = 0
-    score += 20 if direction_match else 0
-    if jd_skills:
-        score += round(45 * (len(matched_skills) / len(jd_skills)))
-    else:
-        score += 20
-    score += 10 if education_match else 0
-    score += 15 if experience_match else 0
-    score += min(10, len(matched_projects) * 5)
-    score = max(0, min(score, 100))
+    breakdown = compute_score_breakdown(
+        direction_match=direction_match,
+        required_skill_count=len(jd_skills),
+        matched_skill_count=len(matched_skills),
+        education_match=education_match,
+        experience_match=experience_match,
+        matched_project_count=len(matched_projects),
+        policy=scoring_policy,
+    )
+    score = max(0, min(sum(breakdown.values()), 100))
+    skill_schema = merge_skill_aliases(
+        load_label_schema(),
+        {"skill_alias": MATCH_EVIDENCE_SKILL_ALIASES},
+    )
+    skill_evidence = (
+        collect_jd_skill_evidence(jd_data, jd_text, skill_schema)
+        if jd_text.strip()
+        else []
+    )
 
     return {
         "匹配分数": score,
-        "匹配等级": _score_level(score),
+        "匹配等级": scoring_policy.level_for(score),
         "岗位方向匹配": direction_match,
+        "岗位方向关系": direction_decision.relation.value,
+        "岗位方向证据": direction_decision.as_dict(),
         "学历匹配": education_match,
         "经验匹配": experience_match,
         "命中技能": matched_skills,
         "缺失技能": missing_skills,
         "命中项目": matched_projects,
+        "技能证据": [item.as_dict() for item in skill_evidence],
+        "匹配分项": breakdown,
+        "评分策略": scoring_policy.as_dict(),
     }

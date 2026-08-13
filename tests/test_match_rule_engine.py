@@ -23,11 +23,14 @@ def test_compute_match_rule_result_for_strong_candidate() -> None:
         resume_text="本科，3年开发经验，技能包括 Python / FastAPI / RAG",
     )
     assert result["岗位方向匹配"] is True
+    assert result["岗位方向关系"] == "exact"
     assert result["学历匹配"] is True
     assert result["经验匹配"] is True
     assert result["命中技能"] == ["Python", "FastAPI", "RAG"]
     assert result["缺失技能"] == []
     assert result["匹配分数"] >= 80
+    assert result["评分策略"]["校准状态"] == "heuristic"
+    assert sum(result["匹配分项"].values()) == result["匹配分数"]
 
 
 def test_compute_match_rule_result_for_gap_candidate() -> None:
@@ -201,3 +204,41 @@ def test_preferred_degree_is_not_treated_as_hard_requirement() -> None:
     )
 
     assert result["学历匹配"] is True
+
+
+def test_compatible_direction_keeps_historical_direction_weight() -> None:
+    result = compute_match_rule_result(
+        {
+            "岗位方向": "算法工程",
+            "任职要求": ["熟悉 Python、PyTorch、FastAPI 和 Docker"],
+            "必备技能": ["Python", "PyTorch", "FastAPI", "Docker"],
+        },
+        {
+            "目标岗位": "AI后端",
+            "核心技能": ["Python", "PyTorch", "FastAPI", "Docker"],
+            "项目经历": ["负责模型部署、在线推理 API 和 Docker 服务"],
+        },
+        jd_text=(
+            "岗位名称：算法平台工程师\n岗位职责：建设模型 serving 平台 API\n"
+            "任职要求：熟悉 Python、PyTorch、FastAPI 和 Docker"
+        ),
+        resume_text="目标 AI 后端，负责模型部署与在线推理 API，使用 PyTorch、FastAPI、Docker",
+    )
+
+    assert result["岗位方向关系"] == "compatible"
+    assert result["岗位方向匹配"] is True
+    assert result["匹配分项"]["方向"] == 20
+
+
+def test_responsibility_only_skill_does_not_enter_required_skill_score() -> None:
+    result = compute_match_rule_result(
+        {"岗位方向": "AI应用开发", "必备技能": ["Agent", "Python"]},
+        {"目标岗位": "AI应用开发", "核心技能": ["Python"]},
+        jd_text="岗位职责：负责 Agent 应用开发\n任职要求：熟悉 Python",
+        resume_text="目标 AI 应用开发，熟悉 Python",
+    )
+
+    assert result["命中技能"] == ["Python"]
+    assert result["缺失技能"] == []
+    evidence = {item["技能"]: item for item in result["技能证据"]}
+    assert evidence["Agent"]["是否必备"] is False

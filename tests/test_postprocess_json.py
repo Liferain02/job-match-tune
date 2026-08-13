@@ -174,7 +174,8 @@ def test_parse_json_output_keeps_only_evidence_backed_skills():
         context_text="岗位职责：\n1.对接LLM API，参与AI对话界面及Agent工作流前端实现。"
     )
     assert result["ok"] is True
-    assert result["data"]["必备技能"] == ["Agent"]
+    assert result["data"]["必备技能"] == []
+    assert result["data"]["技能证据"][0]["证据来源"] == ["responsibility_evidence"]
 
 
 def test_parse_json_output_recognizes_agent_inside_rl_agent_context():
@@ -183,7 +184,7 @@ def test_parse_json_output_recognizes_agent_inside_rl_agent_context():
         context_text="岗位职责：\n1.负责大模型测试执行工作，包含 RL+agent 流程校验、链路质量和推理性能专项测试；",
     )
     assert result["ok"] is True
-    assert result["data"]["必备技能"] == ["Agent"]
+    assert result["data"]["必备技能"] == []
 
 
 def test_parse_json_output_backfills_missing_responsibility_lines_from_context():

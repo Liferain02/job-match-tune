@@ -18,6 +18,7 @@ from starlette.concurrency import run_in_threadpool
 from jobmatch_tune.inference.predict import build_prompt, load_model
 from jobmatch_tune.inference.postprocess_json import parse_json_output
 from jobmatch_tune.inference.structured_output import build_response_format
+from jobmatch_tune.api.upload_validation import UploadValidationError, validate_upload_content
 from jobmatch_tune.match.rule_engine import compute_match_rule_result
 from jobmatch_tune.resume.ingest import ingest_resume
 from jobmatch_tune.resume.normalize import normalize_ingest_row
@@ -410,6 +411,7 @@ def parse_uploaded_resume_bytes(
     ocr_text: str = "",
     max_new_tokens: int = 1024,
 ) -> dict[str, Any]:
+    validate_upload_content(file_name, content)
     suffix = Path(file_name).suffix or ".txt"
     with tempfile.TemporaryDirectory(prefix="jobmatch_resume_") as tmpdir:
         tmpdir_path = Path(tmpdir)
@@ -499,6 +501,7 @@ def extract_uploaded_document_text(
     content: bytes,
     ocr_text: str = "",
 ) -> dict[str, Any]:
+    validate_upload_content(file_name, content)
     suffix = Path(file_name).suffix or ".txt"
     with tempfile.TemporaryDirectory(prefix="jobmatch_doc_") as tmpdir:
         tmpdir_path = Path(tmpdir)
@@ -680,6 +683,8 @@ async def resume_file_parse(
             ocr_text=ocr_text,
             max_new_tokens=max_new_tokens,
         )
+    except UploadValidationError as exc:
+        raise HTTPException(status_code=400, detail={"code": exc.code, "message": exc.message}) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -701,6 +706,8 @@ async def jd_file_parse(
             ocr_text=ocr_text,
             max_new_tokens=max_new_tokens,
         )
+    except UploadValidationError as exc:
+        raise HTTPException(status_code=400, detail={"code": exc.code, "message": exc.message}) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -731,6 +738,8 @@ async def match_files(
             resume_ocr_text=resume_ocr_text,
             max_new_tokens=max_new_tokens,
         )
+    except UploadValidationError as exc:
+        raise HTTPException(status_code=400, detail={"code": exc.code, "message": exc.message}) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -745,7 +754,8 @@ async def read_upload_content(file: UploadFile) -> bytes:
         raise ValueError("JOBMATCH_MAX_UPLOAD_BYTES must be positive")
     content = await file.read(max_bytes + 1)
     if len(content) > max_bytes:
-        raise ValueError(f"Uploaded file exceeds the {max_bytes}-byte limit")
+        raise UploadValidationError("too_large", f"uploaded file exceeds the {max_bytes}-byte limit")
     if not content:
-        raise ValueError("Uploaded file is empty")
+        raise UploadValidationError("corrupt_file", "uploaded file is empty")
+    validate_upload_content(file.filename or "", content)
     return content

@@ -193,6 +193,9 @@ def test_report_separates_three_layers_and_ranks_errors():
     assert report["layers"]["normalized"]["field_metrics"]["匹配等级"]["exact_match"] == 1.0
     assert report["error_analysis"]["counts"]["技能漏召回"] == 1
     assert report["error_analysis"]["counts"]["同义表达错误"] == 1
+    assert report["layers"]["product_final"]["explanation_structural_consistency_rate"] == 1.0
+    assert report["layers"]["product_final"]["explanation_evidence_grounding_rate"] == 1.0
+    assert report["layers"]["product_final"]["advice_validity"]["status"] == "not_evaluated"
 
 
 def test_explanation_contradiction_is_classified():
@@ -212,3 +215,18 @@ def test_explanation_contradiction_is_classified():
 
     assert explanation_contradictions(row)
     assert "模型解释与结构矛盾" in classify_errors(row)
+
+
+def test_inspected_gold_report_is_labeled_as_regression() -> None:
+    row = {
+        "id": "gold-v1",
+        "jd_ok": True,
+        "resume_ok": True,
+        "analysis_ok": True,
+        "rule_result": {},
+        "label": {},
+        "meta": {"annotation_status": "human_verified"},
+    }
+    report = build_report([row], evaluation_context="historical_gold_v1_regression")
+    assert report["evaluation_validity"] == "historical_gold_v1_regression"
+    assert "REGRESSION AFTER INSPECTION" in report["warning"]

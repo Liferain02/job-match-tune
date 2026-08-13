@@ -6,6 +6,7 @@ from collections import Counter
 from typing import Any
 
 from jobmatch_tune.eval.metrics import precision_recall_f1, text_exact_match
+from jobmatch_tune.eval.explanation_grounding import evaluate_explanation
 from jobmatch_tune.inference.predict import load_model, predict_loaded
 from jobmatch_tune.match.rule_engine import compute_match_rule_result
 from jobmatch_tune.utils.io import read_jsonl, write_text
@@ -262,28 +263,14 @@ def explanation_contradictions(row: dict[str, Any]) -> list[str]:
     product = row.get("product_final") or {}
     rule = product.get("rule_result") or row.get("rule_result") or {}
     analysis = product.get("analysis") or row.get("analysis") or {}
-    strengths = " ".join(str(item) for item in analysis.get("匹配优势") or [])
-    gaps = " ".join(str(item) for item in analysis.get("主要短板") or [])
-    conclusion = str(analysis.get("匹配结论") or "")
-    contradictions = []
-    checks = [
-        ("岗位方向匹配", "方向一致", "方向不一致"),
-        ("学历匹配", "学历背景满足", "学历条件"),
-        ("经验匹配", "经验背景满足", "经验条件"),
-    ]
-    for field, positive, negative in checks:
-        if rule.get(field) is False and positive in strengths:
-            contradictions.append(f"{field}:false_but_strength_positive")
-        if rule.get(field) is True and negative in gaps and "差距" in gaps:
-            contradictions.append(f"{field}:true_but_gap_negative")
-    if rule.get("缺失技能") and "暂无明显硬性短板" in gaps:
-        contradictions.append("missing_skills_but_no_hard_gap")
-    level = str(rule.get("匹配等级") or "")
-    if level == "高匹配" and any(word in conclusion for word in ("匹配度有限", "低匹配", "不匹配")):
-        contradictions.append("high_level_but_negative_conclusion")
-    if level == "低匹配" and any(word in conclusion for word in ("高度匹配", "整体较匹配")):
-        contradictions.append("low_level_but_positive_conclusion")
-    return contradictions
+    return evaluate_explanation(rule, analysis)["structural_contradictions"]
+
+
+def explanation_evaluation(row: dict[str, Any]) -> dict[str, Any]:
+    product = row.get("product_final") or {}
+    rule = product.get("rule_result") or row.get("rule_result") or {}
+    analysis = product.get("analysis") or row.get("analysis") or {}
+    return evaluate_explanation(rule, analysis)
 
 
 def classify_errors(row: dict[str, Any]) -> list[str]:
@@ -340,22 +327,35 @@ def build_error_analysis(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def build_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
+def build_report(
+    rows: list[dict[str, Any]],
+    *,
+    evaluation_context: str = "auto",
+) -> dict[str, Any]:
     by_source: dict[str, list[dict[str, Any]]] = {}
     annotation_statuses: Counter[str] = Counter()
     for row in rows:
         by_source.setdefault(row.get("source_type", "unknown"), []).append(row)
         annotation_statuses[str((row.get("meta") or {}).get("annotation_status") or "missing")] += 1
     human_verified = bool(rows) and annotation_statuses == {"human_verified": len(rows)}
-    return {
-        "task": "match",
-        "evaluation_validity": "formal_gold" if human_verified else "provisional_candidate_diagnosis",
-        "annotation_status_counts": dict(annotation_statuses),
-        "warning": (
+    if evaluation_context == "historical_gold_v1_regression":
+        evaluation_validity = "historical_gold_v1_regression"
+        warning = (
+            "REGRESSION AFTER INSPECTION：Gold V1 已被查看，本报告只用于冻结回归，"
+            "不是新的 blind generalization。"
+        )
+    else:
+        evaluation_validity = "formal_gold" if human_verified else "provisional_candidate_diagnosis"
+        warning = (
             "全部标签均为人工复核，可结合独立性审计解释指标。"
             if human_verified
             else "存在未人工复核标签；以下指标仅用于候选集诊断，不是正式产品准确率。"
-        ),
+        )
+    return {
+        "task": "match",
+        "evaluation_validity": evaluation_validity,
+        "annotation_status_counts": dict(annotation_statuses),
+        "warning": warning,
         "overall": evaluate_rows(rows),
         "layers": {
             "raw_model_derived": evaluate_rows(
@@ -375,6 +375,27 @@ def build_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
                 "explanation_consistency_rate": (
                     sum(not explanation_contradictions(row) for row in rows) / len(rows) if rows else 0.0
                 ),
+                "explanation_structural_consistency_rate": (
+                    sum(explanation_evaluation(row)["structural_consistent"] for row in rows) / len(rows)
+                    if rows
+                    else 0.0
+                ),
+                "explanation_evidence_grounding_rate": (
+                    sum(explanation_evaluation(row)["evidence_grounded"] for row in rows) / len(rows)
+                    if rows
+                    else 0.0
+                ),
+                "advice_validity": {
+                    "status": "not_evaluated",
+                    "reason": "unsupported_by_current_data",
+                    "limitation": "没有真实用户反馈或投递结果，不能评估建议是否提高求职成功率。",
+                },
+                "explanation_metric_semantics": {
+                    "explanation_consistency_rate": "legacy alias of structural consistency",
+                    "structural_consistency": "解释是否与结构化匹配结果一致",
+                    "evidence_grounding": "可确定解析的技能与硬条件陈述是否有结果证据",
+                    "advice_validity": "not evaluated",
+                },
             },
         },
         "error_analysis": build_error_analysis(rows),
@@ -391,11 +412,19 @@ def main() -> None:
     parser.add_argument("--predictions-out", default="outputs/eval_reports/match_eval_predictions.jsonl")
     parser.add_argument("--load-4bit", action="store_true")
     parser.add_argument("--max-new-tokens", type=int, default=1024)
+    parser.add_argument(
+        "--evaluation-context",
+        choices=["auto", "historical_gold_v1_regression"],
+        default="auto",
+    )
     args = parser.parse_args()
 
     rows = list(read_jsonl(args.dataset))
     predictions = run_predictions(rows, args.model, args.adapter, args.load_4bit, args.max_new_tokens)
-    report = build_report(predictions)
+    evaluation_context = args.evaluation_context
+    if evaluation_context == "auto" and "match_gold" in args.dataset:
+        evaluation_context = "historical_gold_v1_regression"
+    report = build_report(predictions, evaluation_context=evaluation_context)
     write_text(args.out, json.dumps(report, ensure_ascii=False, indent=2))
     write_text(args.predictions_out, "\n".join(json.dumps(row, ensure_ascii=False) for row in predictions) + "\n")
     print(json.dumps(report, ensure_ascii=False, indent=2))

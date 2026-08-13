@@ -25,11 +25,16 @@ class MatchRuleResult(BaseModel):
     score: int = Field(default=0, alias="匹配分数")
     level: str = Field(default="", alias="匹配等级")
     direction_match: bool = Field(default=False, alias="岗位方向匹配")
+    direction_relation: str = Field(default="mismatch", alias="岗位方向关系")
+    direction_evidence: dict = Field(default_factory=dict, alias="岗位方向证据")
     education_match: bool = Field(default=False, alias="学历匹配")
     experience_match: bool = Field(default=False, alias="经验匹配")
     matched_skills: list[str] = Field(default_factory=list, alias="命中技能")
     missing_skills: list[str] = Field(default_factory=list, alias="缺失技能")
     matched_projects: list[str] = Field(default_factory=list, alias="命中项目")
+    skill_evidence: list[dict] = Field(default_factory=list, alias="技能证据")
+    score_breakdown: dict[str, int] = Field(default_factory=dict, alias="匹配分项")
+    scoring_policy: dict = Field(default_factory=dict, alias="评分策略")
 
 
 class MatchAnalysisResult(BaseModel):

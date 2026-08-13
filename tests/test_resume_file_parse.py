@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import asyncio
-from io import BytesIO
+import io
+from tempfile import SpooledTemporaryFile
 
 import pytest
 from fastapi import UploadFile
+from PIL import Image
 
 from jobmatch_tune.api.server import (
     ModelService,
@@ -13,6 +15,12 @@ from jobmatch_tune.api.server import (
     parse_uploaded_resume_bytes,
     read_upload_content,
 )
+
+
+def _png_bytes() -> bytes:
+    output = io.BytesIO()
+    Image.new("RGB", (2, 2), "white").save(output, format="PNG")
+    return output.getvalue()
 
 
 def test_parse_uploaded_resume_text(monkeypatch) -> None:
@@ -63,7 +71,7 @@ def test_parse_uploaded_resume_image_without_ocr() -> None:
     result = parse_uploaded_resume_bytes(
         service,
         file_name="resume.png",
-        content=b"fake-image",
+        content=_png_bytes(),
     )
     assert result["ok"] is False
     assert result["needs_ocr"] is True
@@ -93,7 +101,7 @@ def test_parse_uploaded_resume_image_with_ocr_sidecar(monkeypatch) -> None:
     result = parse_uploaded_resume_bytes(
         service,
         file_name="resume.png",
-        content=b"fake-image",
+        content=_png_bytes(),
         ocr_text="目标岗位：AI应用开发\n教育背景\n本科，计算机科学与技术\n项目经历\n问答系统",
     )
     assert result["ok"] is True
@@ -169,7 +177,10 @@ def test_match_uploaded_inputs_with_jd_and_resume_files(monkeypatch) -> None:
 
 def test_read_upload_content_rejects_oversized_file(monkeypatch) -> None:
     monkeypatch.setenv("JOBMATCH_MAX_UPLOAD_BYTES", "3")
-    upload = UploadFile(filename="resume.txt", file=BytesIO(b"four"))
+    file = SpooledTemporaryFile()
+    file.write(b"four")
+    file.seek(0)
+    upload = UploadFile(filename="resume.txt", file=file)
 
-    with pytest.raises(ValueError, match="3-byte limit"):
+    with pytest.raises(ValueError, match="too_large.*3-byte limit"):
         asyncio.run(read_upload_content(upload))

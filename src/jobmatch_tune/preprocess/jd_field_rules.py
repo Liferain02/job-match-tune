@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from jobmatch_tune.preprocess.skill_canonicalization import extract_known_skills
+
 
 EDUCATION_PATTERNS = [
     r"(博士(?:研究生)?(?:及以上)?(?:\s*(?:学历|学位))?\s*(?:优先)?)",
@@ -269,13 +271,7 @@ def extract_experience_requirement_from_meta(meta: dict[str, Any] | None) -> str
 
 
 def extract_skills_from_text(text: str, schema: dict[str, Any]) -> list[str]:
-    found = []
-    lowered_text = text.lower()
-    for canonical, aliases in schema.get("skill_alias", {}).items():
-        candidates = [canonical, *aliases]
-        if any(_contains_skill_candidate(lowered_text, str(candidate)) for candidate in candidates):
-            found.append(canonical)
-    return found
+    return extract_known_skills(text, schema)
 
 
 def _contains_skill_candidate(lowered_text: str, candidate: str) -> bool:
