@@ -9,7 +9,15 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
 *.egg-info/
+build/
+dist/
 
 
 # =========================
@@ -19,6 +27,9 @@ __pycache__/
 .venv/
 venv/
 env/
+.env
+.env.*
+!.env.example
 
 
 # =========================
@@ -28,6 +39,9 @@ env/
 .DS_Store
 .idea/
 .vscode/
+.cursor/
+/.agents/
+/.codex/
 
 
 # =========================
@@ -36,6 +50,8 @@ env/
 
 *.log
 *.pid
+*.pid.lock
+*.sock
 
 
 # =========================
@@ -45,45 +61,42 @@ env/
 models/
 outputs/
 scripts/outputs/
+checkpoints/
+wandb/
+mlruns/
+lightning_logs/
 
 
 # =========================
 # Generated data
 # =========================
 
-# Ignore all generated data by default
+# All datasets and local databases are runtime assets. Reproducible builders,
+# schemas and source registries stay under src/, scripts/ and configs/.
 /data/
 
 
 # =========================
-# Evaluation data whitelist
+# Local/private documents
 # =========================
 
-# Keep evaluation directory itself
-!/data/eval/
-
-# Allow only small evaluation jsonl files by default
-!/data/eval/*.jsonl
-
-
-# =========================
-# Never commit large training pools
-# =========================
-
-/data/eval/jd_train_pool_*.jsonl
-/data/eval/match_train_pool_*.jsonl
-/data/eval/resume_train_pool_*.jsonl
-
-/data/eval/public_jd_candidate_pool.jsonl
-/data/eval/resume_manual_eval_augmented.jsonl
+/docs/
+/JobMatchTune_最终评估与秋招定位分析.md
+/private/
+/*.pdf
+/*.doc
+/*.docx
 
 
 # =========================
-# Private documents
+# Credentials and certificates
 # =========================
 
-/data/private/
-/docs/private/
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
 
 
 # =========================
@@ -91,7 +104,11 @@ scripts/outputs/
 # =========================
 
 *.sqlite3
+*.sqlite3-*
+*.sqlite
+*.sqlite-*
 *.db
+*.db-*
 
 
 # =========================
@@ -101,6 +118,9 @@ scripts/outputs/
 *.tmp
 *.swp
 *.swo
+*.bak
+*~
+.ipynb_checkpoints/
 
 
 # =========================

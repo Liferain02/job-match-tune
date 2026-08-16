@@ -4,7 +4,7 @@
 
 它的核心价值在于一条可审计的实验闭环：公开招聘数据进入清洗和分层流程，经 SFT 和可选偏好训练后，用人工留出评测集（holdout）、隐私门禁、数据泄漏检查和产品回归报告决定 adapter 是否可晋级。它目前不是完整 ATS，也不应被当作可直接公网部署的招聘决策系统。
 
-当前完整结论、技术讲解、实验复盘和秋招材料统一收录在[秋招项目总结](docs/秋招项目总结/README.md)。截至 2026-08-13，Match Gold V1 为 25 条且全部人工复核，`gold_ready=true`；Product Final 的技能命中/缺失 F1 为 0.990649/0.986667，匹配等级和方向 EM 均为 0.96。Resume、Match、Multitask readiness 仍均为 `false`，在新合法独立数据到来前不启动新训练。
+截至 2026-08-13，Match Gold V1 为 25 条且全部人工复核，`gold_ready=true`；Product Final 的技能命中/缺失 F1 为 0.990649/0.986667，匹配等级和方向 EM 均为 0.96。Resume、Match、Multitask readiness 仍均为 `false`，在新合法独立数据到来前不启动新训练。
 
 本轮语义边界修改后的保存预测重放达到六项结构指标 1.0，但该集合已被检查，报告明确标记 `REGRESSION AFTER INSPECTION`，不能当作新的盲测泛化结果；旧解释的 evidence-grounding 为 0.92。
 
@@ -56,8 +56,6 @@ conda activate tune-demo
 pip install -r requirements.txt
 ```
 
-CPU 开发、GPU 推理、GPU 训练和前端的分离复现方案见[环境复现](docs/环境复现.md)。
-
 `pyproject.toml` 是 Python 依赖元数据的唯一来源；`requirements*.txt` 配合 `constraints/` 提供开发、GPU 推理和训练的兼容边界。CUDA 相关依赖仍需按目标驱动选择，因此历史训练环境不能承诺跨机器字节级复现；前端依赖则由 package-lock 精确锁定。
 
 下载默认模型：
@@ -78,7 +76,16 @@ bash scripts/serve/start_project.sh
 bash scripts/serve/stop_project.sh
 ```
 
-默认地址是 `http://localhost:8000` 和 `http://localhost:5174`，日志写入 `outputs/logs/`，PID 写入 `outputs/runtime/`。本机 `5173` 已由另一个项目使用，所以统一脚本固定使用 `5174`。前端使用锁定版本的 Vue/Vite 本地构建；首次运行先执行 `npm ci --prefix frontend`。通过登录节点访问 GPU 节点时的双层端口转发见 [项目启动与访问](docs/项目启动与访问.md)。
+默认地址是 `http://localhost:8000` 和 `http://localhost:5174`，日志写入 `outputs/logs/`，PID 写入 `outputs/runtime/`。本机 `5173` 已由另一个项目使用，所以统一脚本固定使用 `5174`。前端使用锁定版本的 Vue/Vite 本地构建；首次运行先执行 `npm ci --prefix frontend`。
+
+如果 GPU 节点只能通过登录节点访问，可以从本地直接建立跳板转发：
+
+```bash
+ssh -J <用户>@<登录节点> \
+  -L 8000:127.0.0.1:8000 \
+  -L 5174:127.0.0.1:5174 \
+  <用户>@gpu03
+```
 
 vLLM 需要另行安装；统一脚本可以同时管理 vLLM、API 和前端：
 
@@ -86,7 +93,7 @@ vLLM 需要另行安装；统一脚本可以同时管理 vLLM、API 和前端：
 JOBMATCH_INFERENCE_BACKEND=vllm bash scripts/serve/start_project.sh
 ```
 
-vLLM 模式会并行提交一次匹配中的 JD/简历解析，并对批量请求实施受控并发；默认 Transformers 4-bit 路径仍保持串行，以降低单 GPU 显存风险。实现与压测方法见[核心推理流程优化](docs/核心推理流程优化_2026-08-09.md)。
+vLLM 模式会并行提交一次匹配中的 JD/简历解析，并对批量请求实施受控并发；默认 Transformers 4-bit 路径仍保持串行，以降低单 GPU 显存风险。
 
 ## API
 
@@ -136,7 +143,7 @@ JD DPO:      summary.ready_for_dpo = true
 完整链路:    summary.all_ready_for_training = true
 ```
 
-这些是允许训练的目标状态，不是当前状态。2026-08-13 修正“格式变体被算作独立来源”并完整重建后，Resume SFT 为 15,470 条、2,557 个有效来源组，其中 2,525 个来源组（98.75%）来自 bootstrap；多任务 Resume 来源组比例为 train 73.04%、valid 75.74%。Match 中 1,944 条明确年限要求样本全部为“不满足”，4,798 个 Pair 也全部为规则合成，因此当前 `not_ready_tasks=[resume, match, multitask]`；不要绕过 readiness 启动新训练。两个公开 Resume 候选均未通过训练准入，详见[简历与匹配数据质量阶段报告](docs/简历与匹配数据质量阶段报告.md)。
+这些是允许训练的目标状态，不是当前状态。2026-08-13 修正“格式变体被算作独立来源”并完整重建后，Resume SFT 为 15,470 条、2,557 个有效来源组，其中 2,525 个来源组（98.75%）来自 bootstrap；多任务 Resume 来源组比例为 train 73.04%、valid 75.74%。Match 中 1,944 条明确年限要求样本全部为“不满足”，4,798 个 Pair 也全部为规则合成，因此当前 `not_ready_tasks=[resume, match, multitask]`；不要绕过 readiness 启动新训练。两个公开 Resume 候选均未通过训练准入。
 
 14B smoke 和 SFT：
 
@@ -145,7 +152,7 @@ bash scripts/train/train_qwen3_14b_smoke.sh
 bash scripts/train/train_qwen3_14b_multitask_sft.sh
 ```
 
-新增 DPO 当前暂停：现有 preference 全为合成数据；Match Gold V1 虽已人工复核并冻结，但 Resume / Match / Multitask 数据门禁仍未通过。训练脚本默认拒绝 DPO，恢复条件见[人岗匹配持续质量目标](docs/人岗匹配持续质量目标.md)。
+新增 DPO 当前暂停：现有 preference 全为合成数据；Match Gold V1 虽已人工复核并冻结，但 Resume / Match / Multitask 数据门禁仍未通过。训练脚本默认拒绝 DPO。
 
 训练入口会写入 `run_manifest.json`，记录 Git commit、配置和数据 hash、任务构成、原始来源多样性、偏好数据出处、readiness 摘要和 CLI 覆盖项。正式 adapter 仍需同时通过绝对产品阈值与基线回归阈值：
 
@@ -191,9 +198,6 @@ python -m compileall -q src
 - `configs/`：schema、数据源、数据配比与当前 14B 训练配置。
 - `data/eval/`：本地生成的评测候选、seed 和派生数据；可复现定义位于 `src/jobmatch_tune/eval/`。
 - `frontend/`：使用 Vite 构建、package-lock 锁定依赖的 Vue 3 工作台。
-- `docs/`：架构审查、数据与历史实验文档。
-
-详细目录职责见 [项目结构](docs/项目结构.md)，本轮产品与技术审查见 [产品与技术审查](docs/产品与技术审查_2026-08-09.md)，后训练与数据优化见 [后训练与数据流程优化](docs/后训练与数据流程优化_2026-08-09.md)，外部技能 gold 处理见 [外部技能标注数据处理](docs/外部技能标注数据处理.md)，中文匹配数据的来源与许可判断见 [中文人岗匹配数据核验](docs/中文人岗匹配数据核验.md)，产品主流程与后续交互优先级见 [产品交互与优化目标](docs/产品交互与优化目标.md)。
 
 ## 当前限制
 
@@ -204,27 +208,6 @@ python -m compileall -q src
 - 仓库没有 CI、容器定义、Python 全平台 lock file、许可证和安全策略；前端已有 package-lock，Python 使用分环境 constraints。
 - Match Gold V1 已有 25 条人工复核样本且与训练池无重合；它是冻结的开发回归基线，仍不能等价为真实招聘决策质量。
 - Match 配对池已经清除个人资料与敏感字段，但仍为 100% 合成配对；Resume 和多任务来源多样性门禁当前未通过。
-
-## 文档
-
-- [秋招项目总结（当前综合入口）](docs/秋招项目总结/README.md)
-- [实现深挖（真实函数调用链）](docs/秋招项目总结/实现深挖/README.md)
-- [秋招面试准备（完整详细版）](docs/秋招项目总结/秋招面试准备/README.md)
-- [环境复现](docs/环境复现.md)
-- [产品与技术审查](docs/产品与技术审查_2026-08-09.md)
-- [产品交互与优化目标](docs/产品交互与优化目标.md)
-- [项目结构](docs/项目结构.md)
-- [项目启动与访问](docs/项目启动与访问.md)
-- [核心推理流程优化](docs/核心推理流程优化_2026-08-09.md)
-- [项目后续计划](docs/项目后续计划.md)
-- [数据处理流程](docs/数据处理流程.md)
-- [简历处理流程](docs/简历处理流程.md)
-- [岗位方向标注口径](docs/岗位方向标注口径.md)
-- [公开数据源清单](docs/公开数据源清单.md)
-- [中文人岗匹配数据核验](docs/中文人岗匹配数据核验.md)
-- [人岗匹配持续质量目标](docs/人岗匹配持续质量目标.md)
-- [训练评测记录（2026-06-01）](docs/训练评测记录_2026-06-01.md)
-- [项目建设历程](docs/项目建设历程.md)
 
 ## 许可状态
 
