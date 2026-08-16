@@ -1,74 +1,39 @@
 # JobMatchTune
 
-面向中文招聘场景的模型后训练与评测工作台，覆盖 JD 解析、简历解析和可解释的人岗匹配。当前默认推理组合是 `Qwen3-14B + LoRA adapter + 规则后处理`。
+JobMatchTune 是一个面向中文招聘场景的实验性人岗匹配项目，提供 JD 解析、简历解析、可解释匹配以及模型后训练与评测工具。
 
-它的核心价值在于一条可审计的实验闭环：公开招聘数据进入清洗和分层流程，经 SFT 和可选偏好训练后，用人工留出评测集（holdout）、隐私门禁、数据泄漏检查和产品回归报告决定 adapter 是否可晋级。它目前不是完整 ATS，也不应被当作可直接公网部署的招聘决策系统。
+> 本项目仅用于学习、研究和演示，不应直接用于真实招聘决策。
 
-截至 2026-08-13，Match Gold V1 为 25 条且全部人工复核，`gold_ready=true`；Product Final 的技能命中/缺失 F1 为 0.990649/0.986667，匹配等级和方向 EM 均为 0.96。Resume、Match、Multitask readiness 仍均为 `false`，在新合法独立数据到来前不启动新训练。
+## 主要功能
 
-本轮语义边界修改后的保存预测重放达到六项结构指标 1.0，但该集合已被检查，报告明确标记 `REGRESSION AFTER INSPECTION`，不能当作新的盲测泛化结果；旧解释的 evidence-grounding 为 0.92。
-
-## 当前能力
-
-- `jd_parse`：抽取岗位方向、职责、技能、经验和学历要求。
-- `resume_parse`：解析文本、DOCX、文本型 PDF；图片和扫描 PDF 支持 OCR sidecar。
-- `match`：组合 JD/简历结构化结果、确定性规则分数和模型生成的解释建议。
-- 单条、批量、文本与文件混合 API。
-- Vue 3 静态工作台和 Markdown 报告下载。
-- QLoRA、DPO、run manifest、训练前 readiness 和产品回归门禁。
-
-默认本地资产：
-
-```text
-models/Qwen3-14B
-outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601
-```
-
-模型、adapter、生成数据和评测输出不随 Git 分发。默认路径可通过 `JOBMATCH_MODEL_PATH`、`JOBMATCH_ADAPTER_PATH` 等环境变量覆盖。
-
-## 工作链路
-
-```text
-公开 JD / 合法脱敏简历 / 人工标注
-                │
-        清洗、标准化、去重、审计
-                │
-       SFT / preference 数据构造
-                │
-       QLoRA SFT → 可选 DPO
-                │
-   人工留出评测集 + 产品回归 + readiness
-                │
-Transformers 或 vLLM → FastAPI → Web UI
-```
-
-“人工留出评测集（holdout）”是提前单独保留、由人工给出正确答案、且不参加训练和调参的一组样本。它相当于最终考试卷，用于检验模型面对未见数据时是否真的变好。发现其中的错例后，不应把同一批答案直接回灌训练，否则再次评测只是在检查模型是否记住了答案。
-
-匹配请求会先分别解析 JD 和简历，再计算技能、方向、学历、年限和项目命中的规则结果，最后让模型基于原文和规则结果生成解释。因此一次匹配当前需要三次生成调用；这保证了可解释性，但延迟和吞吐仍属于实验级。
+- 将 JD 和简历解析为结构化数据
+- 结合规则与模型生成匹配结果和解释
+- 支持文本、PDF、DOCX 及批量请求
+- 提供 FastAPI 接口和 Vue 演示页面
+- 包含数据处理、微调和评测脚本
 
 ## 快速开始
 
-推荐 Python 3.11 和 CUDA 环境：
+需要 Python 3.10+ 和 Node.js 18+。GPU 推理需要可用的 CUDA 环境及本地模型。
 
 ```bash
 conda create -n tune-demo python=3.11 -y
 conda activate tune-demo
 pip install -r requirements.txt
+npm ci --prefix frontend
 ```
 
-`pyproject.toml` 是 Python 依赖元数据的唯一来源；`requirements*.txt` 配合 `constraints/` 提供开发、GPU 推理和训练的兼容边界。CUDA 相关依赖仍需按目标驱动选择，因此历史训练环境不能承诺跨机器字节级复现；前端依赖则由 package-lock 精确锁定。
-
-下载默认模型：
+配置模型路径并启动项目：
 
 ```bash
-bash scripts/dev/download_qwen_models_python.sh 14B
-```
-
-推荐用统一脚本在后台启动 API 和静态前端：
-
-```bash
+export JOBMATCH_MODEL_PATH=/path/to/model
 bash scripts/serve/start_project.sh
 ```
+
+启动后访问：
+
+- Web：`http://127.0.0.1:5174`
+- API：`http://127.0.0.1:8000`
 
 停止项目：
 
@@ -76,139 +41,41 @@ bash scripts/serve/start_project.sh
 bash scripts/serve/stop_project.sh
 ```
 
-默认地址是 `http://localhost:8000` 和 `http://localhost:5174`，日志写入 `outputs/logs/`，PID 写入 `outputs/runtime/`。本机 `5173` 已由另一个项目使用，所以统一脚本固定使用 `5174`。前端使用锁定版本的 Vue/Vite 本地构建；首次运行先执行 `npm ci --prefix frontend`。
+可通过环境变量调整模型、adapter、端口和推理后端。项目支持 Transformers 和 vLLM，vLLM 需单独安装。
 
-如果 GPU 节点只能通过登录节点访问，可以从本地直接建立跳板转发：
-
-```bash
-ssh -J <用户>@<登录节点> \
-  -L 8000:127.0.0.1:8000 \
-  -L 5174:127.0.0.1:5174 \
-  <用户>@gpu03
-```
-
-vLLM 需要另行安装；统一脚本可以同时管理 vLLM、API 和前端：
-
-```bash
-JOBMATCH_INFERENCE_BACKEND=vllm bash scripts/serve/start_project.sh
-```
-
-vLLM 模式会并行提交一次匹配中的 JD/简历解析，并对批量请求实施受控并发；默认 Transformers 4-bit 路径仍保持串行，以降低单 GPU 显存风险。
-
-## API
+## 主要接口
 
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |
-| `GET` | `/health` | 进程、CUDA 和后端状态 |
-| `POST` | `/api/warmup` | 显式加载模型 |
-| `POST` | `/api/parse` | JD 或简历文本解析 |
-| `POST` | `/api/jd_file_parse` | JD 文件解析 |
-| `POST` | `/api/resume_file_parse` | 简历文件解析 |
+| `GET` | `/health` | 服务状态 |
+| `POST` | `/api/parse` | JD 或简历解析 |
 | `POST` | `/api/match` | 文本人岗匹配 |
-| `POST` | `/api/match_files` | 文本/文件混合匹配 |
-| `POST` | `/api/batch_parse` | 最多 64 条解析；是否并发取决于后端 |
-| `POST` | `/api/batch_match` | 最多 32 组匹配；是否并发取决于后端 |
+| `POST` | `/api/match_files` | 文件人岗匹配 |
+| `POST` | `/api/batch_parse` | 批量解析 |
+| `POST` | `/api/batch_match` | 批量匹配 |
 
-文本请求限制为 20,000 字符，单文件默认最多 10 MiB（`JOBMATCH_MAX_UPLOAD_BYTES` 可覆盖），默认 CORS 只接受本机来源（`JOBMATCH_CORS_ORIGINS` 可覆盖）。上传已校验扩展名、内容签名和可解析性；当前仍没有认证、限流、恶意文件沙箱或持久化审计，不要直接暴露到公网。
-
-## 数据与训练
-
-初始化数据库并刷新官方公开职位：
-
-```bash
-python -m jobmatch_tune.init_db --db data/jobmatch_tune.sqlite3
-bash scripts/data/refresh_official_job_data.sh
-bash scripts/data/rebuild_data_pipeline.sh
-```
-
-从源数据构建 JD、简历、匹配、多任务 SFT 和两套 preference 数据，并生成最新门禁报告：
-
-```bash
-bash scripts/data/build_current_data_pools.sh
-```
-
-独立下载和处理外部招聘技能 gold（不自动混入主训练）：
-
-```bash
-bash scripts/data/prepare_external_skill_gold.sh
-```
-
-正式训练按阶段检查对应字段，避免一个阶段被无关数据误拦：
+## 项目结构
 
 ```text
-outputs/eval_reports/data_readiness_report.json
-SFT:         summary.all_ready_for_sft = true
-JD DPO:      summary.ready_for_dpo = true
-产品 DPO:    summary.ready_for_product_dpo = true
-完整链路:    summary.all_ready_for_training = true
+src/jobmatch_tune/  后端、数据、训练和评测代码
+frontend/           Vue 前端
+scripts/            启动、数据、训练和评测入口
+configs/            可复现配置
+tests/              自动化测试
 ```
 
-这些是允许训练的目标状态，不是当前状态。2026-08-13 修正“格式变体被算作独立来源”并完整重建后，Resume SFT 为 15,470 条、2,557 个有效来源组，其中 2,525 个来源组（98.75%）来自 bootstrap；多任务 Resume 来源组比例为 train 73.04%、valid 75.74%。Match 中 1,944 条明确年限要求样本全部为“不满足”，4,798 个 Pair 也全部为规则合成，因此当前 `not_ready_tasks=[resume, match, multitask]`；不要绕过 readiness 启动新训练。两个公开 Resume 候选均未通过训练准入。
-
-14B smoke 和 SFT：
-
-```bash
-bash scripts/train/train_qwen3_14b_smoke.sh
-bash scripts/train/train_qwen3_14b_multitask_sft.sh
-```
-
-新增 DPO 当前暂停：现有 preference 全为合成数据；Match Gold V1 虽已人工复核并冻结，但 Resume / Match / Multitask 数据门禁仍未通过。训练脚本默认拒绝 DPO。
-
-训练入口会写入 `run_manifest.json`，记录 Git commit、配置和数据 hash、任务构成、原始来源多样性、偏好数据出处、readiness 摘要和 CLI 覆盖项。正式 adapter 仍需同时通过绝对产品阈值与基线回归阈值：
-
-```bash
-ADAPTER_PATH=outputs/checkpoints/<adapter> \
-TAG=<tag> \
-BASELINE_TAG=qwen3_14b_dft_dpo_final_20260602 \
-bash scripts/eval/run_product_adapter_suite.sh
-```
-
-## 数据边界
-
-Git 保留评测候选的 builder 和审核契约；当前 `data/` 整体属于本地运行资产，不纳入版本控制。人工审核文件默认放在 `data/private/`，避免误提交真实简历或标注信息：
-
-- `models/`、`outputs/`；
-- SQLite、raw、interim、SFT、preference 数据；
-- `data/eval/` 下由 builder 生成的 candidate/train pool。
-
-真实简历不得提交到仓库。私有样例应放在 Git 忽略目录中，先经过授权、PII 审计与脱敏，再决定是否进入标注流程：
-
-```bash
-bash scripts/data/resume_privacy_audit.sh \
-  --input /private/path/resume.pdf \
-  --report-out outputs/eval_reports/resume_privacy_report.json \
-  --out outputs/eval_reports/resume_sanitized.jsonl
-```
-
-## 验证
+## 测试
 
 ```bash
 ruff check .
 pytest -q
 node tests/frontend_report_smoke.mjs
-python -m compileall -q src
 ```
 
-测试主要覆盖规则、数据 builder、评测、隐私处理和 API service helper；真实 14B GPU 推理回归需要单独运行，不包含在日常单元测试中。
+## 数据与安全
 
-## 目录
+`data/`、`models/` 和 `outputs/` 默认不纳入版本控制。请勿提交真实简历、密钥、模型权重或训练产物。服务默认仅监听本机，如需对外部署，应另行增加认证、限流和安全隔离。
 
-- `src/jobmatch_tune/`：crawler、预处理、数据构造、训练、推理、匹配、评测和 API。
-- `scripts/`：当前可执行数据、训练、服务和评测入口。
-- `configs/`：schema、数据源、数据配比与当前 14B 训练配置。
-- `data/eval/`：本地生成的评测候选、seed 和派生数据；可复现定义位于 `src/jobmatch_tune/eval/`。
-- `frontend/`：使用 Vite 构建、package-lock 锁定依赖的 Vue 3 工作台。
+## 许可
 
-## 当前限制
-
-- 匹配技能仍以 taxonomy 归一化后的精确集合重叠为主，没有语义召回或 reranker。
-- Transformers 后端用进程内锁串行生成；vLLM 后端已支持 JD/简历并行和受控批量并发，但当前环境尚未安装 vLLM，仍需真实 GPU 对照。
-- API service、上传解析和路由集中在单个较大的模块中，响应没有统一 Pydantic contract。
-- 前端已使用 package-lock 锁定 Vue/Vite 并提供本地构建与静态 smoke test；仍缺真实浏览器端到端测试。
-- 仓库没有 CI、容器定义、Python 全平台 lock file、许可证和安全策略；前端已有 package-lock，Python 使用分环境 constraints。
-- Match Gold V1 已有 25 条人工复核样本且与训练池无重合；它是冻结的开发回归基线，仍不能等价为真实招聘决策质量。
-- Match 配对池已经清除个人资料与敏感字段，但仍为 100% 合成配对；Resume 和多任务来源多样性门禁当前未通过。
-
-## 许可状态
-
-仓库当前没有 `LICENSE`。在明确选择许可证之前，不应把“代码可见”等同于“已授权开源复用”。
+仓库当前未提供开源许可证。
