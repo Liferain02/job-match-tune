@@ -1,11 +1,18 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from collections import Counter
+from pathlib import Path
 from typing import Any
 
-from jobmatch_tune.eval.metrics import precision_recall_f1, text_exact_match
+from jobmatch_tune.eval.metrics import (
+    aggregate_set_metrics,
+    bootstrap_confidence_interval,
+    classification_metrics,
+    text_exact_match,
+)
 from jobmatch_tune.eval.explanation_grounding import evaluate_explanation
 from jobmatch_tune.inference.predict import load_model, predict_loaded
 from jobmatch_tune.match.rule_engine import compute_match_rule_result
@@ -15,6 +22,16 @@ from jobmatch_tune.utils.io import read_jsonl, write_text
 LIST_FIELDS = ["命中技能", "缺失技能"]
 TEXT_FIELDS = ["匹配等级"]
 BOOL_FIELDS = ["岗位方向匹配", "学历匹配", "经验匹配"]
+MATCH_LEVELS = ["低匹配", "基本匹配", "较匹配", "高匹配"]
+INVALID_PREDICTION = "__invalid__"
+
+
+def file_sha256(path: str | Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _raw_layer(
@@ -177,11 +194,40 @@ def run_predictions(
     return results
 
 
-def _average_metric_dicts(scores: list[dict[str, float]]) -> dict[str, float]:
-    if not scores:
-        return {"precision": 0.0, "recall": 0.0, "f1": 0.0}
-    keys = scores[0].keys()
-    return {key: sum(score[key] for score in scores) / len(scores) for key in keys}
+def align_saved_predictions(
+    dataset_rows: list[dict[str, Any]],
+    prediction_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Attach current Gold metadata to saved outputs after strict input alignment."""
+    predictions_by_id = {str(row.get("id") or ""): row for row in prediction_rows}
+    dataset_ids = [str(row.get("id") or "") for row in dataset_rows]
+    if (
+        "" in predictions_by_id
+        or "" in dataset_ids
+        or len(predictions_by_id) != len(prediction_rows)
+        or len(set(dataset_ids)) != len(dataset_ids)
+    ):
+        raise ValueError("dataset and predictions must have unique non-empty ids")
+    if set(dataset_ids) != set(predictions_by_id):
+        raise ValueError("saved prediction ids do not match the evaluation dataset")
+
+    aligned = []
+    for gold in dataset_rows:
+        row_id = str(gold.get("id") or "")
+        prediction = predictions_by_id[row_id]
+        for field in ("jd_text", "resume_text"):
+            if str(prediction.get(field) or "") != str(gold.get(field) or ""):
+                raise ValueError(f"saved prediction input differs for {row_id}: {field}")
+        aligned.append(
+            {
+                **prediction,
+                "source_type": gold.get("source_type", prediction.get("source_type", "unknown")),
+                "source_group": gold.get("source_group", prediction.get("source_group", row_id)),
+                "label": gold.get("label") or {},
+                "meta": gold.get("meta") or {},
+            }
+        )
+    return aligned
 
 
 def evaluate_rows(
@@ -190,10 +236,15 @@ def evaluate_rows(
     result_path: tuple[str, ...] = ("rule_result",),
     availability_path: tuple[str, ...] | None = None,
     include_analysis: bool = True,
+    include_confidence_intervals: bool = True,
 ) -> dict[str, Any]:
-    list_scores = {field: [] for field in LIST_FIELDS}
+    list_pairs = {field: [] for field in LIST_FIELDS}
+    valid_list_pairs = {field: [] for field in LIST_FIELDS}
     text_scores = {field: [] for field in TEXT_FIELDS}
+    valid_text_scores = {field: [] for field in TEXT_FIELDS}
     bool_scores = {field: [] for field in BOOL_FIELDS}
+    valid_bool_scores = {field: [] for field in BOOL_FIELDS}
+    decision_pairs: list[tuple[str, str]] = []
     mismatch_count = 0
     rule_valid_rows = 0
 
@@ -211,30 +262,77 @@ def evaluate_rows(
             if availability_path
             else bool(row.get("jd_ok") and row.get("resume_ok"))
         )
+        gold = row.get("label") or {}
         if not available:
+            for field in LIST_FIELDS:
+                list_pairs[field].append(([INVALID_PREDICTION], gold.get(field, [])))
+            for field in TEXT_FIELDS:
+                text_scores[field].append(0.0)
+            for field in BOOL_FIELDS:
+                bool_scores[field].append(0.0)
+            decision_pairs.append((INVALID_PREDICTION, str(gold.get("匹配等级") or "")))
             mismatch_count += 1
             continue
         rule_valid_rows += 1
         pred = nested(row, result_path, {}) or {}
-        gold = row.get("label") or {}
+        decision_pairs.append((str(pred.get("匹配等级") or INVALID_PREDICTION), str(gold.get("匹配等级") or "")))
         row_has_mismatch = False
         for field in LIST_FIELDS:
-            score = precision_recall_f1(pred.get(field, []), gold.get(field, []))
-            list_scores[field].append(score)
+            pair = (pred.get(field, []), gold.get(field, []))
+            list_pairs[field].append(pair)
+            valid_list_pairs[field].append(pair)
+            score = aggregate_set_metrics([pair])
             if score["f1"] < 0.999:
                 row_has_mismatch = True
         for field in TEXT_FIELDS:
             score = text_exact_match(pred.get(field, ""), gold.get(field, ""))
             text_scores[field].append(score)
+            valid_text_scores[field].append(score)
             if score < 0.999:
                 row_has_mismatch = True
         for field in BOOL_FIELDS:
             score = 1.0 if bool(pred.get(field)) == bool(gold.get(field)) else 0.0
             bool_scores[field].append(score)
+            valid_bool_scores[field].append(score)
             if score < 0.999:
                 row_has_mismatch = True
         if row_has_mismatch:
             mismatch_count += 1
+
+    def render_field_metrics(
+        pairs: dict[str, list[tuple[list[str], list[str]]]],
+        text: dict[str, list[float]],
+        booleans: dict[str, list[float]],
+    ) -> dict[str, Any]:
+        return {
+            **{field: aggregate_set_metrics(scores) for field, scores in pairs.items()},
+            **{
+                field: {"exact_match": sum(scores) / len(scores) if scores else 0.0}
+                for field, scores in text.items()
+            },
+            **{
+                field: {"exact_match": sum(scores) / len(scores) if scores else 0.0}
+                for field, scores in booleans.items()
+            },
+        }
+
+    predictions = [pred for pred, _ in decision_pairs]
+    golds = [gold for _, gold in decision_pairs]
+    decision_metrics = classification_metrics(
+        predictions,
+        golds,
+        labels=MATCH_LEVELS,
+        ordinal=True,
+    )
+
+    def classification_statistic(samples: list[tuple[str, str]], metric: str) -> float:
+        report = classification_metrics(
+            [pred for pred, _ in samples],
+            [gold for _, gold in samples],
+            labels=MATCH_LEVELS,
+            ordinal=True,
+        )
+        return float(report[metric])
 
     return {
         "num_samples": len(rows),
@@ -244,16 +342,30 @@ def evaluate_rows(
             if rows and include_analysis
             else None
         ),
-        "field_metrics": {
-            **{field: _average_metric_dicts(scores) for field, scores in list_scores.items()},
-            **{
-                field: {"exact_match": sum(scores) / len(scores) if scores else 0.0}
-                for field, scores in text_scores.items()
-            },
-            **{
-                field: {"exact_match": sum(scores) / len(scores) if scores else 0.0}
-                for field, scores in bool_scores.items()
-            },
+        "field_metrics": render_field_metrics(list_pairs, text_scores, bool_scores),
+        "valid_parse_only_field_metrics": render_field_metrics(
+            valid_list_pairs,
+            valid_text_scores,
+            valid_bool_scores,
+        ),
+        "decision_metrics": decision_metrics,
+        "decision_confidence_intervals": (
+            {
+                metric: bootstrap_confidence_interval(
+                    decision_pairs,
+                    lambda samples, name=metric: classification_statistic(samples, name),
+                    strata=lambda item: item[1],
+                )
+                for metric in ("accuracy", "balanced_accuracy", "macro_f1")
+            }
+            if include_confidence_intervals
+            else {}
+        ),
+        "metric_semantics": {
+            "field_metrics": "端到端指标；JD/简历解析失败按字段错误计入",
+            "valid_parse_only_field_metrics": "仅用于定位解析成功后的规则质量",
+            "decision_metrics": "四档匹配等级分类；宏 F1 与平衡准确率降低类别不均衡造成的误导",
+            "decision_confidence_intervals": "按真实等级分层的 95% percentile bootstrap，固定 seed=42",
         },
         "num_mismatch_samples": mismatch_count,
     }
@@ -327,27 +439,92 @@ def build_error_analysis(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def build_dataset_profile(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    difficulty_counts: Counter[str] = Counter()
+    source_counts: Counter[str] = Counter()
+    rows_without_difficulty_tags = 0
+    level_counts: Counter[str] = Counter()
+    jd_counts: Counter[str] = Counter()
+    resume_counts: Counter[str] = Counter()
+    for row in rows:
+        source_counts[str(row.get("source_type") or "unknown")] += 1
+        tags = [str(tag) for tag in (row.get("meta") or {}).get("difficulty_tags") or []]
+        if not tags:
+            rows_without_difficulty_tags += 1
+        difficulty_counts.update(tags)
+        level_counts[str((row.get("label") or {}).get("匹配等级") or "missing")] += 1
+        jd_counts[hashlib.sha256(str(row.get("jd_text") or "").encode()).hexdigest()] += 1
+        resume_counts[hashlib.sha256(str(row.get("resume_text") or "").encode()).hexdigest()] += 1
+    minimum_level_support = min((level_counts.get(level, 0) for level in MATCH_LEVELS), default=0)
+    multi_candidate_queries = sum(count >= 2 for count in jd_counts.values())
+    return {
+        "num_samples": len(rows),
+        "source_type_counts": dict(source_counts),
+        "difficulty_tag_counts": dict(difficulty_counts),
+        "rows_without_difficulty_tags": rows_without_difficulty_tags,
+        "match_level_counts": {level: level_counts.get(level, 0) for level in MATCH_LEVELS},
+        "minimum_match_level_support": minimum_level_support,
+        "decision_evaluation_ready": minimum_level_support >= 5,
+        "unique_jd_count": len(jd_counts),
+        "unique_resume_count": len(resume_counts),
+        "multi_candidate_query_count": multi_candidate_queries,
+        "ranking_evaluation_ready": multi_candidate_queries >= 20,
+        "evaluation_blockers": [
+            message
+            for condition, message in (
+                (minimum_level_support < 5, "每个匹配等级至少需要 5 条独立人工标签"),
+                (multi_candidate_queries < 20, "至少需要 20 个 JD 各自对应多份候选简历"),
+            )
+            if condition
+        ],
+    }
+
+
 def build_report(
     rows: list[dict[str, Any]],
     *,
     evaluation_context: str = "auto",
 ) -> dict[str, Any]:
     by_source: dict[str, list[dict[str, Any]]] = {}
+    by_difficulty: dict[str, list[dict[str, Any]]] = {}
     annotation_statuses: Counter[str] = Counter()
+    evaluation_roles: Counter[str] = Counter()
+    inspection_statuses: Counter[str] = Counter()
     for row in rows:
         by_source.setdefault(row.get("source_type", "unknown"), []).append(row)
-        annotation_statuses[str((row.get("meta") or {}).get("annotation_status") or "missing")] += 1
+        meta = row.get("meta") or {}
+        for tag in meta.get("difficulty_tags") or []:
+            by_difficulty.setdefault(str(tag), []).append(row)
+        annotation_statuses[str(meta.get("annotation_status") or "missing")] += 1
+        evaluation_roles[str(meta.get("evaluation_role") or "unspecified")] += 1
+        inspection_statuses[str(meta.get("inspection_status") or "unspecified")] += 1
     human_verified = bool(rows) and annotation_statuses == {"human_verified": len(rows)}
-    if evaluation_context == "historical_gold_v1_regression":
+    blind_eligible = bool(
+        human_verified
+        and evaluation_roles == {"blind_holdout": len(rows)}
+        and inspection_statuses == {"unseen": len(rows)}
+    )
+    if evaluation_context in {"historical_gold_v1_regression", "frozen_regression"}:
         evaluation_validity = "historical_gold_v1_regression"
         warning = (
             "REGRESSION AFTER INSPECTION：Gold V1 已被查看，本报告只用于冻结回归，"
             "不是新的 blind generalization。"
         )
-    else:
-        evaluation_validity = "formal_gold" if human_verified else "provisional_candidate_diagnosis"
+    elif evaluation_context == "blind_holdout":
+        evaluation_validity = "blind_holdout" if blind_eligible else "invalid_blind_holdout"
         warning = (
-            "全部标签均为人工复核，可结合独立性审计解释指标。"
+            "未参与训练、调参或规则修复的人工冻结集；首次揭盲结果可用于泛化判断。"
+            if blind_eligible
+            else "Blind holdout 必须同时满足人工复核、blind_holdout 角色与 unseen 状态。"
+        )
+    else:
+        evaluation_validity = (
+            "human_verified_unspecified_context"
+            if human_verified
+            else "provisional_candidate_diagnosis"
+        )
+        warning = (
+            "标签已人工复核，但未声明盲测或冻结回归上下文；不可直接声称泛化。"
             if human_verified
             else "存在未人工复核标签；以下指标仅用于候选集诊断，不是正式产品准确率。"
         )
@@ -355,7 +532,10 @@ def build_report(
         "task": "match",
         "evaluation_validity": evaluation_validity,
         "annotation_status_counts": dict(annotation_statuses),
+        "evaluation_role_counts": dict(evaluation_roles),
+        "inspection_status_counts": dict(inspection_statuses),
         "warning": warning,
+        "dataset_profile": build_dataset_profile(rows),
         "overall": evaluate_rows(rows),
         "layers": {
             "raw_model_derived": evaluate_rows(
@@ -399,7 +579,17 @@ def build_report(
             },
         },
         "error_analysis": build_error_analysis(rows),
-        "by_source_type": {key: evaluate_rows(value) for key, value in by_source.items()},
+        "by_source_type": {
+            key: evaluate_rows(value, include_confidence_intervals=False)
+            for key, value in by_source.items()
+        },
+        "by_difficulty_tag": {
+            key: {
+                **evaluate_rows(value, include_confidence_intervals=False),
+                "error_analysis": build_error_analysis(value),
+            }
+            for key, value in sorted(by_difficulty.items())
+        },
     }
 
 
@@ -410,21 +600,38 @@ def main() -> None:
     parser.add_argument("--adapter", default="outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601")
     parser.add_argument("--out", default="outputs/eval_reports/match_eval_report.json")
     parser.add_argument("--predictions-out", default="outputs/eval_reports/match_eval_predictions.jsonl")
+    parser.add_argument(
+        "--predictions-in",
+        help="Replay a saved prediction JSONL against the current dataset without loading a model",
+    )
     parser.add_argument("--load-4bit", action="store_true")
     parser.add_argument("--max-new-tokens", type=int, default=1024)
     parser.add_argument(
         "--evaluation-context",
-        choices=["auto", "historical_gold_v1_regression"],
+        choices=["auto", "blind_holdout", "frozen_regression", "historical_gold_v1_regression"],
         default="auto",
     )
     args = parser.parse_args()
 
     rows = list(read_jsonl(args.dataset))
-    predictions = run_predictions(rows, args.model, args.adapter, args.load_4bit, args.max_new_tokens)
+    predictions = (
+        align_saved_predictions(rows, list(read_jsonl(args.predictions_in)))
+        if args.predictions_in
+        else run_predictions(rows, args.model, args.adapter, args.load_4bit, args.max_new_tokens)
+    )
     evaluation_context = args.evaluation_context
     if evaluation_context == "auto" and "match_gold" in args.dataset:
         evaluation_context = "historical_gold_v1_regression"
     report = build_report(predictions, evaluation_context=evaluation_context)
+    report["evaluation_provenance"] = {
+        "dataset": args.dataset,
+        "dataset_sha256": file_sha256(args.dataset),
+        "model": args.model,
+        "adapter": args.adapter or "",
+        "load_4bit": args.load_4bit,
+        "max_new_tokens": args.max_new_tokens,
+        "replayed_predictions": args.predictions_in or "",
+    }
     write_text(args.out, json.dumps(report, ensure_ascii=False, indent=2))
     write_text(args.predictions_out, "\n".join(json.dumps(row, ensure_ascii=False) for row in predictions) + "\n")
     print(json.dumps(report, ensure_ascii=False, indent=2))

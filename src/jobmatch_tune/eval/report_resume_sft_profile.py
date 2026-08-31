@@ -9,6 +9,10 @@ from typing import Any
 from jobmatch_tune.utils.io import read_jsonl, write_text
 
 
+REAL_RESUME_ORIGINS = {"public_real_anonymized", "private_real_anonymized"}
+MIN_REAL_RESUME_SOURCE_GROUPS = 100
+
+
 def build_resume_sft_profile(paths: list[str]) -> dict[str, Any]:
     split_counts: Counter[str] = Counter()
     variant_counts: Counter[str] = Counter()
@@ -19,6 +23,7 @@ def build_resume_sft_profile(paths: list[str]) -> dict[str, Any]:
     split_source_groups: dict[str, set[str]] = {}
     source_category_groups: dict[str, set[str]] = {}
     split_source_category_groups: dict[str, dict[str, set[str]]] = {}
+    real_source_groups: set[str] = set()
 
     def source_category(source_group: str) -> str:
         if source_group.startswith("resume_bootstrap_"):
@@ -37,7 +42,10 @@ def build_resume_sft_profile(paths: list[str]) -> dict[str, Any]:
             source_group = str(row.get("source_group") or row.get("id") or "")
             source_group_counts[source_group] += 1
             split_source_groups.setdefault(split, set()).add(source_group)
-            category = source_category(source_group)
+            data_origin = str((row.get("meta") or {}).get("data_origin") or "")
+            category = data_origin or source_category(source_group)
+            if data_origin in REAL_RESUME_ORIGINS:
+                real_source_groups.add(source_group)
             source_category_groups.setdefault(category, set()).add(source_group)
             split_source_category_groups.setdefault(split, {}).setdefault(category, set()).add(
                 source_group
@@ -67,6 +75,11 @@ def build_resume_sft_profile(paths: list[str]) -> dict[str, Any]:
         "bootstrap_rate": round(bootstrap_samples / total, 4) if total else 0.0,
         "bootstrap_source_groups": len(bootstrap_source_groups),
         "bootstrap_source_group_rate": bootstrap_source_group_rate,
+        "real_resume_source_groups": len(real_source_groups),
+        "minimum_real_resume_source_groups": MIN_REAL_RESUME_SOURCE_GROUPS,
+        "supports_real_resume_quality_claim": (
+            len(real_source_groups) >= MIN_REAL_RESUME_SOURCE_GROUPS
+        ),
         "source_group_counts_by_category": {
             category: len(groups) for category, groups in sorted(source_category_groups.items())
         },
@@ -90,6 +103,7 @@ def build_resume_sft_profile(paths: list[str]) -> dict[str, Any]:
             and max_source_group_size <= 7
             and max_variant_rate <= 0.25
             and bootstrap_source_group_rate <= 0.8
+            and len(real_source_groups) >= MIN_REAL_RESUME_SOURCE_GROUPS
         ),
     }
 

@@ -17,6 +17,7 @@ WECHAT_RE = re.compile(r"(?i)\b(?:微信|wechat|vx)[:：]?\s*([A-Za-z][A-Za-z0-9
 QQ_RE = re.compile(r"(?:QQ|qq)[:：]?\s*([1-9][0-9]{4,11})")
 ID_NUMBER_RE = re.compile(r"(?<!\d)(?:\d{17}[0-9Xx]|\d{15})(?!\d)")
 AGE_RE = re.compile(r"(?<!\d)([1-5]?\d)\s*岁")
+PERSONAL_URL_RE = re.compile(r"(?i)\b(?:https?://|www\.)[^\s<>]+")
 NAME_LINE_RE = re.compile(r"^(?:姓名[:：]?\s*)?([\u4e00-\u9fff]{2,4})$")
 PRIVATE_CONTEXT_RE = re.compile(r"(电话|手机|邮箱|年龄|政治面貌|\[手机号\]|\[邮箱\]|\[年龄\])")
 RESUME_FILE_NAME_RE = re.compile(r"(?<=[-_])[\u4e00-\u9fff]{2,4}(?=\.)")
@@ -41,7 +42,13 @@ PRIVATE_PROFILE_FIELDS = {
     "身份证号": "id_number",
     "证件号码": "id_number",
     "个人账号": "personal_account",
-    "社交账号": "personal_account",
+        "社交账号": "personal_account",
+        "个人主页": "personal_account",
+        "GitHub": "personal_account",
+        "Github": "personal_account",
+        "Gitee": "personal_account",
+        "LinkedIn": "personal_account",
+        "博客": "personal_account",
 }
 TRAINING_PRIVATE_FIELDS = tuple(
     PRIVATE_PROFILE_FIELDS
@@ -72,6 +79,7 @@ def detect_resume_pii(text: str) -> list[PiiFinding]:
         ("qq", QQ_RE),
         ("id_number", ID_NUMBER_RE),
         ("age", AGE_RE),
+        ("personal_url", PERSONAL_URL_RE),
     ]
     for kind, pattern in patterns:
         for match in pattern.finditer(text):
@@ -110,6 +118,7 @@ def redact_resume_pii(text: str) -> str:
     redacted = QQ_RE.sub(lambda match: match.group(0).replace(match.group(1), "[QQ]"), redacted)
     redacted = ID_NUMBER_RE.sub("[证件号码]", redacted)
     redacted = AGE_RE.sub("[年龄]", redacted)
+    redacted = PERSONAL_URL_RE.sub("[个人链接]", redacted)
 
     source_lines = redacted.splitlines()
     lines: list[str] = []

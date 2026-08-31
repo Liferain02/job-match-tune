@@ -16,12 +16,13 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 DATASET_ROOT = PACKAGE_ROOT / "dataset"
 PREPROCESS_ROOT = PACKAGE_ROOT / "preprocess"
 RESUME_ROOT = PACKAGE_ROOT / "resume"
-MATCH_ROOT = PACKAGE_ROOT / "match"
 PROJECT_ROOT = PACKAGE_ROOT.parents[1]
 NORMALIZATION_TRANSFORM_FILES = (
     PACKAGE_ROOT / "preprocess" / "clean_text.py",
     PACKAGE_ROOT / "preprocess" / "jd_field_rules.py",
     PACKAGE_ROOT / "preprocess" / "jd_sections.py",
+    PACKAGE_ROOT / "preprocess" / "normalize_jd.py",
+    PACKAGE_ROOT / "preprocess" / "skill_canonicalization.py",
 )
 
 DERIVED_DEPENDENCIES = (
@@ -39,56 +40,34 @@ DERIVED_DEPENDENCIES = (
         ("data/eval/public_jd_candidate_pool.jsonl",),
     ),
     (
-        "JD去重层到弱结构池",
-        (
-            "data/interim/jd_clean_dedup.jsonl",
-            str(DATASET_ROOT / "build_jd_train_pool_supplemental.py"),
-            str(DATASET_ROOT / "build_jd_train_pool_weak_structured.py"),
-            str(DATASET_ROOT / "build_sft_dataset.py"),
-        ),
-        (
-            "data/eval/jd_train_pool_supplemental.jsonl",
-            "data/eval/jd_train_pool_weak_structured.jsonl",
-        ),
-    ),
-    (
         "JD候选池到组合池",
         (
             "data/interim/jd_clean_dedup.jsonl",
             "data/eval/public_jd_candidate_pool.jsonl",
-            "data/eval/jd_train_pool_supplemental.jsonl",
-            "data/eval/jd_train_pool_weak_structured.jsonl",
             str(DATASET_ROOT / "build_jd_train_pool_combined.py"),
             str(DATASET_ROOT / "build_sft_dataset.py"),
         ),
         ("data/eval/jd_train_pool_combined.jsonl",),
     ),
     (
-        "JD组合池到质量集",
+        "JD组合池到严格SFT",
         (
-            "data/interim/jd_clean_dedup.jsonl",
             "data/eval/jd_train_pool_combined.jsonl",
-            str(DATASET_ROOT / "build_jd_quality_sft_dataset.py"),
             str(DATASET_ROOT / "build_jd_strict_plus_sft_dataset.py"),
-            str(DATASET_ROOT / "build_jd_bootstrap_sft_dataset.py"),
             str(DATASET_ROOT / "build_sft_dataset.py"),
-            str(DATASET_ROOT / "jd_quality_risk.py"),
             str(DATASET_ROOT / "templates.py"),
         ),
         (
-            "data/sft_jd_quality/train.jsonl",
-            "data/sft_jd_quality/valid.jsonl",
-            "data/sft_jd_quality/test.jsonl",
+            "data/sft_jd_strict_plus/train.jsonl",
+            "data/sft_jd_strict_plus/valid.jsonl",
+            "data/sft_jd_strict_plus/test.jsonl",
         ),
     ),
     (
         "简历原始池到组合池",
         (
             "data/eval/resume_manual_train_pool.jsonl",
-            "data/external/public_resume_imports.jsonl",
-            "data/eval/resume_train_pool_synthetic.jsonl",
-            "data/eval/resume_train_pool_bootstrap.jsonl",
-            str(DATASET_ROOT / "build_resume_train_pool_synthetic.py"),
+            str(DATASET_ROOT / "curated_resume_training_data.py"),
             str(DATASET_ROOT / "build_resume_train_pool_combined.py"),
             str(RESUME_ROOT / "privacy.py"),
         ),
@@ -106,22 +85,11 @@ DERIVED_DEPENDENCIES = (
         ("data/sft_resume/train.jsonl", "data/sft_resume/valid.jsonl", "data/sft_resume/test.jsonl"),
     ),
     (
-        "JD简历组合池到匹配合成池",
+        "匹配准入数据到组合池",
         (
-            "data/eval/jd_train_pool_combined.jsonl",
-            "data/eval/resume_train_pool_combined.jsonl",
-            str(DATASET_ROOT / "build_match_train_pool_synthetic.py"),
-            str(MATCH_ROOT / "rule_engine.py"),
-            str(PREPROCESS_ROOT / "jd_field_rules.py"),
-            str(RESUME_ROOT / "privacy.py"),
-            str(PROJECT_ROOT / "configs" / "label_schema.yaml"),
-        ),
-        ("data/eval/match_train_pool_synthetic.jsonl",),
-    ),
-    (
-        "匹配合成池到组合池",
-        (
-            "data/eval/match_train_pool_synthetic.jsonl",
+            "data/eval/match_curated_train_pool.jsonl",
+            str(PROJECT_ROOT / "configs" / "public_match_sources.yaml"),
+            str(DATASET_ROOT / "curated_match_training_data.py"),
             str(DATASET_ROOT / "build_match_train_pool_combined.py"),
         ),
         ("data/eval/match_train_pool_combined.jsonl",),
@@ -139,8 +107,8 @@ DERIVED_DEPENDENCIES = (
     (
         "单任务SFT到多任务SFT",
         (
-            "data/sft_jd_quality/train.jsonl",
-            "data/sft_jd_quality/valid.jsonl",
+            "data/sft_jd_strict_plus/train.jsonl",
+            "data/sft_jd_strict_plus/valid.jsonl",
             "data/sft_resume/train.jsonl",
             "data/sft_resume/valid.jsonl",
             "data/sft_match/train.jsonl",
@@ -153,31 +121,18 @@ DERIVED_DEPENDENCIES = (
     (
         "JDSFT到偏好数据",
         (
-            "data/sft_jd_quality/train.jsonl",
-            "data/sft_jd_quality/valid.jsonl",
+            "data/sft_jd_strict_plus/train.jsonl",
+            "data/sft_jd_strict_plus/valid.jsonl",
             str(DATASET_ROOT / "build_preference_dataset.py"),
             str(DATASET_ROOT / "build_match_sft_dataset.py"),
             str(DATASET_ROOT / "templates.py"),
         ),
         ("data/preference/train.jsonl", "data/preference/valid.jsonl"),
     ),
-    (
-        "多任务SFT到产品偏好数据",
-        (
-            "data/sft_multitask/train.jsonl",
-            "data/sft_multitask/valid.jsonl",
-            str(DATASET_ROOT / "build_preference_bootstrap_dataset.py"),
-        ),
-        (
-            "data/preference_product_bootstrap/train.jsonl",
-            "data/preference_product_bootstrap/valid.jsonl",
-        ),
-    ),
 )
 
 DPO_DEPENDENCY_NAMES = {
     "JDSFT到偏好数据",
-    "多任务SFT到产品偏好数据",
 }
 
 

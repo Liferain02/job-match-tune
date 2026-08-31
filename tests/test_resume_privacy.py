@@ -48,6 +48,21 @@ def test_redact_resume_pii_masks_values_without_dropping_resume_content():
     assert "RAG 系统" in redacted
 
 
+def test_training_sanitizer_removes_personal_profile_links():
+    text = (
+        "GitHub：https://github.com/example-user\n"
+        "个人主页：www.example-user.dev\n"
+        "核心技能：Python、FastAPI"
+    )
+
+    findings = detect_resume_pii(text)
+    sanitized = sanitize_resume_text_for_training(text)
+
+    assert sum(finding.kind == "personal_url" for finding in findings) == 2
+    assert "example-user" not in sanitized
+    assert "核心技能：Python、FastAPI" in sanitized
+
+
 def test_redact_resume_pii_masks_name_near_contact_block():
     text = "项目经历：RAG 系统\n李四\n电话：13812345678 | 邮箱：candidate@example.com"
     redacted = redact_resume_pii(text)

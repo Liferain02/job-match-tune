@@ -2,8 +2,10 @@ from jobmatch_tune.eval.build_resume_eval_dataset import (
     BASE_ROWS,
     build_ocr_like_rows,
     build_text_variant_rows,
+    mark_frozen_evaluation_rows,
     to_ocr_like,
 )
+from jobmatch_tune.dataset.curated_resume_training_data import CURATED_RESUME_TRAIN_ROWS
 
 
 def test_to_ocr_like_changes_text_shape():
@@ -28,3 +30,17 @@ def test_format_variants_share_the_original_resume_source_group():
 
     assert len(rows) == 3
     assert {row["source_group"] for row in rows} == {BASE_ROWS[0]["id"]}
+
+
+def test_resume_training_rows_are_disjoint_from_frozen_evaluation_rows():
+    evaluation_rows = mark_frozen_evaluation_rows(BASE_ROWS)
+
+    assert {row["id"] for row in evaluation_rows}.isdisjoint(
+        {row["id"] for row in CURATED_RESUME_TRAIN_ROWS}
+    )
+    assert all(row["meta"]["training_eligible"] is False for row in evaluation_rows)
+    assert all(
+        row["source_type"] == "curated_fictional"
+        and row["meta"]["contains_real_person_data"] is False
+        for row in CURATED_RESUME_TRAIN_ROWS
+    )

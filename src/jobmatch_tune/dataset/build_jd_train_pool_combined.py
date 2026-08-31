@@ -64,8 +64,6 @@ def deduplicate_rows(rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
 def build_combined_rows(
     manual_rows: Iterable[dict[str, Any]],
     public_rows: Iterable[dict[str, Any]],
-    supplemental_rows: Iterable[dict[str, Any]] | None = None,
-    weak_structured_rows: Iterable[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     seen = set()
     combined = []
@@ -78,18 +76,6 @@ def build_combined_rows(
 
     for row in build_manual_rows(manual_rows):
         append_unique(row)
-    for row in supplemental_rows or []:
-        copied = dict(row)
-        meta = dict(copied.get("meta") or {})
-        meta["pool_origin"] = meta.get("pool_origin") or "supplemental_candidate"
-        copied["meta"] = meta
-        append_unique(copied)
-    for row in weak_structured_rows or []:
-        copied = dict(row)
-        meta = dict(copied.get("meta") or {})
-        meta["pool_origin"] = meta.get("pool_origin") or "weak_structured_candidate"
-        copied["meta"] = meta
-        append_unique(copied)
     for row in public_rows:
         copied = dict(row)
         meta = dict(copied.get("meta") or {})
@@ -103,12 +89,10 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--manual-input", default="data/interim/jd_clean_dedup.jsonl")
     parser.add_argument("--public-input", default="data/eval/public_jd_candidate_pool.jsonl")
-    parser.add_argument("--supplemental-input", default="data/eval/jd_train_pool_supplemental.jsonl")
-    parser.add_argument("--weak-structured-input", default="data/eval/jd_train_pool_weak_structured.jsonl")
     parser.add_argument("--out", default="data/eval/jd_train_pool_combined.jsonl")
     args = parser.parse_args()
 
-    counts = {"manual": 0, "public": 0, "supplemental": 0, "weak_structured": 0}
+    counts = {"manual": 0, "public": 0}
 
     def counted_rows(path: str, key: str):
         if not Path(path).exists():
@@ -119,14 +103,11 @@ def main() -> None:
 
     manual_rows = counted_rows(args.manual_input, "manual")
     public_rows = counted_rows(args.public_input, "public")
-    supplemental_rows = counted_rows(args.supplemental_input, "supplemental")
-    weak_structured_rows = counted_rows(args.weak_structured_input, "weak_structured")
-    combined = build_combined_rows(manual_rows, public_rows, supplemental_rows, weak_structured_rows)
+    combined = build_combined_rows(manual_rows, public_rows)
     write_jsonl(args.out, combined)
     print(
         "manual="
-        f"{counts['manual']} public={counts['public']} supplemental={counts['supplemental']} "
-        f"weak_structured={counts['weak_structured']} combined={len(combined)}"
+        f"{counts['manual']} public={counts['public']} combined={len(combined)}"
     )
 
 

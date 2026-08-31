@@ -22,6 +22,7 @@ DIFFICULTY_TAGS = {
     "单项硬门槛不满足",
 }
 MATCH_LEVELS = {"高匹配", "较匹配", "基本匹配", "低匹配"}
+MATCH_LEVEL_ORDER = ("低匹配", "基本匹配", "较匹配", "高匹配")
 BOOL_FIELDS = ("岗位方向匹配", "学历匹配", "经验匹配")
 LIST_FIELDS = ("命中技能", "缺失技能")
 
@@ -85,6 +86,8 @@ def audit_match_gold(
     source_groups = Counter(str(row.get("source_group") or "") for row in rows)
     pair_hashes = Counter(pair_hash(row) for row in rows)
     status_counts: Counter[str] = Counter()
+    evaluation_role_counts: Counter[str] = Counter()
+    inspection_status_counts: Counter[str] = Counter()
     difficulty_counts: Counter[str] = Counter()
     invalid_rows = []
     verified_rows = 0
@@ -93,15 +96,21 @@ def audit_match_gold(
     training_resume_overlap_ids = []
     jd_task_training_overlap_ids = []
     resume_task_training_overlap_ids = []
+    level_counts: Counter[str] = Counter()
+    jd_candidate_counts: Counter[str] = Counter()
 
     for row in rows:
         row_id = str(row.get("id") or "")
         meta = row.get("meta") or {}
         status = str(meta.get("annotation_status") or "missing")
         status_counts[status] += 1
+        evaluation_role_counts[str(meta.get("evaluation_role") or "unspecified")] += 1
+        inspection_status_counts[str(meta.get("inspection_status") or "unspecified")] += 1
         tags = [str(tag) for tag in meta.get("difficulty_tags") or []]
         difficulty_counts.update(tag for tag in tags if tag in DIFFICULTY_TAGS)
         errors = _label_errors(row.get("label"))
+        level_counts[str((row.get("label") or {}).get("匹配等级") or "missing")] += 1
+        jd_candidate_counts[jd_hash(row)] += 1
         if not row_id:
             errors.append("missing_id")
         if not str(row.get("source_group") or ""):
@@ -154,13 +163,59 @@ def audit_match_gold(
         and not resume_task_training_overlap_ids
         and not missing_difficulty_tags
     )
+    blind_declared = evaluation_role_counts == {"blind_holdout": len(rows)}
+    blind_unseen = inspection_status_counts == {"unseen": len(rows)}
+    blind_ready = ready and blind_declared and blind_unseen
+    blind_blockers = []
+    if not ready:
+        blind_blockers.append("regression_quality_or_independence_gate_failed")
+    if not blind_declared:
+        blind_blockers.append("evaluation_role_not_blind_holdout")
+    if not blind_unseen:
+        blind_blockers.append("inspection_status_not_unseen")
+    minimum_level_support = min(
+        (level_counts.get(level, 0) for level in MATCH_LEVEL_ORDER),
+        default=0,
+    )
+    decision_ready = ready and minimum_level_support >= 5
+    decision_blockers = []
+    if not ready:
+        decision_blockers.append("regression_quality_or_independence_gate_failed")
+    if minimum_level_support < 5:
+        decision_blockers.append("match_level_support_below_5")
+    multi_candidate_queries = sum(count >= 5 for count in jd_candidate_counts.values())
+    ranking_ready = ready and multi_candidate_queries >= 20
+    ranking_blockers = []
+    if not ready:
+        ranking_blockers.append("regression_quality_or_independence_gate_failed")
+    if multi_candidate_queries < 20:
+        ranking_blockers.append("fewer_than_20_queries_with_5_candidates")
     return {
         "gold_ready": ready,
+        "regression_ready": ready,
+        "blind_ready": blind_ready,
+        "blind_blockers": blind_blockers,
+        "decision_ready": decision_ready,
+        "decision_blockers": decision_blockers,
+        "ranking_ready": ranking_ready,
+        "ranking_blockers": ranking_blockers,
+        "evaluation_scope": {
+            "pair_regression": ready,
+            "match_level_decision": decision_ready,
+            "candidate_ranking": ranking_ready,
+        },
         "total_rows": len(rows),
         "minimum_rows": min_rows,
         "human_verified_rows": verified_rows,
         "annotation_status_counts": dict(status_counts),
+        "evaluation_role_counts": dict(evaluation_role_counts),
+        "inspection_status_counts": dict(inspection_status_counts),
         "difficulty_counts": dict(difficulty_counts),
+        "match_level_counts": {
+            level: level_counts.get(level, 0) for level in MATCH_LEVEL_ORDER
+        },
+        "minimum_match_level_support": minimum_level_support,
+        "queries_with_at_least_5_candidates": multi_candidate_queries,
         "missing_difficulty_tags": missing_difficulty_tags,
         "invalid_rows": invalid_rows,
         "duplicate_ids": duplicate_ids,
@@ -181,7 +236,7 @@ def audit_match_gold(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--gold", default="data/eval/match_gold_review_candidates.jsonl")
+    parser.add_argument("--gold", default="data/private/match_gold.jsonl")
     parser.add_argument("--training", default="data/eval/match_train_pool_combined.jsonl")
     parser.add_argument("--jd-training", default="data/eval/jd_train_pool_combined.jsonl")
     parser.add_argument("--resume-training", default="data/eval/resume_train_pool_combined.jsonl")

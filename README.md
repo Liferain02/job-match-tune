@@ -72,6 +72,16 @@ pytest -q
 node tests/frontend_report_smoke.mjs
 ```
 
+训练数据、SFT 和评测分别使用统一入口：
+
+```bash
+bash scripts/data/build_current_data_pools.sh
+bash scripts/train/train_sft.sh
+bash scripts/eval/run_product_adapter_suite.sh
+```
+
+DPO 是可选阶段，只有偏好数据通过质量门槛后才允许执行 `scripts/train/train_dpo.sh`。
+
 ## 数据与安全
 
 `data/`、`models/` 和 `outputs/` 默认不纳入版本控制。请勿提交真实简历、密钥、模型权重或训练产物。服务默认仅监听本机，如需对外部署，应另行增加认证、限流和安全隔离。

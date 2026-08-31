@@ -81,12 +81,9 @@ def cap_educational_source_rows(
 def build_combined_rows(
     manual_rows: list[dict[str, Any]],
     public_rows: list[dict[str, Any]],
-    synthetic_rows: list[dict[str, Any]] | None = None,
     max_educational_source_rate: float = 0.4,
 ) -> list[dict[str, Any]]:
     combined = list(manual_rows)
-    for row in synthetic_rows or []:
-        combined.append(row)
     for row in public_rows:
         if is_usable_public_match_row(row):
             combined.append(
@@ -109,11 +106,10 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--manual-input",
-        default=None,
+        default="data/eval/match_curated_train_pool.jsonl",
         help="Optional independently annotated training pairs; never point this at a Gold/eval file.",
     )
     parser.add_argument("--public-input", default="data/external/public_match_imports.jsonl")
-    parser.add_argument("--synthetic-input", default="data/eval/match_train_pool_synthetic.jsonl")
     parser.add_argument("--max-educational-source-rate", type=float, default=0.4)
     parser.add_argument("--out", default="data/eval/match_train_pool_combined.jsonl")
     args = parser.parse_args()
@@ -124,16 +120,14 @@ def main() -> None:
         else []
     )
     public_rows = list(read_jsonl(args.public_input)) if Path(args.public_input).exists() else []
-    synthetic_rows = list(read_jsonl(args.synthetic_input)) if Path(args.synthetic_input).exists() else []
     combined = build_combined_rows(
         manual_rows,
         public_rows,
-        synthetic_rows,
         max_educational_source_rate=args.max_educational_source_rate,
     )
     write_jsonl(args.out, combined)
     print(
-        f"manual={len(manual_rows)} public={len(public_rows)} synthetic={len(synthetic_rows)} combined={len(combined)}"
+        f"manual={len(manual_rows)} public={len(public_rows)} combined={len(combined)}"
     )
 
 

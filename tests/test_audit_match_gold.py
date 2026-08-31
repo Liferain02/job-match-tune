@@ -29,7 +29,23 @@ def test_audit_match_gold_accepts_verified_independent_rows():
     report = audit_match_gold([_gold_row()], [], min_rows=1)
 
     assert report["gold_ready"] is True
+    assert report["regression_ready"] is True
+    assert report["blind_ready"] is False
+    assert report["decision_ready"] is False
+    assert report["ranking_ready"] is False
+    assert "evaluation_role_not_blind_holdout" in report["blind_blockers"]
     assert report["training_overlap_count"] == 0
+
+
+def test_audit_match_gold_accepts_declared_unseen_blind_rows():
+    row = _gold_row()
+    row["meta"]["evaluation_role"] = "blind_holdout"
+    row["meta"]["inspection_status"] = "unseen"
+
+    report = audit_match_gold([row], [], min_rows=1)
+
+    assert report["blind_ready"] is True
+    assert report["blind_blockers"] == []
 
 
 def test_audit_match_gold_rejects_training_overlap():

@@ -62,6 +62,8 @@ def _json_text(value: Any) -> str:
 
 
 def _build_match_preference_row(row: dict[str, Any]) -> dict[str, Any] | None:
+    if _is_frozen_evaluation_row(row):
+        return None
     label = row.get("label") or {}
     if not label:
         return None
@@ -75,6 +77,7 @@ def _build_match_preference_row(row: dict[str, Any]) -> dict[str, Any] | None:
         return None
     return {
         "id": row["id"],
+        "source_id": str(row.get("source_group") or row["id"]),
         "task_type": "match",
         "prompt": build_prompt_messages(
             "match",
@@ -91,6 +94,15 @@ def _build_match_preference_row(row: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def _is_frozen_evaluation_row(row: dict[str, Any]) -> bool:
+    meta = row.get("meta") or {}
+    return bool(
+        meta.get("annotation_status") == "human_verified"
+        or meta.get("evaluation_role") in {"blind_holdout", "frozen_regression"}
+        or meta.get("inspection_status") in {"unseen", "inspected"}
+    )
+
+
 def _gold_match_rule_result(label: dict[str, Any]) -> dict[str, Any]:
     return {
         "匹配等级": label.get("匹配等级", ""),
@@ -103,6 +115,8 @@ def _gold_match_rule_result(label: dict[str, Any]) -> dict[str, Any]:
 
 
 def build_preference_row(row: dict[str, Any]) -> dict[str, Any] | None:
+    if _is_frozen_evaluation_row(row):
+        return None
     label = row.get("label") or {}
     parsed = row.get("parsed")
     raw_prediction = row.get("prediction") or ""
@@ -123,6 +137,7 @@ def build_preference_row(row: dict[str, Any]) -> dict[str, Any] | None:
 
     return {
         "id": row["id"],
+        "source_id": str(row.get("source_group") or row["id"]),
         "task_type": task,
         "prompt": build_prompt_messages(task, text),
         "chosen": [{"role": "assistant", "content": chosen}],
@@ -184,7 +199,9 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
-    prediction_inputs = args.predictions or ["outputs/eval_reports/*predictions.jsonl"]
+    if not args.predictions:
+        parser.error("--predictions is required; never scan all evaluation outputs implicitly")
+    prediction_inputs = args.predictions
     prediction_paths = load_prediction_paths(prediction_inputs)
 
     rows = []

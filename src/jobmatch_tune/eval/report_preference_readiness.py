@@ -12,6 +12,9 @@ from jobmatch_tune.utils.io import read_jsonl, write_text
 
 SMOKE_THRESHOLDS = {"train": 50, "valid": 10}
 FULL_THRESHOLDS = {"train": 1000, "valid": 100}
+MIN_NON_SYNTHETIC_PREFERENCES = 100
+MAX_SYNTHETIC_PREFERENCE_RATE = 0.8
+TRUSTED_NON_SYNTHETIC_PROVENANCE_PREFIXES = ("human_", "real_")
 
 
 def _holdout_ids(path: str) -> set[str]:
@@ -100,6 +103,20 @@ def audit_preference_files(train_path: str, valid_path: str, holdout_path: str) 
         count for provenance, count in provenances.items() if "synthetic" in provenance
     )
     synthetic_preference_rate = round(synthetic_rows / valid_rows, 4) if valid_rows else 0.0
+    non_synthetic_rows = sum(
+        count
+        for provenance, count in provenances.items()
+        if provenance.startswith(TRUSTED_NON_SYNTHETIC_PROVENANCE_PREFIXES)
+    )
+    unknown_origin_rows = valid_rows - synthetic_rows - non_synthetic_rows
+    experiment_count_ready = (
+        counts["train"] >= FULL_THRESHOLDS["train"]
+        and counts["valid"] >= FULL_THRESHOLDS["valid"]
+    )
+    preference_quality_ready = (
+        non_synthetic_rows >= MIN_NON_SYNTHETIC_PREFERENCES
+        and synthetic_preference_rate <= MAX_SYNTHETIC_PREFERENCE_RATE
+    )
     return {
         "counts": counts,
         "thresholds": {"smoke": SMOKE_THRESHOLDS, "full": FULL_THRESHOLDS},
@@ -112,20 +129,29 @@ def audit_preference_files(train_path: str, valid_path: str, holdout_path: str) 
         "strategy_counts": dict(strategies.most_common()),
         "provenance_counts": dict(provenances.most_common()),
         "synthetic_preference_rate": synthetic_preference_rate,
+        "synthetic_rows": synthetic_rows,
+        "non_synthetic_rows": non_synthetic_rows,
+        "unknown_origin_rows": unknown_origin_rows,
+        "quality_thresholds": {
+            "minimum_non_synthetic_preferences": MIN_NON_SYNTHETIC_PREFERENCES,
+            "maximum_synthetic_preference_rate": MAX_SYNTHETIC_PREFERENCE_RATE,
+        },
+        "preference_quality_ready": preference_quality_ready,
         "preference_origin": (
             "synthetic_only"
             if valid_rows and synthetic_rows == valid_rows
             else "mixed"
-            if synthetic_rows
-            else "non_synthetic_or_unknown"
+            if synthetic_rows and non_synthetic_rows
+            else "non_synthetic"
+            if valid_rows and non_synthetic_rows == valid_rows
+            else "unknown_or_untrusted"
         ),
         "format_ready": format_ready,
         "ready_for_dpo_smoke": format_ready
         and counts["train"] >= SMOKE_THRESHOLDS["train"]
         and counts["valid"] >= SMOKE_THRESHOLDS["valid"],
-        "ready_for_dpo": format_ready
-        and counts["train"] >= FULL_THRESHOLDS["train"]
-        and counts["valid"] >= FULL_THRESHOLDS["valid"],
+        "ready_for_dpo_experiment": format_ready and experiment_count_ready,
+        "ready_for_dpo": format_ready and experiment_count_ready and preference_quality_ready,
     }
 
 

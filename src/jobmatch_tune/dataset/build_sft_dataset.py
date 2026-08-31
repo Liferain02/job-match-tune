@@ -6,6 +6,7 @@ import random
 from collections.abc import Iterable
 from typing import Any
 
+from jobmatch_tune.dataset.grouped_split import split_linked_samples
 from jobmatch_tune.dataset.templates import SYSTEM_PROMPT, jd_parse_prompt
 from jobmatch_tune.preprocess.jd_field_rules import (
     extract_education_requirement,
@@ -357,22 +358,7 @@ def compose_jd_input_text(row: dict[str, Any]) -> str:
 def split_samples(
     samples: list[dict[str, Any]], train_ratio: float, valid_ratio: float, seed: int
 ) -> dict[str, list[dict[str, Any]]]:
-    rng = random.Random(seed)
-    shuffled = samples[:]
-    rng.shuffle(shuffled)
-    n = len(shuffled)
-    if n < 3:
-        return {"train": shuffled, "valid": shuffled[:1], "test": shuffled[:1]}
-    valid_count = max(1, int(n * valid_ratio))
-    test_count = max(1, n - int(n * train_ratio) - valid_count)
-    train_count = max(1, n - valid_count - test_count)
-    train_end = train_count
-    valid_end = train_end + valid_count
-    return {
-        "train": shuffled[:train_end],
-        "valid": shuffled[train_end:valid_end],
-        "test": shuffled[valid_end:],
-    }
+    return split_linked_samples(samples, train_ratio, valid_ratio, seed)
 
 
 def is_external_source_training_allowed(row: dict[str, Any]) -> bool:

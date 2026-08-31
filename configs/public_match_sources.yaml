@@ -33,6 +33,35 @@ sources:
     notes: 上游没有数据卡、许可证和原始数据来源说明。
 
 candidates:
+  - name: djinni_recruitment_real_records_en
+    language: en
+    source_type: unpaired_real_jobs_and_anonymized_candidate_profiles
+    source_url: https://huggingface.co/collections/lang-uk/djinni-recruitment-dataset
+    source_revision: jobs_b56a6054_candidates_8625517
+    provenance_status: platform_provided_and_paper_documented
+    license_status: mit_on_dataset_cards
+    intended_usage: private_external_ranking_evaluation_only
+    access_status: public
+    notes: >-
+      Djinni 平台提供的 2020-2023 年真实 IT 职位与匿名候选资料。论文说明已做语言过滤、
+      近重复和短文本过滤，并移除检测到的残留 PII；数据不含录用或互动标签，因此只能在
+      固定候选池上另行复核相关性，不能把同类关键词或上游推荐结果当作真值。
+
+  - name: vacancy_resume_human_ranked_en
+    language: en
+    source_type: human_ranked_public_pairs
+    source_url: https://github.com/NataliaVanetik/vacancy-resume-matching-dataset
+    source_revision: main_audited_2026_08_31
+    provenance_status: repository_documented
+    license_status: repository_gpl_3_0_upstream_vacancy_rights_unconfirmed
+    intended_usage: rejected_after_local_audit
+    access_status: public
+    notes: >-
+      仓库包含 65 份匿名化英文简历、5 个职位及两名标注者对前 30 份简历的排序。
+      本地审计发现简历仍保留精确公司、城市和任职时间线，职位包含联系人信息；
+      第一位标注者有 2 行不是合法的 1-5 排列，剩余 28 行的两标注者平均
+      Spearman 相关仅 0.143。隐私、上游职位授权和标签一致性均不足，不导入。
+
   - name: tianchi_zhaopin_person_job_match_2019
     language: zh
     source_type: competition_interactions

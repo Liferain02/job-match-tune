@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from pathlib import Path
 
+from jobmatch_tune.dataset.curated_match_training_data import CURATED_MATCH_TRAIN_ROWS
 from jobmatch_tune.utils.io import write_jsonl
 
 
@@ -459,12 +460,14 @@ def main() -> None:
     write_jsonl("data/eval/match_manual_eval_seed.jsonl", review_rows)
     write_jsonl("data/eval/match_gold_review_candidates.jsonl", gold_candidates)
     write_jsonl("data/eval/match_format_robustness_seed.jsonl", robustness_rows)
+    write_jsonl("data/eval/match_curated_train_pool.jsonl", CURATED_MATCH_TRAIN_ROWS)
     legacy_train_pool = Path("data/eval/match_manual_train_pool.jsonl")
     removed_legacy_train_pool = legacy_train_pool.exists()
     legacy_train_pool.unlink(missing_ok=True)
     print(
-        f"wrote {len(review_rows)} legacy review rows, {len(gold_candidates)} Gold review candidates "
-        f"and {len(robustness_rows)} robustness rows; "
+        f"wrote {len(review_rows)} legacy review rows, {len(gold_candidates)} Gold review candidates, "
+        f"{len(robustness_rows)} robustness rows and "
+        f"{len(CURATED_MATCH_TRAIN_ROWS)} independent curated training pairs; "
         f"removed_leaked_train_pool={removed_legacy_train_pool}"
     )
 

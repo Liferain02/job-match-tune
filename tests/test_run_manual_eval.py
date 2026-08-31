@@ -1,5 +1,4 @@
 from jobmatch_tune.eval.run_manual_eval import evaluate_predictions
-from jobmatch_tune.eval.replay_generation_predictions import replay_predictions
 
 
 def test_evaluate_predictions_for_jd_parse():
@@ -63,26 +62,46 @@ def test_evaluate_predictions_for_resume_parse():
     assert report["field_metrics"]["核心技能"]["f1"] == 1.0
 
 
-def test_replay_predictions_reapplies_latest_postprocess():
+def test_invalid_json_counts_as_end_to_end_field_failure():
     rows = [
         {
-            "id": "resume1",
-            "task": "resume_parse",
-            "text": "优势标签：具备 LLM 应用落地经验",
-            "prediction": (
-                '{"目标岗位":"AI应用开发","教育背景":[],"优势标签":["具备 LLM 应用落地经验"]}'
-            ),
+            "id": "jd-invalid",
+            "task": "jd_parse",
+            "ok": False,
+            "parsed": None,
             "label": {
-                "目标岗位": "AI应用开发",
-                "教育背景": [],
-                "核心技能": [],
-                "实习经历": [],
-                "项目经历": [],
-                "优势标签": ["LLM应用落地"],
+                "岗位方向": "后端开发",
+                "核心职责": ["开发接口"],
+                "必备技能": ["Python"],
+                "加分项": [],
+                "经验要求": "不限",
+                "学历要求": "本科",
             },
-            "parsed": {"优势标签": ["LLM应用落地经验"]},
-            "ok": True,
         }
     ]
-    replayed = replay_predictions(rows)
-    assert replayed[0]["parsed"]["优势标签"] == ["LLM应用落地"]
+
+    report = evaluate_predictions(rows)
+
+    assert report["field_metrics"]["必备技能"]["f1"] == 0.0
+    assert report["field_metrics"]["加分项"]["f1"] == 0.0
+    assert report["valid_json_only_field_metrics"]["必备技能"]["num_rows"] == 0
+    assert report["complete_row_exact_match_rate"] == 0.0
+
+
+def test_blind_parse_eval_requires_human_verified_unseen_metadata():
+    row = {
+        "id": "resume-blind",
+        "task": "resume_parse",
+        "ok": True,
+        "parsed": {},
+        "label": {},
+        "meta": {
+            "annotation_status": "human_verified",
+            "evaluation_role": "blind_holdout",
+            "inspection_status": "unseen",
+        },
+    }
+
+    report = evaluate_predictions([row], evaluation_context="blind_holdout")
+
+    assert report["evaluation_validity"] == "blind_holdout"

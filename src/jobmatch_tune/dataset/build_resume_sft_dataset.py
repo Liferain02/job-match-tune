@@ -128,13 +128,27 @@ VARIANT_BUILDERS = [
 ]
 
 
+def select_variant_builders(names: list[str]) -> list[tuple[str, Any]]:
+    available = dict(VARIANT_BUILDERS)
+    unknown = [name for name in names if name not in available]
+    if unknown:
+        raise ValueError(f"unknown resume variants: {unknown}")
+    return [(name, available[name]) for name in names]
+
+
 def build_resume_sample(row: dict[str, Any], variant_name: str, rendered_text: str) -> dict[str, Any]:
     source_group = str(row.get("source_group") or row["id"])
     source_group = source_group.removesuffix("_ocr")
+    source_meta = row.get("meta") or {}
     return {
         "id": f"{row['id']}_{variant_name}",
         "task_type": "resume_parse",
         "source_group": source_group,
+        "meta": {
+            "data_origin": str(row.get("source_type") or "unknown"),
+            "provenance": str(source_meta.get("provenance") or "unknown"),
+            "contains_real_person_data": source_meta.get("contains_real_person_data"),
+        },
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": resume_parse_prompt(rendered_text)},
@@ -169,17 +183,24 @@ def split_grouped_samples(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", default="data/eval/resume_manual_train_pool.jsonl")
+    parser.add_argument("--input", default="data/eval/resume_train_pool_combined.jsonl")
     parser.add_argument("--out-dir", default="data/sft_resume")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--train-ratio", type=float, default=0.8)
     parser.add_argument("--valid-ratio", type=float, default=0.1)
+    parser.add_argument(
+        "--variants",
+        nargs="+",
+        default=["original"],
+        help="Renderings to materialize. Defaults to the original resume only.",
+    )
     args = parser.parse_args()
 
     rows = list(read_jsonl(args.input))
+    variant_builders = select_variant_builders(args.variants)
     samples: list[dict[str, Any]] = []
     for row in rows:
-        for variant_name, builder in VARIANT_BUILDERS:
+        for variant_name, builder in variant_builders:
             rendered_text = sanitize_resume_text_for_training(builder(row)).strip()
             if not rendered_text:
                 continue

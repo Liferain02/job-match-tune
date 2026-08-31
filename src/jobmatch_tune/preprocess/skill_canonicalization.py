@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections import defaultdict
+from functools import lru_cache
 from typing import Any
 
 
@@ -110,21 +111,67 @@ def _ocr_candidate_pattern(candidate: str) -> str | None:
     return f"{left}{body}{right}"
 
 
+@lru_cache(maxsize=None)
+def _compiled_candidate_patterns(candidate: str) -> tuple[re.Pattern[str], re.Pattern[str] | None]:
+    exact = re.compile(_exact_candidate_pattern(candidate), flags=re.I)
+    ocr_pattern = _ocr_candidate_pattern(candidate)
+    return exact, re.compile(ocr_pattern, flags=re.I) if ocr_pattern else None
+
+
 def contains_skill_candidate(text: str, candidate: str) -> bool:
     haystack = unicodedata.normalize("NFKC", str(text))
+    return _contains_normalized_skill_candidate(
+        haystack,
+        candidate,
+        haystack_casefold=haystack.casefold(),
+        compact_haystack=OCR_SEPARATORS.sub("", haystack).casefold(),
+    )
+
+
+def _contains_normalized_skill_candidate(
+    haystack: str,
+    candidate: str,
+    *,
+    haystack_casefold: str,
+    compact_haystack: str,
+) -> bool:
     normalized_candidate = _text(candidate)
     if not haystack or not normalized_candidate:
         return False
-    if re.search(_exact_candidate_pattern(normalized_candidate), haystack, flags=re.I):
+    exact_pattern, ocr_pattern = _compiled_candidate_patterns(normalized_candidate)
+    # Cheap C-level substring checks avoid running hundreds of regex searches
+    # across long JD text. They are necessary conditions only; the regex still
+    # enforces token boundaries and bounded OCR spacing.
+    if (
+        normalized_candidate.casefold() in haystack_casefold
+        and exact_pattern.search(haystack)
+    ):
         return True
-    ocr_pattern = _ocr_candidate_pattern(normalized_candidate)
-    return bool(ocr_pattern and re.search(ocr_pattern, haystack, flags=re.I))
+    compact_candidate = _ocr_key(normalized_candidate)
+    return bool(
+        ocr_pattern
+        and compact_candidate in compact_haystack
+        and ocr_pattern.search(haystack)
+    )
 
 
 def extract_known_skills(text: str, schema: dict[str, Any]) -> list[str]:
+    # A JD may be checked against hundreds of aliases. Normalize the potentially
+    # long source text once, rather than once per alias.
+    haystack = unicodedata.normalize("NFKC", str(text))
+    haystack_casefold = haystack.casefold()
+    compact_haystack = OCR_SEPARATORS.sub("", haystack).casefold()
     found: list[str] = []
     for canonical, candidates in _vocabulary(schema).items():
-        if any(contains_skill_candidate(text, candidate) for candidate in candidates):
+        if any(
+            _contains_normalized_skill_candidate(
+                haystack,
+                candidate,
+                haystack_casefold=haystack_casefold,
+                compact_haystack=compact_haystack,
+            )
+            for candidate in candidates
+        ):
             found.append(canonical)
     return found
 

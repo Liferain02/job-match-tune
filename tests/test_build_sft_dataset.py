@@ -7,6 +7,7 @@ from jobmatch_tune.dataset.build_sft_dataset import (
     is_high_trust_strong_row,
     is_high_confidence_weak_tech_row,
     is_tencent_short_tech_row,
+    split_samples,
 )
 
 
@@ -26,6 +27,30 @@ def test_build_jd_parse_sample_uses_headers() -> None:
     assert "岗位名称：后端开发工程师" in user_text
     assert "公司：示例公司" in user_text
     assert "工作地点：北京" in user_text
+
+
+def test_split_samples_keeps_jd_source_variants_together() -> None:
+    samples = []
+    for group in ("jd-a", "jd-b", "jd-c", "jd-d"):
+        for variant in range(2):
+            samples.append(
+                {
+                    "id": f"{group}-{variant}",
+                    "source_group": group,
+                    "messages": [
+                        {"role": "system", "content": "system"},
+                        {"role": "user", "content": f"{group} variant {variant}"},
+                    ],
+                }
+            )
+
+    splits = split_samples(samples, 0.5, 0.25, 42)
+    group_splits = {}
+    for split, rows in splits.items():
+        for row in rows:
+            group_splits.setdefault(row["source_group"], set()).add(split)
+
+    assert all(len(split_names) == 1 for split_names in group_splits.values())
 
 
 def test_is_high_confidence_weak_tech_row_for_education_dataset() -> None:

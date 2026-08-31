@@ -10,6 +10,7 @@ from typing import Any
 
 from jobmatch_tune.dataset.grouped_split import normalized_input_hash
 from jobmatch_tune.dataset.pipeline_freshness import build_pipeline_freshness_report
+from jobmatch_tune.dataset.templates import resume_parse_prompt
 from jobmatch_tune.match.rule_engine import compute_match_rule_result
 from jobmatch_tune.match.rule_engine import (
     _extract_required_education_rank,
@@ -19,18 +20,17 @@ from jobmatch_tune.preprocess.jd_field_rules import (
     extract_education_requirement,
     extract_experience_requirement,
 )
-from jobmatch_tune.resume.privacy import detect_resume_pii
+from jobmatch_tune.resume.privacy import detect_resume_pii, sanitize_resume_text_for_training
 from jobmatch_tune.utils.io import read_jsonl, write_text
 
 
 READINESS_THRESHOLDS = {
-    "jd": {"train": 4240, "valid": 530, "test": 530, "pool": 8000},
+    "jd": {"train": 2560, "valid": 320, "test": 320, "pool": 8000},
     "resume": {"train": 10000, "valid": 1000, "test": 1000, "pool": 3000},
     "match": {"train": 3000, "valid": 400, "test": 400, "pool": 4500},
     "multitask": {"train": 9540, "valid": 1180, "test": 0, "pool": 10720},
 }
 
-MAX_JD_HIGH_RISK_RATE = 0.05
 MIN_MULTITASK_SOURCE_GROUP_RATIO = {"jd": 0.95, "resume": 0.8, "match": 0.8}
 
 REQUIRED_FIELDS = {
@@ -45,7 +45,9 @@ MAX_EMPTY_RATE = {
         "岗位方向": 0.0,
         "核心职责": 0.08,
         "必备技能": 0.30,
-        "学历要求": 0.35,
+        # Real official postings often omit education entirely. Empty is a
+        # valid extraction target and must not be replaced with a guessed degree.
+        "学历要求": 0.50,
         # Many official JDs omit experience requirements entirely. Keep empty values
         # instead of fabricating labels, while still tracking the rate explicitly.
         "经验要求": 0.56,
@@ -54,7 +56,9 @@ MAX_EMPTY_RATE = {
         "目标岗位": 0.05,
         "教育背景": 0.10,
         "核心技能": 0.10,
-        "实习经历": 0.50,
+        # Experienced candidates commonly have work history but no internship.
+        # Keep the field in the schema without fabricating internship content.
+        "实习经历": 0.80,
         "项目经历": 0.20,
         "优势标签": 0.40,
     },
@@ -83,13 +87,22 @@ def read_json_file(path: str) -> dict[str, Any]:
     return json.loads(file_path.read_text(encoding="utf-8"))
 
 
-def _float_or_default(value: Any, default: float) -> float:
-    if value is None:
-        return default
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return default
+def read_match_evaluation_readiness() -> dict[str, Any]:
+    pair_report = read_json_file("outputs/eval_reports/match_gold_audit.json")
+    ranking_report = read_json_file("outputs/eval_reports/djinni_real_ranking_bm25.json")
+    if not ranking_report:
+        return pair_report
+    expert_ready = bool(ranking_report.get("expert_regression_ready"))
+    formal_ready = bool(ranking_report.get("formal_evaluation_ready"))
+    return {
+        **pair_report,
+        "ranking_ready": expert_ready or formal_ready,
+        "ranking_formal_ready": formal_ready,
+        "ranking_expert_regression_ready": expert_ready,
+        "ranking_blockers": ranking_report.get("readiness_blockers") or [],
+        "ranking_data_profile": ranking_report.get("data_profile") or {},
+        "ranking_metrics": ranking_report.get("metrics") or {},
+    }
 
 
 def _empty(value: Any) -> bool:
@@ -113,11 +126,38 @@ def count_holdout_overlap(paths: list[str], holdout_path: str) -> int:
     return overlap
 
 
+def count_resume_evaluation_overlap(paths: list[str], evaluation_path: str) -> int:
+    file_path = Path(evaluation_path)
+    if not file_path.exists():
+        return 0
+    evaluation_hashes = {
+        normalized_input_hash(
+            resume_parse_prompt(
+                sanitize_resume_text_for_training(str(row.get("text") or ""))
+            )
+        )
+        for row in read_jsonl(file_path)
+    }
+    overlapping_hashes: set[str] = set()
+    for path in paths:
+        if not Path(path).exists():
+            continue
+        for row in read_jsonl(path):
+            messages = row.get("messages") or []
+            if len(messages) < 2:
+                continue
+            prompt_hash = normalized_input_hash(str(messages[1].get("content") or ""))
+            if prompt_hash in evaluation_hashes:
+                overlapping_hashes.add(prompt_hash)
+    return len(overlapping_hashes)
+
+
 def profile_match_training_sources(path: str) -> dict[str, Any]:
     source_types: Counter[str] = Counter()
     generators: Counter[str] = Counter()
     total = 0
     synthetic_rows = 0
+    curated_fictional_rows = 0
     verified_non_synthetic_rows = 0
     educational_source_rows = 0
     pair_type_counts: Counter[str] = Counter()
@@ -135,6 +175,9 @@ def profile_match_training_sources(path: str) -> dict[str, Any]:
             if source_type.startswith("synthetic") or generator.startswith("synthetic"):
                 synthetic_rows += 1
                 pair_type_counts["synthetic_rule_pair"] += 1
+            elif source_type == "curated_fictional_pair":
+                curated_fictional_rows += 1
+                pair_type_counts["curated_fictional_pair"] += 1
             elif str((row.get("meta") or {}).get("annotation_status") or "") == "human_verified":
                 verified_non_synthetic_rows += 1
                 pair_type_counts["human_reviewed_pair"] += 1
@@ -142,11 +185,13 @@ def profile_match_training_sources(path: str) -> dict[str, Any]:
                 pair_type_counts["real_observed_pair"] += 1
             else:
                 pair_type_counts["unknown_non_synthetic_pair"] += 1
-    non_synthetic_rows = total - synthetic_rows
+    non_synthetic_rows = total - synthetic_rows - curated_fictional_rows
     if not total:
         origin = "empty"
     elif synthetic_rows == total:
         origin = "synthetic_only"
+    elif curated_fictional_rows == total:
+        origin = "curated_fictional_only"
     elif synthetic_rows:
         origin = "mixed"
     else:
@@ -156,6 +201,7 @@ def profile_match_training_sources(path: str) -> dict[str, Any]:
         "source_type_counts": dict(source_types),
         "generator_counts": dict(generators),
         "synthetic_rows": synthetic_rows,
+        "curated_fictional_rows": curated_fictional_rows,
         "non_synthetic_rows": non_synthetic_rows,
         "human_verified_non_synthetic_rows": verified_non_synthetic_rows,
         "pair_type_counts": {
@@ -167,6 +213,9 @@ def profile_match_training_sources(path: str) -> dict[str, Any]:
             ),
         },
         "synthetic_rate": round(synthetic_rows / total, 4) if total else 0.0,
+        "curated_fictional_pair_ratio": (
+            round(curated_fictional_rows / total, 4) if total else 0.0
+        ),
         "human_reviewed_pair_ratio": (
             round(pair_type_counts.get("human_reviewed_pair", 0) / total, 4)
             if total
@@ -549,12 +598,13 @@ def build_task_report(
 
 def build_report() -> dict[str, object]:
     pipeline_freshness = build_pipeline_freshness_report()
+    match_evaluation = read_match_evaluation_readiness()
     tasks = {
         "jd": build_task_report(
             "jd",
-            "data/sft_jd_quality/train.jsonl",
-            "data/sft_jd_quality/valid.jsonl",
-            "data/sft_jd_quality/test.jsonl",
+            "data/sft_jd_strict_plus/train.jsonl",
+            "data/sft_jd_strict_plus/valid.jsonl",
+            "data/sft_jd_strict_plus/test.jsonl",
             "data/eval/jd_train_pool_combined.jsonl",
         ),
         "resume": build_task_report(
@@ -621,26 +671,11 @@ def build_report() -> dict[str, object]:
         and tasks["match"]["experience_distribution_ready"]
         and tasks["match"]["real_pair_quality_evidence_ready"]
     )
-    jd_quality_profile = read_json_file("outputs/eval_reports/jd_quality_profile.json")
-    if jd_quality_profile:
-        tasks["jd"]["quality_profile"] = jd_quality_profile
-    jd_risk_report = read_json_file("outputs/eval_reports/jd_quality_risk_report.json")
-    if jd_risk_report:
-        high_risk_rate = _float_or_default(jd_risk_report.get("high_risk_rate"), 1.0)
-        tasks["jd"]["risk_report"] = jd_risk_report
-        tasks["jd"]["risk_ready"] = high_risk_rate <= MAX_JD_HIGH_RISK_RATE
-        tasks["jd"]["ready_for_sft"] = bool(tasks["jd"]["ready_for_sft"] and tasks["jd"]["risk_ready"])
-    jd_direction_conflicts = read_json_file("outputs/eval_reports/jd_direction_conflicts.json")
-    if jd_direction_conflicts:
-        tasks["jd"]["direction_conflict_audit"] = jd_direction_conflicts
-    jd_experience_gaps = read_json_file("outputs/eval_reports/jd_experience_gaps.json")
-    if jd_experience_gaps:
-        tasks["jd"]["experience_gap_audit"] = jd_experience_gaps
     jd_holdout_overlap = count_holdout_overlap(
         [
-            "data/sft_jd_quality/train.jsonl",
-            "data/sft_jd_quality/valid.jsonl",
-            "data/sft_jd_quality/test.jsonl",
+            "data/sft_jd_strict_plus/train.jsonl",
+            "data/sft_jd_strict_plus/valid.jsonl",
+            "data/sft_jd_strict_plus/test.jsonl",
         ],
         "data/eval/jd_manual_eval_50.jsonl",
     )
@@ -657,6 +692,20 @@ def build_report() -> dict[str, object]:
         tasks["resume"]["privacy_report"] = resume_privacy_report
         tasks["resume"]["privacy_ready"] = bool(resume_privacy_report.get("ready_for_resume_training"))
         tasks["resume"]["ready_for_sft"] = bool(tasks["resume"]["ready_for_sft"] and tasks["resume"]["privacy_ready"])
+    resume_evaluation_overlap = count_resume_evaluation_overlap(
+        [
+            "data/sft_resume/train.jsonl",
+            "data/sft_resume/valid.jsonl",
+            "data/sft_resume/test.jsonl",
+        ],
+        "data/eval/resume_manual_eval_text_seed.jsonl",
+    )
+    tasks["resume"]["evaluation_overlap_count"] = resume_evaluation_overlap
+    tasks["resume"]["evaluation_overlap_ready"] = resume_evaluation_overlap == 0
+    tasks["resume"]["ready_for_sft"] = bool(
+        tasks["resume"]["ready_for_sft"]
+        and tasks["resume"]["evaluation_overlap_ready"]
+    )
 
     def split_leakage_ready(task: dict[str, Any]) -> bool:
         audit = task.get("quality_audit") or {}
@@ -681,6 +730,7 @@ def build_report() -> dict[str, object]:
         "condition_distribution_ready": None,
         "real_pair_quality_evidence_ready": None,
         "split_leakage_ready": split_leakage_ready(tasks["resume"]),
+        "evaluation_overlap_ready": bool(tasks["resume"]["evaluation_overlap_ready"]),
     }
     tasks["match"]["readiness_dimensions"] = {
         "format_ready": bool(tasks["match"]["format_ready"]),
@@ -718,36 +768,45 @@ def build_report() -> dict[str, object]:
         "split_leakage_ready": split_leakage_ready(tasks["multitask"]),
     }
     preference_report = read_json_file("outputs/eval_reports/preference_readiness_report.json")
-    product_preference_report = read_json_file(
-        "outputs/eval_reports/preference_product_bootstrap_readiness_report.json"
-    )
     sft_pipeline_fresh = bool(pipeline_freshness.get("sft_fresh", pipeline_freshness["fresh"]))
     dpo_pipeline_fresh = bool(pipeline_freshness.get("dpo_fresh", pipeline_freshness["fresh"]))
     all_ready_for_sft = bool(
         all(task["ready_for_sft"] for task in tasks.values()) and sft_pipeline_fresh
     )
+    ready_for_sft_experiment = bool(
+        sft_pipeline_fresh
+        and all(
+            task.get("format_ready", True)
+            and int((task.get("counts") or {}).get("train", 0)) > 0
+            and int((task.get("counts") or {}).get("valid", 0)) > 0
+            for task in tasks.values()
+        )
+        and tasks["resume"].get("privacy_ready", False)
+        and tasks["resume"].get("evaluation_overlap_ready", False)
+        and tasks["match"].get("privacy_ready", False)
+        and tasks["jd"].get("holdout_ready", False)
+        and tasks["multitask"].get("has_required_mix", True)
+    )
     ready_for_dpo = bool(preference_report.get("ready_for_dpo"))
     ready_for_dpo_smoke = bool(preference_report.get("ready_for_dpo_smoke"))
-    ready_for_product_dpo = bool(product_preference_report.get("ready_for_dpo"))
-    ready_for_product_dpo_smoke = bool(product_preference_report.get("ready_for_dpo_smoke"))
+    ready_for_dpo_experiment = bool(preference_report.get("ready_for_dpo_experiment"))
     dpo_paused = os.environ.get("JOBMATCH_ALLOW_DPO", "0") != "1"
     all_ready_for_training = (
         all_ready_for_sft
         and ready_for_dpo
-        and ready_for_product_dpo
         and bool(pipeline_freshness["fresh"])
     )
     return {
         "summary": {
             "all_ready_for_training": all_ready_for_training,
             "all_ready_for_sft": all_ready_for_sft,
+            "ready_for_sft_experiment": ready_for_sft_experiment,
             "ready_for_dpo_smoke": ready_for_dpo_smoke,
+            "ready_for_dpo_experiment": ready_for_dpo_experiment,
             "ready_for_dpo": ready_for_dpo,
-            "ready_for_product_dpo_smoke": ready_for_product_dpo_smoke,
-            "ready_for_product_dpo": ready_for_product_dpo,
             "dpo_paused_by_quality_goal": dpo_paused,
             "dpo_execution_ready": bool(
-                not dpo_paused and ready_for_dpo and ready_for_product_dpo
+                not dpo_paused and ready_for_dpo
             ),
             "not_ready_tasks": [name for name, task in tasks.items() if not task["ready_for_sft"]],
             "pipeline_fresh": pipeline_freshness["fresh"],
@@ -756,11 +815,20 @@ def build_report() -> dict[str, object]:
             "match_real_pair_quality_evidence_ready": tasks["match"][
                 "real_pair_quality_evidence_ready"
             ],
+            "match_regression_evaluation_ready": bool(
+                match_evaluation.get("regression_ready")
+            ),
+            "match_blind_evaluation_ready": bool(match_evaluation.get("blind_ready")),
+            "match_level_decision_ready": bool(match_evaluation.get("decision_ready")),
+            "match_ranking_evaluation_ready": bool(match_evaluation.get("ranking_ready")),
+            "match_ranking_formal_evaluation_ready": bool(
+                match_evaluation.get("ranking_formal_ready")
+            ),
         },
         "pipeline_freshness": pipeline_freshness,
         "tasks": tasks,
         "preference": preference_report,
-        "product_preference": product_preference_report,
+        "match_evaluation": match_evaluation,
     }
 
 

@@ -120,7 +120,13 @@ def build_match_sample(row: dict[str, Any]) -> dict[str, Any]:
             f"match_jd:{jd_entity_hash}",
             f"match_resume:{resume_entity_hash}",
         ],
-        "meta": {"entity_split": str(row_meta.get("entity_split") or "")},
+        "meta": {
+            "entity_split": str(row_meta.get("entity_split") or ""),
+            "source_type": str(row.get("source_type") or ""),
+            "provenance": str(row_meta.get("provenance") or ""),
+            "annotation_status": str(row_meta.get("annotation_status") or ""),
+            "contains_real_person_data": row_meta.get("contains_real_person_data"),
+        },
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {

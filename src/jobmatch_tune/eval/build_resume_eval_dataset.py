@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 
+from jobmatch_tune.dataset.curated_resume_training_data import CURATED_RESUME_TRAIN_ROWS
 from jobmatch_tune.utils.io import write_jsonl
 
 
@@ -543,19 +544,36 @@ def build_text_variant_rows(rows: list[dict]) -> list[dict]:
     return output
 
 
+def mark_frozen_evaluation_rows(rows: list[dict]) -> list[dict]:
+    marked = []
+    for row in rows:
+        copied = deepcopy(row)
+        copied["source_group"] = str(row.get("source_group") or row["id"])
+        copied["meta"] = {
+            **(row.get("meta") or {}),
+            "annotation_status": "repository_curated",
+            "evaluation_role": "frozen_regression",
+            "inspection_status": "inspected",
+            "training_eligible": False,
+            "provenance": "repository_curated_fictional_eval_v1",
+            "contains_real_person_data": False,
+        }
+        marked.append(copied)
+    return marked
+
+
 def main() -> None:
-    write_jsonl("data/eval/resume_manual_eval_seed.jsonl", BASE_ROWS)
-    write_jsonl("data/eval/resume_manual_eval_text_seed.jsonl", BASE_ROWS)
-    training_base_rows = [
-        {**row, "source_group": str(row["id"])} for row in BASE_ROWS
-    ]
-    augmented_rows = training_base_rows + build_text_variant_rows(training_base_rows)
+    evaluation_rows = mark_frozen_evaluation_rows(BASE_ROWS)
+    write_jsonl("data/eval/resume_manual_eval_seed.jsonl", evaluation_rows)
+    write_jsonl("data/eval/resume_manual_eval_text_seed.jsonl", evaluation_rows)
+    augmented_rows = evaluation_rows + build_text_variant_rows(evaluation_rows)
     write_jsonl("data/eval/resume_manual_eval_augmented.jsonl", augmented_rows)
-    ocr_rows = build_ocr_like_rows(training_base_rows)
+    ocr_rows = build_ocr_like_rows(evaluation_rows)
     write_jsonl("data/eval/resume_manual_eval_ocr_seed.jsonl", ocr_rows)
-    write_jsonl("data/eval/resume_manual_train_pool.jsonl", augmented_rows + ocr_rows)
+    write_jsonl("data/eval/resume_manual_train_pool.jsonl", CURATED_RESUME_TRAIN_ROWS)
     print(
-        f"wrote {len(BASE_ROWS)} text rows, {len(augmented_rows)} augmented text rows and {len(ocr_rows)} ocr-like rows"
+        f"wrote evaluation={len(evaluation_rows)} augmented_eval={len(augmented_rows)} "
+        f"ocr_eval={len(ocr_rows)} curated_train={len(CURATED_RESUME_TRAIN_ROWS)}"
     )
 
 

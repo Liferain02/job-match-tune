@@ -1,6 +1,7 @@
 from jobmatch_tune.eval import run_match_eval
 from jobmatch_tune.eval.run_match_eval import (
     _diagnostic,
+    align_saved_predictions,
     build_report,
     classify_errors,
     evaluate_rows,
@@ -38,6 +39,8 @@ def test_evaluate_rows_basic():
     assert report["jd_resume_parse_success_rate"] == 1.0
     assert report["analysis_json_valid_rate"] == 1.0
     assert report["field_metrics"]["匹配等级"]["exact_match"] == 1.0
+    assert report["decision_metrics"]["macro_f1"] == 1.0
+    assert report["decision_confidence_intervals"]["macro_f1"]["value"] == 1.0
 
 
 def test_build_report_groups_by_source():
@@ -56,6 +59,7 @@ def test_build_report_groups_by_source():
                 "命中技能": ["Python"],
                 "缺失技能": [],
             },
+            "meta": {"difficulty_tags": ["技能同义词"]},
             "label": {
                 "匹配等级": "高匹配",
                 "岗位方向匹配": True,
@@ -79,6 +83,7 @@ def test_build_report_groups_by_source():
                 "命中技能": ["Python"],
                 "缺失技能": ["MySQL"],
             },
+            "meta": {"difficulty_tags": ["OCR噪声"]},
             "label": {
                 "匹配等级": "较匹配",
                 "岗位方向匹配": True,
@@ -93,6 +98,11 @@ def test_build_report_groups_by_source():
     assert report["overall"]["num_samples"] == 2
     assert "text" in report["by_source_type"]
     assert "ocr_like" in report["by_source_type"]
+    assert report["dataset_profile"]["difficulty_tag_counts"] == {
+        "技能同义词": 1,
+        "OCR噪声": 1,
+    }
+    assert report["by_difficulty_tag"]["OCR噪声"]["num_samples"] == 1
 
 
 def test_run_predictions_reuses_loaded_model(monkeypatch):
@@ -144,6 +154,32 @@ def test_diagnostic_keeps_failed_generation_details():
         "error": "invalid json",
         "raw_output": "bad",
     }
+
+
+def test_align_saved_predictions_uses_current_gold_metadata():
+    dataset = [
+        {
+            "id": "a",
+            "jd_text": "JD",
+            "resume_text": "RESUME",
+            "label": {"匹配等级": "低匹配"},
+            "meta": {"annotation_status": "human_verified"},
+        }
+    ]
+    saved = [
+        {
+            "id": "a",
+            "jd_text": "JD",
+            "resume_text": "RESUME",
+            "label": {"匹配等级": "高匹配"},
+            "rule_result": {"匹配等级": "较匹配"},
+        }
+    ]
+
+    aligned = align_saved_predictions(dataset, saved)
+
+    assert aligned[0]["label"] == {"匹配等级": "低匹配"}
+    assert aligned[0]["rule_result"] == {"匹配等级": "较匹配"}
 
 
 def test_report_separates_three_layers_and_ranks_errors():
@@ -230,3 +266,69 @@ def test_inspected_gold_report_is_labeled_as_regression() -> None:
     report = build_report([row], evaluation_context="historical_gold_v1_regression")
     assert report["evaluation_validity"] == "historical_gold_v1_regression"
     assert "REGRESSION AFTER INSPECTION" in report["warning"]
+
+
+def test_blind_holdout_requires_human_verified_rows() -> None:
+    row = {
+        "id": "blind-1",
+        "jd_ok": True,
+        "resume_ok": True,
+        "analysis_ok": True,
+        "rule_result": {},
+        "label": {},
+        "meta": {
+            "annotation_status": "human_verified",
+            "evaluation_role": "blind_holdout",
+            "inspection_status": "unseen",
+            "difficulty_tags": ["OCR噪声"],
+        },
+    }
+
+    report = build_report([row], evaluation_context="blind_holdout")
+
+    assert report["evaluation_validity"] == "blind_holdout"
+
+
+def test_blind_holdout_rejects_inspected_rows() -> None:
+    row = {
+        "id": "blind-1",
+        "jd_ok": True,
+        "resume_ok": True,
+        "analysis_ok": True,
+        "rule_result": {},
+        "label": {},
+        "meta": {
+            "annotation_status": "human_verified",
+            "evaluation_role": "blind_holdout",
+            "inspection_status": "inspected",
+        },
+    }
+
+    report = build_report([row], evaluation_context="blind_holdout")
+
+    assert report["evaluation_validity"] == "invalid_blind_holdout"
+
+
+def test_parse_failure_is_not_skipped_from_end_to_end_metrics() -> None:
+    row = {
+        "id": "failed",
+        "jd_ok": False,
+        "resume_ok": False,
+        "analysis_ok": False,
+        "rule_result": {},
+        "label": {
+            "匹配等级": "低匹配",
+            "岗位方向匹配": False,
+            "学历匹配": False,
+            "经验匹配": False,
+            "命中技能": [],
+            "缺失技能": ["Python"],
+        },
+    }
+
+    report = evaluate_rows([row])
+
+    assert report["field_metrics"]["匹配等级"]["exact_match"] == 0.0
+    assert report["field_metrics"]["命中技能"]["f1"] == 0.0
+    assert report["decision_metrics"]["accuracy"] == 0.0
+    assert report["decision_metrics"]["confusion_matrix"]["低匹配"]["__invalid__"] == 1

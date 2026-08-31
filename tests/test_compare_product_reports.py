@@ -3,6 +3,7 @@ from jobmatch_tune.eval.compare_product_reports import build_product_regression_
 
 def _jd_report(direction_score: float = 0.96):
     return {
+        "evaluation_validity": "blind_holdout",
         "json_valid_rate": 0.98,
         "field_metrics": {
             "核心职责": {"f1": 1.0},
@@ -17,6 +18,7 @@ def _jd_report(direction_score: float = 0.96):
 
 def _resume_report(strength_score: float = 0.99):
     return {
+        "evaluation_validity": "blind_holdout",
         "overall": {
             "json_valid_rate": 1.0,
             "field_metrics": {
@@ -33,6 +35,8 @@ def _resume_report(strength_score: float = 0.99):
 
 def _match_report(hit_skill_score: float = 0.86, level_score: float = 0.80):
     return {
+        "evaluation_validity": "blind_holdout",
+        "dataset_profile": {"decision_evaluation_ready": True},
         "overall": {
             "jd_resume_parse_success_rate": 1.0,
             "analysis_json_valid_rate": 1.0,
@@ -44,6 +48,7 @@ def _match_report(hit_skill_score: float = 0.86, level_score: float = 0.80):
                 "学历匹配": {"exact_match": 1.0},
                 "经验匹配": {"exact_match": 1.0},
             },
+            "decision_metrics": {"macro_f1": level_score},
         }
     }
 

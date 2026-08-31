@@ -102,18 +102,8 @@ def test_build_combined_rows_merges_and_deduplicates():
             },
         },
     ]
-    synthetic_rows = [
-        {
-            "id": "synthetic_1",
-            "task": "match",
-            "source_type": "synthetic_text",
-            "jd_text": "岗位名称：AI Infra工程师\n任职要求：熟悉 Python、Go、Kubernetes、Linux。",
-            "resume_text": "目标岗位：AI Infra\n核心技能：Python、Go、Kubernetes、Linux",
-            "label": {"匹配等级": "高匹配", "raw_score": 95},
-        }
-    ]
-    combined = build_combined_rows(manual_rows, public_rows, synthetic_rows)
-    assert len(combined) == 3
+    combined = build_combined_rows(manual_rows, public_rows)
+    assert len(combined) == 2
 
 
 def test_final_match_pool_reapplies_educational_cap_after_deduplication():

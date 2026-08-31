@@ -76,7 +76,12 @@ def is_strict_plus_row(row: dict[str, Any]) -> bool:
     return (resp_len >= 40 or req_len >= 40) and (bool(experience) or skill_count >= 1)
 
 
-def build_rows(rows: list[dict[str, Any]], schema: dict[str, Any]) -> list[dict[str, Any]]:
+def build_rows(
+    rows: list[dict[str, Any]],
+    schema: dict[str, Any],
+    *,
+    max_rows: int | None = None,
+) -> list[dict[str, Any]]:
     built = []
     for row in rows:
         normalized = normalize_jd_row(
@@ -93,6 +98,8 @@ def build_rows(rows: list[dict[str, Any]], schema: dict[str, Any]) -> list[dict[
         )
         if is_strict_plus_row(normalized):
             built.append(normalized)
+            if max_rows is not None and len(built) >= max_rows:
+                break
     return built
 
 

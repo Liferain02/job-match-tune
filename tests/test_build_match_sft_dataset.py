@@ -44,6 +44,26 @@ def test_build_match_sample_contains_match_prompt_and_json_assistant():
     assert "命中项目" in sample["messages"][1]["content"]
 
 
+def test_build_match_sample_preserves_training_provenance():
+    row = _row()
+    row["source_type"] = "curated_fictional_pair"
+    row["meta"] = {
+        "provenance": "repository_curated_fictional_pair_v1",
+        "annotation_status": "repository_curated_unverified",
+        "contains_real_person_data": False,
+    }
+
+    sample = build_match_sample(row)
+
+    assert sample["meta"] == {
+        "entity_split": "",
+        "source_type": "curated_fictional_pair",
+        "provenance": "repository_curated_fictional_pair_v1",
+        "annotation_status": "repository_curated_unverified",
+        "contains_real_person_data": False,
+    }
+
+
 def test_split_grouped_samples_keeps_group_members_together():
     samples = [
         {"id": "a_1", "source_group": "a"},

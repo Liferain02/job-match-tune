@@ -63,3 +63,58 @@ def test_preference_readiness_accepts_conversational_format(tmp_path: Path):
     assert report["invalid_rows"] == 0
     assert report["synthetic_preference_rate"] == 1.0
     assert report["preference_origin"] == "synthetic_only"
+    assert report["preference_quality_ready"] is False
+    assert report["ready_for_dpo"] is False
+
+
+def test_preference_readiness_accepts_non_synthetic_quality_mix(tmp_path: Path, monkeypatch):
+    train = tmp_path / "train.jsonl"
+    valid = tmp_path / "valid.jsonl"
+    holdout = tmp_path / "holdout.jsonl"
+    rows = []
+    for index in range(4):
+        row = _preference(f"human_{index}", f"prompt {index}")
+        row["meta"]["provenance"] = "human_preference"
+        rows.append(row)
+    train.write_text("\n".join(json.dumps(row, ensure_ascii=False) for row in rows[:3]) + "\n", encoding="utf-8")
+    valid.write_text(json.dumps(rows[3], ensure_ascii=False) + "\n", encoding="utf-8")
+    holdout.write_text("", encoding="utf-8")
+    monkeypatch.setattr("jobmatch_tune.eval.report_preference_readiness.FULL_THRESHOLDS", {"train": 3, "valid": 1})
+    monkeypatch.setattr("jobmatch_tune.eval.report_preference_readiness.MIN_NON_SYNTHETIC_PREFERENCES", 4)
+
+    report = audit_preference_files(str(train), str(valid), str(holdout))
+
+    assert report["preference_quality_ready"] is True
+    assert report["ready_for_dpo"] is True
+
+
+def test_preference_readiness_does_not_trust_missing_provenance(
+    tmp_path: Path, monkeypatch
+):
+    train = tmp_path / "train.jsonl"
+    valid = tmp_path / "valid.jsonl"
+    holdout = tmp_path / "holdout.jsonl"
+    rows = [_preference(f"unknown_{index}", f"prompt {index}") for index in range(4)]
+    for row in rows:
+        row["meta"].pop("provenance")
+    train.write_text(
+        "\n".join(json.dumps(row, ensure_ascii=False) for row in rows[:3]) + "\n",
+        encoding="utf-8",
+    )
+    valid.write_text(json.dumps(rows[3], ensure_ascii=False) + "\n", encoding="utf-8")
+    holdout.write_text("", encoding="utf-8")
+    monkeypatch.setattr(
+        "jobmatch_tune.eval.report_preference_readiness.FULL_THRESHOLDS",
+        {"train": 3, "valid": 1},
+    )
+    monkeypatch.setattr(
+        "jobmatch_tune.eval.report_preference_readiness.MIN_NON_SYNTHETIC_PREFERENCES",
+        4,
+    )
+
+    report = audit_preference_files(str(train), str(valid), str(holdout))
+
+    assert report["non_synthetic_rows"] == 0
+    assert report["unknown_origin_rows"] == 4
+    assert report["preference_quality_ready"] is False
+    assert report["ready_for_dpo"] is False

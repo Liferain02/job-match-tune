@@ -10,13 +10,16 @@ from jobmatch_tune.eval.report_data_readiness import (
     build_report,
     build_task_report,
     count_holdout_overlap,
+    count_resume_evaluation_overlap,
     profile_match_education_consistency,
     profile_match_education_distribution,
     profile_match_experience_distribution,
     profile_match_training_sources,
     profile_match_training_privacy,
-    _float_or_default,
+    read_match_evaluation_readiness,
 )
+from jobmatch_tune.dataset.templates import resume_parse_prompt
+from jobmatch_tune.resume.privacy import sanitize_resume_text_for_training
 
 
 @pytest.fixture(autouse=True)
@@ -39,6 +42,14 @@ def _fresh_pipeline_for_readiness_unit_tests():
     ), patch(
         "jobmatch_tune.eval.report_data_readiness.profile_match_experience_distribution",
         return_value={"experience_distribution_ready": True},
+    ), patch(
+        "jobmatch_tune.eval.report_data_readiness.read_match_evaluation_readiness",
+        return_value={
+            "regression_ready": True,
+            "blind_ready": False,
+            "decision_ready": False,
+            "ranking_ready": False,
+        },
     ):
         yield
 
@@ -60,7 +71,13 @@ def test_build_task_report_not_ready_when_pool_missing():
 
 @patch(
     "jobmatch_tune.eval.report_data_readiness.build_multitask_report",
-    return_value={"task": "multitask", "ready_for_sft": True},
+    return_value={
+        "task": "multitask",
+        "ready_for_sft": True,
+        "format_ready": True,
+        "has_required_mix": True,
+        "counts": {"train": 9540, "valid": 1180},
+    },
 )
 def test_build_report_summarizes_not_ready_tasks(_multitask):
     with patch("jobmatch_tune.eval.report_data_readiness.count_jsonl") as mocked:
@@ -79,11 +96,6 @@ def test_build_report_summarizes_not_ready_tasks(_multitask):
             }
             with patch("jobmatch_tune.eval.report_data_readiness.read_json_file") as read_json_file:
                 read_json_file.side_effect = [
-                    {"tier_counts": {"strict": 1}},
-                    {"high_risk_rate": 0.01},
-                    {},
-                    {},
-                    {},
                     {},
                     {},
                     {},
@@ -91,15 +103,23 @@ def test_build_report_summarizes_not_ready_tasks(_multitask):
                 report = build_report()
     assert report["summary"]["all_ready_for_training"] is False
     assert "match" in report["summary"]["not_ready_tasks"]
-    assert report["tasks"]["jd"]["quality_profile"]["tier_counts"] == {"strict": 1}
-    assert report["tasks"]["jd"]["risk_ready"] is True
+    assert report["summary"]["match_regression_evaluation_ready"] is True
+    assert report["summary"]["match_blind_evaluation_ready"] is False
+    assert report["summary"]["match_level_decision_ready"] is False
+    assert report["summary"]["match_ranking_evaluation_ready"] is False
 
 
 @patch(
     "jobmatch_tune.eval.report_data_readiness.build_multitask_report",
-    return_value={"task": "multitask", "ready_for_sft": True},
+    return_value={
+        "task": "multitask",
+        "ready_for_sft": True,
+        "format_ready": True,
+        "has_required_mix": True,
+        "counts": {"train": 9540, "valid": 1180},
+    },
 )
-def test_build_report_requires_resume_privacy_and_product_preference(_multitask):
+def test_build_report_requires_resume_privacy_and_preference(_multitask):
     with patch("jobmatch_tune.eval.report_data_readiness.count_jsonl") as mocked:
         mocked.side_effect = [
             4240, 530, 530, 8000,  # jd
@@ -117,18 +137,13 @@ def test_build_report_requires_resume_privacy_and_product_preference(_multitask)
             with patch("jobmatch_tune.eval.report_data_readiness.count_holdout_overlap", return_value=0):
                 with patch("jobmatch_tune.eval.report_data_readiness.read_json_file") as read_json_file:
                     read_json_file.side_effect = [
-                        {},
-                        {},
-                        {},
-                        {},
                         {"profile_ready": True},
                         {"ready_for_resume_training": True},
-                        {"ready_for_dpo": True, "ready_for_dpo_smoke": True},
                         {"ready_for_dpo": True, "ready_for_dpo_smoke": True},
                     ]
                     report = build_report()
     assert report["summary"]["all_ready_for_training"] is True
-    assert report["summary"]["ready_for_product_dpo"] is True
+    assert report["summary"]["ready_for_sft_experiment"] is True
     assert report["summary"]["dpo_paused_by_quality_goal"] is True
     assert report["summary"]["dpo_execution_ready"] is False
     assert report["tasks"]["resume"]["privacy_ready"] is True
@@ -141,12 +156,19 @@ def test_build_report_requires_resume_privacy_and_product_preference(_multitask)
         "condition_distribution_ready": None,
         "real_pair_quality_evidence_ready": None,
         "split_leakage_ready": True,
+        "evaluation_overlap_ready": True,
     }
 
 
 @patch(
     "jobmatch_tune.eval.report_data_readiness.build_multitask_report",
-    return_value={"task": "multitask", "ready_for_sft": True},
+    return_value={
+        "task": "multitask",
+        "ready_for_sft": True,
+        "format_ready": True,
+        "has_required_mix": True,
+        "counts": {"train": 9540, "valid": 1180},
+    },
 )
 def test_build_report_blocks_training_when_resume_privacy_fails(_multitask):
     with patch("jobmatch_tune.eval.report_data_readiness.count_jsonl") as mocked:
@@ -166,13 +188,8 @@ def test_build_report_blocks_training_when_resume_privacy_fails(_multitask):
             with patch("jobmatch_tune.eval.report_data_readiness.count_holdout_overlap", return_value=0):
                 with patch("jobmatch_tune.eval.report_data_readiness.read_json_file") as read_json_file:
                     read_json_file.side_effect = [
-                        {},
-                        {},
-                        {},
-                        {},
                         {"profile_ready": True},
                         {"ready_for_resume_training": False},
-                        {"ready_for_dpo": True, "ready_for_dpo_smoke": True},
                         {"ready_for_dpo": True, "ready_for_dpo_smoke": True},
                     ]
                     report = build_report()
@@ -183,7 +200,13 @@ def test_build_report_blocks_training_when_resume_privacy_fails(_multitask):
 
 @patch(
     "jobmatch_tune.eval.report_data_readiness.build_multitask_report",
-    return_value={"task": "multitask", "ready_for_sft": True},
+    return_value={
+        "task": "multitask",
+        "ready_for_sft": True,
+        "format_ready": True,
+        "has_required_mix": True,
+        "counts": {"train": 9540, "valid": 1180},
+    },
 )
 def test_build_report_blocks_match_without_real_pair_quality_evidence(_multitask):
     with patch("jobmatch_tune.eval.report_data_readiness.count_jsonl") as mocked:
@@ -213,13 +236,8 @@ def test_build_report_blocks_match_without_real_pair_quality_evidence(_multitask
                 "jobmatch_tune.eval.report_data_readiness.read_json_file"
             ) as read_json_file:
                 read_json_file.side_effect = [
-                    {},
-                    {},
-                    {},
-                    {},
                     {"profile_ready": True},
                     {"ready_for_resume_training": True},
-                    {"ready_for_dpo": True, "ready_for_dpo_smoke": True},
                     {"ready_for_dpo": True, "ready_for_dpo_smoke": True},
                 ]
                 report = build_report()
@@ -232,9 +250,23 @@ def test_build_report_blocks_match_without_real_pair_quality_evidence(_multitask
     assert "match" in report["summary"]["not_ready_tasks"]
 
 
-def test_zero_high_risk_rate_stays_zero():
-    assert _float_or_default(0.0, 1.0) == 0.0
-    assert _float_or_default(None, 1.0) == 1.0
+def test_match_evaluation_readiness_includes_expert_ranking_regression() -> None:
+    with patch("jobmatch_tune.eval.report_data_readiness.read_json_file") as read_json_file:
+        read_json_file.side_effect = [
+            {"gold_ready": True, "ranking_ready": False},
+            {
+                "expert_regression_ready": True,
+                "formal_evaluation_ready": False,
+                "readiness_blockers": ["全部相关性标签必须人工复核"],
+                "data_profile": {"num_queries": 20},
+                "metrics": {"ndcg@5": 0.8},
+            },
+        ]
+        report = read_match_evaluation_readiness()
+
+    assert report["ranking_ready"] is True
+    assert report["ranking_formal_ready"] is False
+    assert report["ranking_expert_regression_ready"] is True
 
 
 def _sample(row_id: str) -> dict:
@@ -414,6 +446,24 @@ def test_count_holdout_overlap_normalizes_jd_parse_suffix(tmp_path: Path):
     assert count_holdout_overlap([str(train)], str(holdout)) == 1
 
 
+def test_count_resume_evaluation_overlap_compares_prompt_content(tmp_path: Path):
+    train = tmp_path / "train.jsonl"
+    evaluation = tmp_path / "evaluation.jsonl"
+    resume_text = "姓名：张三\n目标岗位：后端开发\n核心技能：Java、MySQL"
+    prompt = resume_parse_prompt(sanitize_resume_text_for_training(resume_text))
+    train.write_text(
+        json.dumps({"messages": [{"role": "system"}, {"content": prompt}]}, ensure_ascii=False)
+        + "\n",
+        encoding="utf-8",
+    )
+    evaluation.write_text(
+        json.dumps({"text": resume_text}, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+    assert count_resume_evaluation_overlap([str(train)], str(evaluation)) == 1
+
+
 def test_profile_match_training_sources_exposes_synthetic_only_pool(tmp_path: Path):
     pool = tmp_path / "match.jsonl"
     rows = [
@@ -445,6 +495,29 @@ def test_profile_match_training_sources_exposes_synthetic_only_pool(tmp_path: Pa
         "real_observed_pair": 0,
         "unknown_non_synthetic_pair": 0,
     }
+
+
+def test_profile_match_training_sources_does_not_present_curated_fictional_as_real(
+    tmp_path: Path,
+):
+    pool = tmp_path / "match.jsonl"
+    row = {
+        "id": "curated_1",
+        "source_type": "curated_fictional_pair",
+        "meta": {
+            "generator": "ai_assisted_individual_case_authoring",
+            "annotation_status": "repository_curated_unverified",
+        },
+    }
+    pool.write_text(json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
+
+    profile = profile_match_training_sources(str(pool))
+
+    assert profile["training_origin"] == "curated_fictional_only"
+    assert profile["curated_fictional_rows"] == 1
+    assert profile["curated_fictional_pair_ratio"] == 1.0
+    assert profile["non_synthetic_rows"] == 0
+    assert profile["supports_real_pair_quality_claim"] is False
 
 
 def test_profile_match_training_sources_rejects_educational_source_dominance(tmp_path: Path):

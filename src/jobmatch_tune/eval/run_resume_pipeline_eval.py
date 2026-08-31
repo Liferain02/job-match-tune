@@ -53,6 +53,7 @@ def run_predictions(
                 "text": normalized["normalized_text"],
                 "raw_text": row.get("text", ""),
                 "label": row["label"],
+                "meta": row.get("meta") or {},
                 "prediction": raw,
                 "parsed": parsed.get("data"),
                 "ok": parsed["ok"],
@@ -62,14 +63,23 @@ def run_predictions(
     return results
 
 
-def build_report(predictions: list[dict[str, Any]]) -> dict[str, Any]:
-    overall = evaluate_predictions(predictions)
+def build_report(
+    predictions: list[dict[str, Any]],
+    *,
+    evaluation_context: str = "auto",
+) -> dict[str, Any]:
+    overall = evaluate_predictions(predictions, evaluation_context=evaluation_context)
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in predictions:
         grouped[row.get("source_type", "unknown")].append(row)
-    by_source_type = {key: evaluate_predictions(rows) for key, rows in grouped.items()}
+    by_source_type = {
+        key: evaluate_predictions(rows, evaluation_context=evaluation_context)
+        for key, rows in grouped.items()
+    }
     return {
         "task": "resume_parse",
+        "evaluation_validity": overall["evaluation_validity"],
+        "warning": overall["warning"],
         "num_samples": len(predictions),
         "overall": overall,
         "by_source_type": by_source_type,
@@ -87,11 +97,16 @@ def main() -> None:
     )
     parser.add_argument("--load-4bit", action="store_true")
     parser.add_argument("--max-new-tokens", type=int, default=1024)
+    parser.add_argument(
+        "--evaluation-context",
+        choices=["auto", "blind_holdout", "frozen_regression"],
+        default="auto",
+    )
     args = parser.parse_args()
 
     rows = list(read_jsonl(args.dataset))
     predictions = run_predictions(rows, args.model, args.adapter, args.load_4bit, args.max_new_tokens)
-    report = build_report(predictions)
+    report = build_report(predictions, evaluation_context=args.evaluation_context)
     write_text(args.out, json.dumps(report, ensure_ascii=False, indent=2))
     write_text(args.predictions_out, "\n".join(json.dumps(row, ensure_ascii=False) for row in predictions) + "\n")
     print(json.dumps(report, ensure_ascii=False, indent=2))

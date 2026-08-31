@@ -83,8 +83,8 @@ def test_core_derived_dependencies_include_builder_code():
 
     assert str(PACKAGE_ROOT / "preprocess" / "deduplicate.py") in dependencies["JD规范化到去重"]
     assert (
-        str(PACKAGE_ROOT / "dataset" / "build_jd_quality_sft_dataset.py")
-        in dependencies["JD组合池到质量集"]
+        str(PACKAGE_ROOT / "dataset" / "build_jd_strict_plus_sft_dataset.py")
+        in dependencies["JD组合池到严格SFT"]
     )
     assert (
         str(PACKAGE_ROOT / "dataset" / "build_multitask_sft_dataset.py")
@@ -95,20 +95,16 @@ def test_core_derived_dependencies_include_builder_code():
         in dependencies["简历原始池到组合池"]
     )
     assert (
-        str(PACKAGE_ROOT / "match" / "rule_engine.py")
-        in dependencies["JD简历组合池到匹配合成池"]
-    )
-    assert (
-        str(PACKAGE_ROOT / "resume" / "privacy.py")
-        in dependencies["JD简历组合池到匹配合成池"]
+        str(PACKAGE_ROOT / "dataset" / "curated_resume_training_data.py")
+        in dependencies["简历原始池到组合池"]
     )
     assert (
         str(PACKAGE_ROOT / "dataset" / "build_match_train_pool_combined.py")
-        in dependencies["匹配合成池到组合池"]
+        in dependencies["匹配准入数据到组合池"]
     )
     assert (
-        str(PACKAGE_ROOT / "dataset" / "build_preference_bootstrap_dataset.py")
-        in dependencies["多任务SFT到产品偏好数据"]
+        str(PACKAGE_ROOT / "dataset" / "curated_match_training_data.py")
+        in dependencies["匹配准入数据到组合池"]
     )
     assert all(not path.endswith(".py") for derived in outputs.values() for path in derived)
-    assert DPO_DEPENDENCY_NAMES == {"JDSFT到偏好数据", "多任务SFT到产品偏好数据"}
+    assert DPO_DEPENDENCY_NAMES == {"JDSFT到偏好数据"}

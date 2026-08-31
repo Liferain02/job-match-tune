@@ -3,34 +3,29 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
-bash scripts/data/report_jd_quality_risks.sh \
-  --out outputs/eval_reports/jd_quality_risk_report.json \
-  --samples-out outputs/eval_reports/jd_quality_risk_samples.jsonl
-
-bash scripts/data/audit_jd_direction_conflicts.sh \
-  --out outputs/eval_reports/jd_direction_conflicts.json
-
-bash scripts/data/audit_jd_experience_gaps.sh \
-  --out outputs/eval_reports/jd_experience_gaps.json
-
-bash scripts/data/report_resume_sft_profile.sh \
+PYTHONPATH=src python -m jobmatch_tune.eval.report_resume_sft_profile \
   --out outputs/eval_reports/resume_sft_profile.json
 
-bash scripts/data/report_resume_privacy_readiness.sh \
+PYTHONPATH=src python -m jobmatch_tune.eval.report_resume_privacy_readiness \
   --inputs data/sft_resume/train.jsonl data/sft_resume/valid.jsonl data/sft_resume/test.jsonl \
   --out outputs/eval_reports/resume_privacy_readiness_report.json
 
-bash scripts/data/report_preference_readiness.sh \
+PYTHONPATH=src python -m jobmatch_tune.eval.report_preference_readiness \
   --train data/preference/train.jsonl \
   --valid data/preference/valid.jsonl \
   --holdout data/eval/jd_manual_eval_50.jsonl \
   --out outputs/eval_reports/preference_readiness_report.json
 
-bash scripts/data/report_preference_readiness.sh \
-  --train data/preference_product_bootstrap/train.jsonl \
-  --valid data/preference_product_bootstrap/valid.jsonl \
-  --holdout data/eval/jd_manual_eval_50.jsonl \
-  --out outputs/eval_reports/preference_product_bootstrap_readiness_report.json
+PYTHONPATH=src python -m jobmatch_tune.eval.audit_match_gold \
+  --out outputs/eval_reports/match_gold_audit.json
 
-bash scripts/data/report_data_readiness.sh \
+if [[ -f data/private/djinni_real_ranking_v1/labels.jsonl && \
+      -f data/private/djinni_real_ranking_v1/bm25_predictions.jsonl ]]; then
+  PYTHONPATH=src python -m jobmatch_tune.eval.run_match_ranking_eval \
+    --labels data/private/djinni_real_ranking_v1/labels.jsonl \
+    --predictions data/private/djinni_real_ranking_v1/bm25_predictions.jsonl \
+    --out outputs/eval_reports/djinni_real_ranking_bm25.json
+fi
+
+PYTHONPATH=src python -m jobmatch_tune.eval.report_data_readiness \
   --out outputs/eval_reports/data_readiness_report.json

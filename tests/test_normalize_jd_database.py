@@ -127,3 +127,39 @@ def test_normalize_database_preserves_previous_output_on_failure(tmp_path, monke
         normalize_jd.normalize_database(str(db_path), str(out_path), {}, batch_size=1)
 
     assert out_path.read_text(encoding="utf-8") == "previous output\n"
+
+
+def test_normalize_database_can_skip_unused_clean_table_sync(tmp_path, monkeypatch):
+    db_path = tmp_path / "jobs.sqlite3"
+    out_path = tmp_path / "clean.jsonl"
+    init_db(db_path)
+    upsert_jd_raw(
+        db_path,
+        [
+            {
+                "id": "job-1",
+                "source": "example",
+                "url": "https://example.test/job",
+                "crawl_time": "2026-08-09 00:00:00",
+                "job_title": "后端开发工程师",
+                "company": "示例公司",
+                "location": "北京",
+                "salary": "",
+                "raw_text": "岗位职责：负责服务开发。",
+                "html": None,
+                "meta": {"language": "zh"},
+            }
+        ],
+    )
+
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError("jd_clean sync should be skipped")
+
+    monkeypatch.setattr(normalize_jd, "upsert_jd_clean", fail_if_called)
+
+    count = normalize_jd.normalize_database(
+        str(db_path), str(out_path), {}, batch_size=1, sync_clean_table=False
+    )
+
+    assert count == 1
+    assert len(list(read_jsonl(out_path))) == 1

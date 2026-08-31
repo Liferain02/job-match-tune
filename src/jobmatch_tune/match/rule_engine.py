@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from typing import Any
 
 from jobmatch_tune.inference.postprocess_json import load_label_schema
@@ -60,6 +61,14 @@ MATCH_EVIDENCE_SKILL_ALIASES = {
     "C++": ["C + +"],
     "MySQL": ["My SOL"],
 }
+
+
+@lru_cache(maxsize=1)
+def _match_evidence_schema() -> dict[str, Any]:
+    return merge_skill_aliases(
+        load_label_schema(),
+        {"skill_alias": MATCH_EVIDENCE_SKILL_ALIASES},
+    )
 
 
 def _normalize_text(value: Any) -> str:
@@ -153,10 +162,7 @@ def _skill_lists(
     jd_text: str,
     resume_text: str,
 ) -> tuple[list[str], list[str], list[str]]:
-    match_evidence_schema = merge_skill_aliases(
-        load_label_schema(),
-        {"skill_alias": MATCH_EVIDENCE_SKILL_ALIASES},
-    )
+    match_evidence_schema = _match_evidence_schema()
     if jd_text.strip():
         jd_evidence = collect_jd_skill_evidence(jd_data, jd_text, match_evidence_schema)
         jd_skills = required_skills_from_evidence(jd_evidence)
@@ -262,10 +268,7 @@ def compute_match_rule_result(
         policy=scoring_policy,
     )
     score = max(0, min(sum(breakdown.values()), 100))
-    skill_schema = merge_skill_aliases(
-        load_label_schema(),
-        {"skill_alias": MATCH_EVIDENCE_SKILL_ALIASES},
-    )
+    skill_schema = _match_evidence_schema()
     skill_evidence = (
         collect_jd_skill_evidence(jd_data, jd_text, skill_schema)
         if jd_text.strip()

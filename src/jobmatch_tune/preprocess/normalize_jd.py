@@ -85,6 +85,7 @@ def normalize_database(
     schema: dict[str, Any],
     *,
     batch_size: int = 1000,
+    sync_clean_table: bool = True,
 ) -> int:
     count = 0
 
@@ -92,7 +93,8 @@ def normalize_database(
         nonlocal count
         for raw_batch in iter_table_batches(db_path, "jd_raw", batch_size=batch_size):
             clean_batch = [normalize_jd_row(row, schema) for row in raw_batch]
-            upsert_jd_clean(db_path, clean_batch)
+            if sync_clean_table:
+                upsert_jd_clean(db_path, clean_batch)
             count += len(clean_batch)
             yield from clean_batch
 
@@ -119,6 +121,11 @@ def main() -> None:
     parser.add_argument("--schema", default="configs/label_schema.yaml")
     parser.add_argument("--db", default=None)
     parser.add_argument("--batch-size", type=int, default=1000)
+    parser.add_argument(
+        "--skip-clean-table-sync",
+        action="store_true",
+        help="Only rebuild the JSONL derivative; jd_clean is not used by the training pipeline.",
+    )
     parser.add_argument("--manifest-out", default=NORMALIZATION_MANIFEST)
     args = parser.parse_args()
 
@@ -129,6 +136,7 @@ def main() -> None:
             args.out,
             schema,
             batch_size=args.batch_size,
+            sync_clean_table=not args.skip_clean_table_sync,
         )
         write_normalization_manifest(args.db, args.out, args.manifest_out, args.schema)
     else:

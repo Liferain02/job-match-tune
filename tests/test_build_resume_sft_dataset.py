@@ -2,6 +2,7 @@ from jobmatch_tune.dataset.build_resume_sft_dataset import (
     VARIANT_BUILDERS,
     build_resume_sample,
     deduplicate_samples,
+    select_variant_builders,
     split_grouped_samples,
 )
 
@@ -38,6 +39,12 @@ def test_variants_stay_limited_to_core_input_shapes():
     ]
 
 
+def test_default_training_can_select_original_without_materializing_variants():
+    selected = select_variant_builders(["original"])
+
+    assert [name for name, _ in selected] == ["original"]
+
+
 def test_build_resume_sample_contains_resume_prompt():
     row = _row()
     sample = build_resume_sample(row, "original", row["text"])
@@ -45,6 +52,7 @@ def test_build_resume_sample_contains_resume_prompt():
     assert sample["source_group"] == row["id"]
     assert "请解析以下简历" in sample["messages"][1]["content"]
     assert "目标岗位" in sample["messages"][2]["content"]
+    assert sample["meta"]["data_origin"] == "unknown"
 
 
 def test_build_resume_sample_uses_redacted_resume_text():

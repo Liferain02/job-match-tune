@@ -46,6 +46,19 @@ def test_build_preference_row_skips_identical_outputs():
     assert build_preference_row(row) is None
 
 
+def test_build_preference_row_skips_human_verified_evaluation_row():
+    row = {
+        "id": "gold_1",
+        "task": "jd_parse",
+        "text": "岗位名称：后端开发工程师",
+        "label": {"岗位方向": "后端开发"},
+        "parsed": {"岗位方向": "前端开发"},
+        "meta": {"annotation_status": "human_verified"},
+    }
+
+    assert build_preference_row(row) is None
+
+
 def test_build_prompt_text_for_match():
     prompt = build_prompt_text(
         "match",
