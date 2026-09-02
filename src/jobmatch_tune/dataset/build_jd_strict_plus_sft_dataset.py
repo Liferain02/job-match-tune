@@ -59,7 +59,7 @@ def is_strict_plus_row(row: dict[str, Any]) -> bool:
     responsibilities = str(sections.get("responsibilities") or "").strip()
     requirements = str(sections.get("requirements") or "").strip()
 
-    if not direction or not education:
+    if not direction or direction == "产品经理" or not education:
         return False
     if any(keyword in title for keyword in LOW_SIGNAL_TITLE_KEYWORDS):
         return False

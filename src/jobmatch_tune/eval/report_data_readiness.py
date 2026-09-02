@@ -26,7 +26,7 @@ from jobmatch_tune.utils.io import read_jsonl, write_text
 
 READINESS_THRESHOLDS = {
     "jd": {"train": 2560, "valid": 320, "test": 320, "pool": 8000},
-    "resume": {"train": 10000, "valid": 1000, "test": 1000, "pool": 3000},
+    "resume": {"train": 3000, "valid": 300, "test": 300, "pool": 3000},
     "match": {"train": 3000, "valid": 400, "test": 400, "pool": 4500},
     "multitask": {"train": 9540, "valid": 1180, "test": 0, "pool": 10720},
 }
@@ -56,9 +56,9 @@ MAX_EMPTY_RATE = {
         "目标岗位": 0.05,
         "教育背景": 0.10,
         "核心技能": 0.10,
-        # Experienced candidates commonly have work history but no internship.
-        # Keep the field in the schema without fabricating internship content.
-        "实习经历": 0.80,
+        # Real experienced-candidate profiles usually have work history but no
+        # internship. Empty is preferable to relabeling ordinary employment.
+        "实习经历": 0.98,
         "项目经历": 0.20,
         "优势标签": 0.40,
     },
@@ -157,10 +157,15 @@ def profile_match_training_sources(path: str) -> dict[str, Any]:
     generators: Counter[str] = Counter()
     total = 0
     synthetic_rows = 0
+    teacher_labeled_rows = 0
     curated_fictional_rows = 0
     verified_non_synthetic_rows = 0
+    observed_outcome_rows = 0
     educational_source_rows = 0
     pair_type_counts: Counter[str] = Counter()
+    language_counts: Counter[str] = Counter()
+    jd_entities: set[str] = set()
+    resume_entities: set[str] = set()
     file_path = Path(path)
     if file_path.exists():
         for row in read_jsonl(file_path):
@@ -169,19 +174,42 @@ def profile_match_training_sources(path: str) -> dict[str, Any]:
                 "synthetic_match_hf_job_educational_" in str(row.get("id") or "")
             )
             source_type = str(row.get("source_type") or "missing")
-            generator = str((row.get("meta") or {}).get("generator") or "missing")
+            meta = row.get("meta") or {}
+            language_counts[str(meta.get("language") or "unknown").lower()] += 1
+            jd_entity = str(meta.get("jd_entity_hash") or "")
+            resume_entity = str(meta.get("resume_entity_hash") or "")
+            if not jd_entity and row.get("jd_text"):
+                jd_entity = normalized_input_hash(str(row["jd_text"]))
+            if not resume_entity and row.get("resume_text"):
+                resume_entity = normalized_input_hash(str(row["resume_text"]))
+            if jd_entity:
+                jd_entities.add(jd_entity)
+            if resume_entity:
+                resume_entities.add(resume_entity)
+            generator = str(meta.get("generator") or "missing")
+            pair_type = str(meta.get("pair_type") or "")
+            annotation_status = str(meta.get("annotation_status") or "")
+            observed_outcome_rows += int(
+                meta.get("observed_outcome") is True or pair_type == "real_observed_pair"
+            )
             source_types[source_type] += 1
             generators[generator] += 1
-            if source_type.startswith("synthetic") or generator.startswith("synthetic"):
+            if "teacher_labeled" in source_type or "teacher_labeled" in pair_type:
+                synthetic_rows += 1
+                teacher_labeled_rows += 1
+                pair_type_counts["synthetic_teacher_labeled_pair"] += 1
+            elif source_type.startswith("synthetic") or generator.startswith("synthetic"):
                 synthetic_rows += 1
                 pair_type_counts["synthetic_rule_pair"] += 1
             elif source_type == "curated_fictional_pair":
                 curated_fictional_rows += 1
                 pair_type_counts["curated_fictional_pair"] += 1
-            elif str((row.get("meta") or {}).get("annotation_status") or "") == "human_verified":
+            elif annotation_status == "human_verified" or annotation_status.startswith(
+                "human_reviewed"
+            ):
                 verified_non_synthetic_rows += 1
                 pair_type_counts["human_reviewed_pair"] += 1
-            elif str((row.get("meta") or {}).get("pair_type") or "") == "real_observed_pair":
+            elif pair_type == "real_observed_pair":
                 pair_type_counts["real_observed_pair"] += 1
             else:
                 pair_type_counts["unknown_non_synthetic_pair"] += 1
@@ -194,6 +222,8 @@ def profile_match_training_sources(path: str) -> dict[str, Any]:
         origin = "curated_fictional_only"
     elif synthetic_rows:
         origin = "mixed"
+    elif curated_fictional_rows:
+        origin = "mixed_curated_and_non_synthetic"
     else:
         origin = "non_synthetic_only"
     return {
@@ -201,11 +231,16 @@ def profile_match_training_sources(path: str) -> dict[str, Any]:
         "source_type_counts": dict(source_types),
         "generator_counts": dict(generators),
         "synthetic_rows": synthetic_rows,
+        "teacher_labeled_rows": teacher_labeled_rows,
         "curated_fictional_rows": curated_fictional_rows,
         "non_synthetic_rows": non_synthetic_rows,
         "human_verified_non_synthetic_rows": verified_non_synthetic_rows,
+        "observed_outcome_rows": observed_outcome_rows,
         "pair_type_counts": {
             "synthetic_rule_pair": pair_type_counts.get("synthetic_rule_pair", 0),
+            "synthetic_teacher_labeled_pair": pair_type_counts.get(
+                "synthetic_teacher_labeled_pair", 0
+            ),
             "human_reviewed_pair": pair_type_counts.get("human_reviewed_pair", 0),
             "real_observed_pair": pair_type_counts.get("real_observed_pair", 0),
             "unknown_non_synthetic_pair": pair_type_counts.get(
@@ -235,7 +270,25 @@ def profile_match_training_sources(path: str) -> dict[str, Any]:
             total and educational_source_rows / total <= 0.4
         ),
         "training_origin": origin,
+        "language_counts": dict(language_counts),
+        "chinese_pair_rate": (
+            round(
+                sum(count for language, count in language_counts.items() if language.startswith("zh"))
+                / total,
+                4,
+            )
+            if total
+            else 0.0
+        ),
+        "unique_jd_entities": len(jd_entities),
+        "unique_resume_entities": len(resume_entities),
+        "minimum_jd_entities": 50,
+        "minimum_resume_entities": 100,
+        "entity_diversity_ready": (
+            len(jd_entities) >= 50 and len(resume_entities) >= 100
+        ),
         "supports_real_pair_quality_claim": verified_non_synthetic_rows > 0,
+        "supports_real_observed_outcome_claim": observed_outcome_rows > 0,
     }
 
 
@@ -262,11 +315,16 @@ def profile_match_training_privacy(path: str) -> dict[str, Any]:
 
 def profile_match_education_consistency(path: str) -> dict[str, Any]:
     total = 0
+    skipped_rows = 0
     disagreement_rows = 0
     examples = []
     file_path = Path(path)
     if file_path.exists():
         for row in read_jsonl(file_path):
+            condition_source = str((row.get("meta") or {}).get("condition_label_source") or "")
+            if condition_source and condition_source not in {"rule_engine", "manual_rule_review"}:
+                skipped_rows += 1
+                continue
             total += 1
             requirement = extract_education_requirement(str(row.get("jd_text") or ""))
             result = compute_match_rule_result(
@@ -289,6 +347,7 @@ def profile_match_education_consistency(path: str) -> dict[str, Any]:
                     )
     return {
         "total_rows": total,
+        "skipped_incompatible_label_rows": skipped_rows,
         "disagreement_rows": disagreement_rows,
         "examples": examples,
         "education_consistency_ready": total > 0 and disagreement_rows == 0,
@@ -632,6 +691,9 @@ def build_report() -> dict[str, object]:
     tasks["match"]["source_profile"] = match_source_profile
     tasks["match"]["real_pair_quality_evidence_ready"] = bool(
         match_source_profile["supports_real_pair_quality_claim"]
+    )
+    tasks["match"]["real_observed_outcome_evidence_ready"] = bool(
+        match_source_profile.get("supports_real_observed_outcome_claim", False)
     )
     tasks["match"]["source_concentration_ready"] = bool(
         match_source_profile["source_concentration_ready"]

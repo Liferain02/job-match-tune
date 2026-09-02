@@ -29,6 +29,27 @@ def test_build_jd_parse_sample_uses_headers() -> None:
     assert "工作地点：北京" in user_text
 
 
+def test_build_jd_parse_sample_compacts_long_text_and_keeps_label_evidence() -> None:
+    responsibility = "负责核心推荐系统开发与性能优化"
+    row = {
+        "id": "long_demo",
+        "job_title": "算法工程师",
+        "clean_text": "岗位描述：" + "背景信息" * 800,
+        "sections": {"responsibilities": responsibility, "bonus": "熟悉 PyTorch"},
+        "labels": {
+            "岗位方向": "算法工程",
+            "必备技能": ["Python", "PyTorch"],
+            "经验要求": "3 年以上",
+            "学历要求": "硕士",
+        },
+    }
+
+    sample = build_jd_parse_sample(row)
+    user_text = sample["messages"][1]["content"]
+    assert len(user_text) < 1400
+    assert responsibility in user_text
+
+
 def test_split_samples_keeps_jd_source_variants_together() -> None:
     samples = []
     for group in ("jd-a", "jd-b", "jd-c", "jd-d"):

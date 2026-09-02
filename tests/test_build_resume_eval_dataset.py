@@ -44,3 +44,12 @@ def test_resume_training_rows_are_disjoint_from_frozen_evaluation_rows():
         and row["meta"]["contains_real_person_data"] is False
         for row in CURATED_RESUME_TRAIN_ROWS
     )
+
+
+def test_default_technical_eval_scope_excludes_product_management():
+    technical_rows = [
+        row for row in BASE_ROWS if row.get("label", {}).get("目标岗位") != "产品经理"
+    ]
+
+    assert len(technical_rows) == 30
+    assert all(row["label"]["目标岗位"] != "产品经理" for row in technical_rows)

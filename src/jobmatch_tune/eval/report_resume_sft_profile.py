@@ -6,10 +6,15 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from jobmatch_tune.dataset.build_resume_train_pool_combined import is_technical_direction
 from jobmatch_tune.utils.io import read_jsonl, write_text
 
 
-REAL_RESUME_ORIGINS = {"public_real_anonymized", "private_real_anonymized"}
+REAL_RESUME_ORIGINS = {
+    "public_real_anonymized",
+    "public_real_self_published_anonymized",
+    "private_real_anonymized",
+}
 MIN_REAL_RESUME_SOURCE_GROUPS = 100
 
 
@@ -24,6 +29,8 @@ def build_resume_sft_profile(paths: list[str]) -> dict[str, Any]:
     source_category_groups: dict[str, set[str]] = {}
     split_source_category_groups: dict[str, dict[str, set[str]]] = {}
     real_source_groups: set[str] = set()
+    language_counts: Counter[str] = Counter()
+    non_technical_rows = 0
 
     def source_category(source_group: str) -> str:
         if source_group.startswith("resume_bootstrap_"):
@@ -43,6 +50,14 @@ def build_resume_sft_profile(paths: list[str]) -> dict[str, Any]:
             source_group_counts[source_group] += 1
             split_source_groups.setdefault(split, set()).add(source_group)
             data_origin = str((row.get("meta") or {}).get("data_origin") or "")
+            language = str((row.get("meta") or {}).get("language") or "unknown").lower()
+            language_counts[language] += 1
+            messages = row.get("messages") or []
+            try:
+                label = json.loads(str(messages[-1].get("content") or "{}")) if messages else {}
+            except (TypeError, json.JSONDecodeError):
+                label = {}
+            non_technical_rows += int(not is_technical_direction(label.get("目标岗位")))
             category = data_origin or source_category(source_group)
             if data_origin in REAL_RESUME_ORIGINS:
                 real_source_groups.add(source_group)
@@ -65,6 +80,10 @@ def build_resume_sft_profile(paths: list[str]) -> dict[str, Any]:
     bootstrap_source_group_rate = (
         round(len(bootstrap_source_groups) / unique_source_groups, 4) if unique_source_groups else 0.0
     )
+    chinese_rows = sum(
+        count for language, count in language_counts.items() if language.startswith("zh")
+    )
+    scope_ready = bool(total and chinese_rows == total and non_technical_rows == 0)
     return {
         "total": total,
         "split_counts": dict(split_counts),
@@ -80,6 +99,11 @@ def build_resume_sft_profile(paths: list[str]) -> dict[str, Any]:
         "supports_real_resume_quality_claim": (
             len(real_source_groups) >= MIN_REAL_RESUME_SOURCE_GROUPS
         ),
+        "language_counts": dict(language_counts),
+        "chinese_rows": chinese_rows,
+        "chinese_rate": round(chinese_rows / total, 4) if total else 0.0,
+        "non_technical_rows": non_technical_rows,
+        "scope_ready": scope_ready,
         "source_group_counts_by_category": {
             category: len(groups) for category, groups in sorted(source_category_groups.items())
         },
@@ -101,9 +125,11 @@ def build_resume_sft_profile(paths: list[str]) -> dict[str, Any]:
             # Six deliberately distinct renderings cover the core input shapes
             # without inflating every source into twenty hand-written templates.
             and max_source_group_size <= 7
-            and max_variant_rate <= 0.25
+            # Original-only real data does not need artificial render variants.
+            and (expansion_ratio <= 1.1 or max_variant_rate <= 0.25)
             and bootstrap_source_group_rate <= 0.8
             and len(real_source_groups) >= MIN_REAL_RESUME_SOURCE_GROUPS
+            and scope_ready
         ),
     }
 

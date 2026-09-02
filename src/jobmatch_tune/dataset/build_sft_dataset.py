@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import re
 from collections.abc import Iterable
 from typing import Any
 
@@ -307,14 +308,26 @@ def build_jd_parse_sample(row: dict[str, Any]) -> dict[str, Any]:
     for key in ("source", "company", "location"):
         if row.get(key) and key not in meta:
             meta[key] = row.get(key)
+    responsibilities = [item[:120] for item in _split_lines(sections.get("responsibilities", ""))[:3]]
+    bonus = [item[:100] for item in _split_lines(sections.get("bonus", ""))[:2]]
     assistant = {
         "岗位方向": direction,
-        "核心职责": _split_lines(sections.get("responsibilities", ""))[:6],
-        "必备技能": skills,
-        "加分项": _split_lines(sections.get("bonus", ""))[:6],
+        "核心职责": responsibilities,
+        "必备技能": skills[:12],
+        "加分项": bonus,
         "经验要求": labels.get("经验要求") or extract_experience_requirement(source_text),
         "学历要求": labels.get("学历要求") or extract_education_requirement(source_text),
     }
+    input_text = _evidence_preserving_jd_excerpt(
+        compose_jd_input_text(row),
+        [
+            *responsibilities,
+            *bonus,
+            *assistant["必备技能"],
+            assistant["经验要求"],
+            assistant["学历要求"],
+        ],
+    )
     return {
         "id": f"{row['id']}_jd_parse",
         "task_type": "jd_parse",
@@ -322,7 +335,7 @@ def build_jd_parse_sample(row: dict[str, Any]) -> dict[str, Any]:
         "meta": meta,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": jd_parse_prompt(compose_jd_input_text(row))},
+            {"role": "user", "content": jd_parse_prompt(input_text)},
             {"role": "assistant", "content": json.dumps(assistant, ensure_ascii=False)},
         ],
     }
@@ -338,6 +351,23 @@ def _split_lines(text: str) -> list[str]:
         and not line.startswith("任职要求")
         and not line.startswith("岗位要求")
     ]
+
+
+def _evidence_preserving_jd_excerpt(text: str, evidence: list[Any]) -> str:
+    if len(text) <= 1100:
+        return text
+    excerpt = text[:700].rstrip()
+    normalized = re.sub(r"\s+", " ", excerpt).casefold()
+    for value in evidence:
+        item = re.sub(r"\s+", " ", str(value or "")).strip()[:120]
+        if not item or item.casefold() in normalized:
+            continue
+        candidate = f"{excerpt}\n{item}"
+        if len(candidate) > 1100:
+            continue
+        excerpt = candidate
+        normalized = re.sub(r"\s+", " ", excerpt).casefold()
+    return excerpt
 
 
 def compose_jd_input_text(row: dict[str, Any]) -> str:

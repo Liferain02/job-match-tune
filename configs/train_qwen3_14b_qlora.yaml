@@ -5,7 +5,8 @@ train_file: data/sft_multitask/train.jsonl
 valid_file: data/sft_multitask/valid.jsonl
 max_eval_samples: 320
 
-max_seq_length: 768
+# 经证据保留压缩和 tokenizer 审计，当前全部训练样本均可保留完整答案。
+max_seq_length: 1536
 per_device_train_batch_size: 1
 gradient_accumulation_steps: 16
 num_train_epochs: 1

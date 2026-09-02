@@ -64,9 +64,26 @@ DERIVED_DEPENDENCIES = (
         ),
     ),
     (
+        "中文技术简历公开源到训练导入",
+        (
+            "data/external/faircv/data/resumes_template.json",
+            "data/eval/public_jd_candidate_pool.jsonl",
+            str(PROJECT_ROOT / "configs" / "public_training_sources.yaml"),
+            str(PROJECT_ROOT / "configs" / "public_chinese_resume_sources.yaml"),
+            str(PROJECT_ROOT / "configs" / "human_reviewed_public_match_pairs.yaml"),
+            str(DATASET_ROOT / "import_public_training_data.py"),
+            str(RESUME_ROOT / "privacy.py"),
+        ),
+        (
+            "data/external/public_resume_imports_zh_tech.jsonl",
+            "data/external/public_match_imports_zh_tech.jsonl",
+        ),
+    ),
+    (
         "简历原始池到组合池",
         (
             "data/eval/resume_manual_train_pool.jsonl",
+            "data/external/public_resume_imports_zh_tech.jsonl",
             str(DATASET_ROOT / "curated_resume_training_data.py"),
             str(DATASET_ROOT / "build_resume_train_pool_combined.py"),
             str(RESUME_ROOT / "privacy.py"),
@@ -88,7 +105,9 @@ DERIVED_DEPENDENCIES = (
         "匹配准入数据到组合池",
         (
             "data/eval/match_curated_train_pool.jsonl",
+            "data/external/public_match_imports_zh_tech.jsonl",
             str(PROJECT_ROOT / "configs" / "public_match_sources.yaml"),
+            str(PROJECT_ROOT / "configs" / "public_training_sources.yaml"),
             str(DATASET_ROOT / "curated_match_training_data.py"),
             str(DATASET_ROOT / "build_match_train_pool_combined.py"),
         ),

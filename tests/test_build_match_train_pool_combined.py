@@ -20,7 +20,9 @@ def test_is_usable_public_match_row_requires_pair_text_and_label():
         ),
         "label": {"raw_label": "fit", "raw_score": 0.91},
         "meta": {
-            "language": "en",
+            "language": "zh",
+            "jd_direction": "后端开发",
+            "resume_direction": "后端开发",
             "license_status": "confirmed",
             "intended_usage": "training",
             "provenance_status": "human_annotated",
@@ -29,7 +31,7 @@ def test_is_usable_public_match_row_requires_pair_text_and_label():
     assert is_usable_public_match_row(row) is True
 
 
-def test_is_usable_public_match_row_rejects_unconfirmed_license():
+def test_is_usable_public_match_row_rejects_audit_only_usage():
     row = {
         "task": "match",
         "jd_text": "岗位描述" * 30,
@@ -45,6 +47,49 @@ def test_is_usable_public_match_row_rejects_unconfirmed_license():
     assert is_usable_public_match_row(row) is False
 
 
+def test_default_match_pool_rejects_english_even_when_training_is_allowed():
+    row = {
+        "task": "match",
+        "jd_text": "Backend role requiring Python, PostgreSQL, API design, testing, and monitoring. " * 3,
+        "resume_text": "Backend engineer with Python, PostgreSQL, API, testing, and monitoring experience. " * 3,
+        "label": {"raw_label": "match", "raw_score": 8.0},
+        "meta": {
+            "language": "en",
+            "license_status": "source_declared_cc",
+            "intended_usage": "sft_training",
+            "provenance_status": "documented_machine_generated",
+        },
+    }
+
+    assert is_usable_public_match_row(row) is False
+
+
+def test_combined_match_pool_excludes_product_manager_for_technical_scope():
+    row = {
+        "id": "product_pair",
+        "task": "match",
+        "jd_text": "产品经理岗位描述",
+        "resume_text": "产品经理候选人简历",
+        "label": {"匹配等级": "较匹配"},
+        "meta": {"jd_direction": "产品经理", "resume_direction": "产品经理"},
+    }
+
+    assert build_combined_rows([row], []) == []
+
+
+def test_combined_match_pool_excludes_teacher_direction():
+    row = {
+        "id": "teacher_pair",
+        "task": "match",
+        "jd_text": "教师岗位描述",
+        "resume_text": "教师候选人简历",
+        "label": {"匹配等级": "较匹配"},
+        "meta": {"jd_direction": "教师", "resume_direction": "教师"},
+    }
+
+    assert build_combined_rows([row], []) == []
+
+
 def test_build_combined_rows_merges_and_deduplicates():
     manual_rows = [
         {
@@ -54,6 +99,7 @@ def test_build_combined_rows_merges_and_deduplicates():
             "jd_text": "岗位名称：前端开发工程师\n任职要求：熟悉 TypeScript、React、Vite、ECharts。",
             "resume_text": "目标岗位：前端开发\n核心技能：TypeScript、React、Vite、ECharts",
             "label": {"匹配等级": "高匹配"},
+            "meta": {"jd_direction": "前端开发", "resume_direction": "前端开发"},
         }
     ]
     public_rows = [
@@ -73,7 +119,9 @@ def test_build_combined_rows_merges_and_deduplicates():
             ),
             "label": {"raw_label": "fit", "raw_score": 0.91},
             "meta": {
-                "language": "en",
+                "language": "zh",
+                "jd_direction": "后端开发",
+                "resume_direction": "后端开发",
                 "license_status": "confirmed",
                 "intended_usage": "training",
                 "provenance_status": "human_annotated",
@@ -95,7 +143,9 @@ def test_build_combined_rows_merges_and_deduplicates():
             ),
             "label": {"raw_label": "fit", "raw_score": 0.91},
             "meta": {
-                "language": "en",
+                "language": "zh",
+                "jd_direction": "后端开发",
+                "resume_direction": "后端开发",
                 "license_status": "confirmed",
                 "intended_usage": "training",
                 "provenance_status": "human_annotated",

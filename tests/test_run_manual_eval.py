@@ -1,4 +1,6 @@
-from jobmatch_tune.eval.run_manual_eval import evaluate_predictions
+import pytest
+
+from jobmatch_tune.eval.run_manual_eval import align_saved_predictions, evaluate_predictions
 
 
 def test_evaluate_predictions_for_jd_parse():
@@ -29,6 +31,10 @@ def test_evaluate_predictions_for_jd_parse():
     assert report["task"] == "jd_parse"
     assert report["json_valid_rate"] == 1.0
     assert report["field_metrics"]["岗位方向"]["exact_match"] == 1.0
+    assert report["confidence_intervals"]["json_valid_rate"]["lower"] == 1.0
+    assert report["field_confidence_intervals"]["核心职责"]["metric"] == "row_macro_f1"
+    assert report["slice_metrics"]["target_role"]["后端开发"]["num_samples"] == 1
+    assert report["slice_metrics"]["target_role"]["后端开发"]["small_slice_warning"] is True
 
 
 def test_evaluate_predictions_for_resume_parse():
@@ -105,3 +111,26 @@ def test_blind_parse_eval_requires_human_verified_unseen_metadata():
     report = evaluate_predictions([row], evaluation_context="blind_holdout")
 
     assert report["evaluation_validity"] == "blind_holdout"
+
+
+def test_replay_predictions_requires_exact_frozen_inputs():
+    dataset = [
+        {
+            "id": "jd1",
+            "task": "jd_parse",
+            "text": "岗位名称：后端开发",
+            "label": {"岗位方向": "后端开发"},
+        }
+    ]
+    predictions = [
+        {
+            "id": "jd1",
+            "task": "jd_parse",
+            "text": "岗位名称：前端开发",
+            "ok": True,
+            "parsed": {"岗位方向": "前端开发"},
+        }
+    ]
+
+    with pytest.raises(ValueError, match="saved prediction input differs"):
+        align_saved_predictions(dataset, predictions)

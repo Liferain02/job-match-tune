@@ -110,3 +110,51 @@ def test_public_resume_candidate_only_source_never_enters_training_pool():
 
     assert is_usable_public_resume_row(row) is False
     assert build_combined_rows([], [row]) == []
+
+
+def test_default_resume_pool_rejects_english_even_when_training_is_allowed():
+    row = {
+        "task": "resume_parse",
+        "text": (
+            "Target role: Backend Engineer. Education: Bachelor of Computer Science. "
+            "Skills: Python, PostgreSQL. Projects: built a production API and monitoring pipeline."
+        ),
+        "label": {
+            "目标岗位": "Backend Engineer",
+            "教育背景": ["Bachelor of Computer Science"],
+            "核心技能": ["Python", "PostgreSQL"],
+            "项目经历": ["built a production API and monitoring pipeline"],
+        },
+        "meta": {
+            "language": "en",
+            "license_status": "source_declared_cc",
+            "intended_usage": "sft_training",
+        },
+    }
+
+    assert is_usable_public_resume_row(row) is False
+
+
+def test_combined_resume_pool_excludes_product_manager_for_technical_scope():
+    row = {
+        "id": "product_resume",
+        "task": "resume_parse",
+        "text": "目标岗位：产品经理\n教育背景：本科\n项目经历：负责需求设计和版本迭代。",
+        "label": {"目标岗位": "产品经理"},
+    }
+
+    assert build_combined_rows([row], []) == []
+
+
+def test_combined_resume_pool_excludes_teacher_and_sales_targets():
+    rows = [
+        {
+            "id": f"non_technical_{target}",
+            "task": "resume_parse",
+            "text": f"目标岗位：{target}\n教育背景：本科\n项目经历：相关项目。",
+            "label": {"目标岗位": target},
+        }
+        for target in ("教师", "销售")
+    ]
+
+    assert build_combined_rows(rows, []) == []

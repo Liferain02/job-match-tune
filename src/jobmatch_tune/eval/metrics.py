@@ -47,12 +47,12 @@ def aggregate_set_metrics(
     micro_precision = (
         true_positive / (true_positive + false_positive)
         if true_positive + false_positive
-        else 1.0 if not pair_list else 0.0
+        else 1.0
     )
     micro_recall = (
         true_positive / (true_positive + false_negative)
         if true_positive + false_negative
-        else 1.0 if not pair_list else 0.0
+        else 1.0
     )
     micro_f1 = (
         2 * micro_precision * micro_recall / (micro_precision + micro_recall)

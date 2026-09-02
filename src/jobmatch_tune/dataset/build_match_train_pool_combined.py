@@ -5,7 +5,17 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
+from jobmatch_tune.dataset.build_resume_train_pool_combined import is_technical_direction
 from jobmatch_tune.utils.io import read_jsonl, write_jsonl
+
+
+def _is_technical_pair(row: dict[str, Any]) -> bool:
+    meta = row.get("meta") or {}
+    directions = [
+        _normalize_text(meta.get("jd_direction")),
+        _normalize_text(meta.get("resume_direction")),
+    ]
+    return all(is_technical_direction(direction) for direction in directions)
 
 
 def _normalize_text(value: Any) -> str:
@@ -16,7 +26,11 @@ def is_usable_public_match_row(row: dict[str, Any]) -> bool:
     if str(row.get("task") or "") != "match":
         return False
     meta = row.get("meta") or {}
-    if str(meta.get("license_status") or "").lower() != "confirmed":
+    if str(meta.get("license_status") or "").lower() in {
+        "prohibited",
+        "training_prohibited",
+        "no_derivatives",
+    }:
         return False
     if str(meta.get("intended_usage") or "").lower() not in {
         "training",
@@ -27,7 +41,7 @@ def is_usable_public_match_row(row: dict[str, Any]) -> bool:
     if str(meta.get("provenance_status") or "").lower() in {"", "undocumented", "unknown"}:
         return False
     language = str(meta.get("language") or "").lower()
-    if language not in {"", "zh", "zh-cn", "en"}:
+    if not language.startswith("zh"):
         return False
     jd_text = _normalize_text(row.get("jd_text"))
     resume_text = _normalize_text(row.get("resume_text"))
@@ -83,17 +97,19 @@ def build_combined_rows(
     public_rows: list[dict[str, Any]],
     max_educational_source_rate: float = 0.4,
 ) -> list[dict[str, Any]]:
-    combined = list(manual_rows)
+    combined = [row for row in manual_rows if _is_technical_pair(row)]
     for row in public_rows:
-        if is_usable_public_match_row(row):
+        if is_usable_public_match_row(row) and _is_technical_pair(row):
             combined.append(
                 {
                     "id": row["id"],
                     "task": "match",
                     "source_type": row.get("source_type", "public_pair"),
+                    "source_group": row.get("source_group", row["id"]),
                     "jd_text": row["jd_text"],
                     "resume_text": row["resume_text"],
                     "label": row.get("label") or {},
+                    "analysis": row.get("analysis") or {},
                     "meta": row.get("meta") or {},
                 }
             )
@@ -109,7 +125,9 @@ def main() -> None:
         default="data/eval/match_curated_train_pool.jsonl",
         help="Optional independently annotated training pairs; never point this at a Gold/eval file.",
     )
-    parser.add_argument("--public-input", default="data/external/public_match_imports.jsonl")
+    parser.add_argument(
+        "--public-input", default="data/external/public_match_imports_zh_tech.jsonl"
+    )
     parser.add_argument("--max-educational-source-rate", type=float, default=0.4)
     parser.add_argument("--out", default="data/eval/match_train_pool_combined.jsonl")
     args = parser.parse_args()

@@ -96,7 +96,7 @@ def build_match_sample(row: dict[str, Any]) -> dict[str, Any]:
         "命中项目": row["label"].get("命中项目", []),
     }
     row_meta = row.get("meta") or {}
-    assistant = build_analysis_from_label(
+    assistant = row.get("analysis") or build_analysis_from_label(
         row["label"],
         jd_direction=str(row_meta.get("jd_direction") or ""),
         resume_direction=str(row_meta.get("resume_direction") or ""),
@@ -112,6 +112,16 @@ def build_match_sample(row: dict[str, Any]) -> dict[str, Any]:
     resume_entity_hash = str(
         row_meta.get("resume_entity_hash") or normalized_input_hash(row["resume_text"])
     )
+    sample_meta = {
+        "entity_split": str(row_meta.get("entity_split") or ""),
+        "source_type": str(row.get("source_type") or ""),
+        "provenance": str(row_meta.get("provenance") or ""),
+        "annotation_status": str(row_meta.get("annotation_status") or ""),
+        "contains_real_person_data": row_meta.get("contains_real_person_data"),
+    }
+    for key in ("language", "domain"):
+        if row_meta.get(key):
+            sample_meta[key] = str(row_meta[key])
     return {
         "id": row["id"],
         "task_type": "match",
@@ -120,13 +130,7 @@ def build_match_sample(row: dict[str, Any]) -> dict[str, Any]:
             f"match_jd:{jd_entity_hash}",
             f"match_resume:{resume_entity_hash}",
         ],
-        "meta": {
-            "entity_split": str(row_meta.get("entity_split") or ""),
-            "source_type": str(row.get("source_type") or ""),
-            "provenance": str(row_meta.get("provenance") or ""),
-            "annotation_status": str(row_meta.get("annotation_status") or ""),
-            "contains_real_person_data": row_meta.get("contains_real_person_data"),
-        },
+        "meta": sample_meta,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {

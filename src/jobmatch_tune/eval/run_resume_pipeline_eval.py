@@ -5,7 +5,11 @@ import json
 from collections import defaultdict
 from typing import Any
 
-from jobmatch_tune.eval.run_manual_eval import evaluate_predictions
+from jobmatch_tune.eval.run_manual_eval import (
+    align_saved_predictions,
+    evaluate_predictions,
+    file_sha256,
+)
 from jobmatch_tune.inference.postprocess_json import parse_json_output
 from jobmatch_tune.resume.normalize import normalize_resume_eval_row
 from jobmatch_tune.utils.io import read_jsonl, write_text
@@ -90,10 +94,14 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", default="data/eval/resume_manual_eval_text_seed.jsonl")
     parser.add_argument("--model", default="models/Qwen3-14B")
-    parser.add_argument("--adapter", default="outputs/checkpoints/qwen3-14b-jobmatch-dft-20260601")
+    parser.add_argument("--adapter", default=None)
     parser.add_argument("--out", default="outputs/eval_reports/resume_pipeline_eval_report.json")
     parser.add_argument(
         "--predictions-out", default="outputs/eval_reports/resume_pipeline_eval_predictions.jsonl"
+    )
+    parser.add_argument(
+        "--predictions-in",
+        help="Replay a saved prediction JSONL against the current dataset without loading a model",
     )
     parser.add_argument("--load-4bit", action="store_true")
     parser.add_argument("--max-new-tokens", type=int, default=1024)
@@ -105,8 +113,31 @@ def main() -> None:
     args = parser.parse_args()
 
     rows = list(read_jsonl(args.dataset))
-    predictions = run_predictions(rows, args.model, args.adapter, args.load_4bit, args.max_new_tokens)
+    predictions = (
+        align_saved_predictions(
+            [
+                {
+                    **row,
+                    "text": normalize_resume_eval_row(row)["normalized_text"],
+                }
+                for row in rows
+            ],
+            list(read_jsonl(args.predictions_in)),
+        )
+        if args.predictions_in
+        else run_predictions(rows, args.model, args.adapter, args.load_4bit, args.max_new_tokens)
+    )
     report = build_report(predictions, evaluation_context=args.evaluation_context)
+    report["evaluation_provenance"] = {
+        "dataset": args.dataset,
+        "dataset_sha256": file_sha256(args.dataset),
+        "model": args.model,
+        "adapter": args.adapter or "",
+        "load_4bit": args.load_4bit,
+        "max_new_tokens": args.max_new_tokens,
+        "replayed_predictions": args.predictions_in or "",
+        "predictions_sha256": file_sha256(args.predictions_in) if args.predictions_in else "",
+    }
     write_text(args.out, json.dumps(report, ensure_ascii=False, indent=2))
     write_text(args.predictions_out, "\n".join(json.dumps(row, ensure_ascii=False) for row in predictions) + "\n")
     print(json.dumps(report, ensure_ascii=False, indent=2))

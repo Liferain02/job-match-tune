@@ -33,3 +33,23 @@ def test_is_strict_plus_row_rejects_campus_like_text_without_experience():
         "sections": {"responsibilities": "参与服务开发。", "requirements": "2026届毕业生，本科及以上学历，熟悉 Java。"},
     }
     assert is_strict_plus_row(row) is False
+
+
+def test_is_strict_plus_row_rejects_product_manager_for_technical_scope():
+    row = {
+        "job_title": "AI 产品经理",
+        "source": "talent.baidu.com",
+        "clean_text": "岗位职责：负责产品规划和需求分析。任职要求：本科及以上，三年产品经验。",
+        "labels": {
+            "岗位方向": "产品经理",
+            "学历要求": "本科",
+            "经验要求": "3年",
+            "必备技能": ["SQL"],
+        },
+        "sections": {
+            "responsibilities": "负责产品规划、需求分析、效果指标和跨团队交付。",
+            "requirements": "本科及以上，三年产品经验，熟悉数据分析。",
+        },
+    }
+
+    assert is_strict_plus_row(row) is False

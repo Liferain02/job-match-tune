@@ -491,6 +491,7 @@ def test_profile_match_training_sources_exposes_synthetic_only_pool(tmp_path: Pa
     assert profile["source_concentration_ready"] is True
     assert profile["pair_type_counts"] == {
         "synthetic_rule_pair": 3,
+        "synthetic_teacher_labeled_pair": 0,
         "human_reviewed_pair": 0,
         "real_observed_pair": 0,
         "unknown_non_synthetic_pair": 0,
@@ -520,6 +521,32 @@ def test_profile_match_training_sources_does_not_present_curated_fictional_as_re
     assert profile["supports_real_pair_quality_claim"] is False
 
 
+def test_profile_match_training_sources_recognizes_human_reviewed_public_pair(
+    tmp_path: Path,
+):
+    pool = tmp_path / "match.jsonl"
+    row = {
+        "id": "reviewed_1",
+        "source_type": "human_reviewed_public_real_pair",
+        "jd_text": "Java 后端岗位，要求本科、Java 和 MySQL。",
+        "resume_text": "本科软件工程，使用 Java 和 MySQL 开发订单服务。",
+        "meta": {
+            "pair_type": "human_reviewed_public_real_pair",
+            "annotation_status": "human_reviewed_pair_v1",
+        },
+    }
+    pool.write_text(json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
+
+    profile = profile_match_training_sources(str(pool))
+
+    assert profile["human_verified_non_synthetic_rows"] == 1
+    assert profile["human_reviewed_pair_ratio"] == 1.0
+    assert profile["pair_type_counts"]["human_reviewed_pair"] == 1
+    assert profile["real_pair_ratio"] == 0.0
+    assert profile["observed_outcome_rows"] == 0
+    assert profile["supports_real_observed_outcome_claim"] is False
+
+
 def test_profile_match_training_sources_rejects_educational_source_dominance(tmp_path: Path):
     pool = tmp_path / "match.jsonl"
     rows = [
@@ -535,6 +562,30 @@ def test_profile_match_training_sources_rejects_educational_source_dominance(tmp
 
     assert profile["educational_source_rate"] == 0.75
     assert profile["source_concentration_ready"] is False
+
+
+def test_profile_match_training_sources_reports_entity_concentration(tmp_path: Path):
+    pool = tmp_path / "match.jsonl"
+    rows = [
+        {
+            "id": f"pair_{index}",
+            "source_type": "synthetic_teacher_labeled_public_pair",
+            "jd_text": "same job description",
+            "resume_text": f"resume {index}",
+            "meta": {"pair_type": "synthetic_teacher_labeled_pair"},
+        }
+        for index in range(120)
+    ]
+    pool.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+
+    profile = profile_match_training_sources(str(pool))
+
+    assert profile["unique_jd_entities"] == 1
+    assert profile["unique_resume_entities"] == 120
+    assert profile["entity_diversity_ready"] is False
 
 
 def test_profile_match_training_privacy_detects_sensitive_resume_fields(tmp_path: Path):

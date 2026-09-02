@@ -63,6 +63,32 @@ def test_training_sanitizer_removes_personal_profile_links():
     assert "核心技能：Python、FastAPI" in sanitized
 
 
+def test_training_sanitizer_redacts_public_page_footer_identity():
+    text = (
+        "专业技能：Python、FastAPI\n"
+        "⌥ GitHub @example-user\n"
+        "© 2026 张三 · AI Application Engineer · GitHub Pages\n"
+        "Copyright © 2025 Justin Liu. All rights reserved\n"
+        "备案信息"
+    )
+
+    findings = detect_resume_pii(text)
+    sanitized = sanitize_resume_text_for_training(text)
+
+    assert {finding.kind for finding in findings} >= {"social_handle", "copyright_name"}
+    assert "example-user" not in sanitized
+    assert "张三" not in sanitized
+    assert "Justin Liu" not in sanitized
+    assert "Python、FastAPI" in sanitized
+
+
+def test_training_sanitizer_keeps_age_model_error_as_technical_evidence():
+    text = "人脸年龄识别绝对差6岁左右，性别识别准确率97%以上。"
+
+    assert detect_resume_pii(text) == []
+    assert sanitize_resume_text_for_training(text) == text
+
+
 def test_redact_resume_pii_masks_name_near_contact_block():
     text = "项目经历：RAG 系统\n李四\n电话：13812345678 | 邮箱：candidate@example.com"
     redacted = redact_resume_pii(text)
@@ -74,6 +100,40 @@ def test_redact_resume_pii_masks_name_near_contact_block():
 def test_detect_resume_pii_does_not_treat_role_short_line_as_name():
     text = "## 目标岗位\n后端开发\n## 核心技能\nJava Spring Redis"
     assert detect_resume_pii(text) == []
+
+
+def test_training_sanitizer_removes_name_from_self_introduction():
+    text = (
+        "项目经历：\n"
+        "我是彭润泽\n"
+        "大家好，我是程序员庄小焱，目前从事后端开发\n"
+        "庄小焱个人简历\n"
+        "庄小焱GitHub\n"
+        "负责 Python 服务开发"
+    )
+
+    findings = detect_resume_pii(text)
+    sanitized = sanitize_resume_text_for_training(text)
+
+    assert sum(finding.kind == "self_intro_name" for finding in findings) == 2
+    assert sum(finding.kind == "contextual_name" for finding in findings) == 2
+    assert "彭润泽" not in sanitized
+    assert "庄小焱" not in sanitized
+    assert "负责 Python 服务开发" in sanitized
+
+
+def test_self_introduction_name_rule_does_not_remove_role_or_school_sentences():
+    text = "\n".join(
+        [
+            "我是清华大学通用人工智能实验班本科生",
+            "我是一名涉猎广泛的游戏玩家",
+            "我是一个对技术有追求的人",
+            "我是直播歌手投票页面",
+        ]
+    )
+
+    assert detect_resume_pii(text) == []
+    assert sanitize_resume_text_for_training(text) == text
 
 
 def test_redact_resume_metadata_masks_name_in_file_name():
@@ -142,3 +202,23 @@ def test_training_sanitizer_removes_markdown_profile_and_sensitive_attributes():
         assert private_value not in sanitized
     assert "本科，计算机科学与技术" in sanitized
     assert "负责 Python 服务开发" in sanitized
+
+
+def test_training_sanitizer_removes_english_contact_fields_and_phone():
+    text = "\n".join(
+        [
+            "Name: Jane Example",
+            "Phone: +1 (415) 555-0198",
+            "Email: jane@example.com",
+            "LinkedIn: https://linkedin.com/in/jane-example",
+            "Skills: Python, FastAPI, PostgreSQL",
+        ]
+    )
+
+    sanitized = sanitize_resume_text_for_training(text)
+
+    assert "Jane Example" not in sanitized
+    assert "415" not in sanitized
+    assert "jane@example.com" not in sanitized
+    assert "linkedin.com" not in sanitized
+    assert "Skills: Python, FastAPI, PostgreSQL" in sanitized

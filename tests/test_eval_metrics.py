@@ -27,6 +27,14 @@ def test_aggregate_set_metrics_exposes_macro_and_micro_difference():
     assert score["false_negative"] == 1
 
 
+def test_aggregate_set_metrics_treats_all_correct_empty_sets_as_exact():
+    score = aggregate_set_metrics([([], []), ([], [])])
+
+    assert score["micro_precision"] == 1.0
+    assert score["micro_recall"] == 1.0
+    assert score["micro_f1"] == 1.0
+
+
 def test_classification_metrics_reports_imbalance_and_invalid_predictions():
     score = classification_metrics(
         ["高匹配", "高匹配", "bad"],

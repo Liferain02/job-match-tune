@@ -563,7 +563,9 @@ def mark_frozen_evaluation_rows(rows: list[dict]) -> list[dict]:
 
 
 def main() -> None:
-    evaluation_rows = mark_frozen_evaluation_rows(BASE_ROWS)
+    evaluation_rows = mark_frozen_evaluation_rows(
+        [row for row in BASE_ROWS if row.get("label", {}).get("目标岗位") != "产品经理"]
+    )
     write_jsonl("data/eval/resume_manual_eval_seed.jsonl", evaluation_rows)
     write_jsonl("data/eval/resume_manual_eval_text_seed.jsonl", evaluation_rows)
     augmented_rows = evaluation_rows + build_text_variant_rows(evaluation_rows)

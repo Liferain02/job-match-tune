@@ -118,11 +118,11 @@ def ocr_image_file(path: Path) -> str:
 
 def _render_pdf_page_images(path: Path) -> list[bytes]:
     try:
-        import fitz
+        import pymupdf
     except Exception as exc:  # pragma: no cover - dependency guard
         raise RuntimeError("PyMuPDF is required for PDF OCR rendering") from exc
 
-    document = fitz.open(str(path))
+    document = pymupdf.open(str(path))
     images: list[bytes] = []
     for page in document:
         pix = page.get_pixmap(dpi=200, alpha=False)

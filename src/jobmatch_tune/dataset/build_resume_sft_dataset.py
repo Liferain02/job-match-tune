@@ -140,15 +140,19 @@ def build_resume_sample(row: dict[str, Any], variant_name: str, rendered_text: s
     source_group = str(row.get("source_group") or row["id"])
     source_group = source_group.removesuffix("_ocr")
     source_meta = row.get("meta") or {}
+    sample_meta = {
+        "data_origin": str(row.get("source_type") or "unknown"),
+        "provenance": str(source_meta.get("provenance") or "unknown"),
+        "contains_real_person_data": source_meta.get("contains_real_person_data"),
+    }
+    for key in ("language", "domain", "generator"):
+        if source_meta.get(key):
+            sample_meta[key] = str(source_meta[key])
     return {
         "id": f"{row['id']}_{variant_name}",
         "task_type": "resume_parse",
         "source_group": source_group,
-        "meta": {
-            "data_origin": str(row.get("source_type") or "unknown"),
-            "provenance": str(source_meta.get("provenance") or "unknown"),
-            "contains_real_person_data": source_meta.get("contains_real_person_data"),
-        },
+        "meta": sample_meta,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": resume_parse_prompt(rendered_text)},
