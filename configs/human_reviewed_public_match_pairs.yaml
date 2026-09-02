@@ -1,0 +1,320 @@
+schema_version: 1
+reviewed_at: 2026-09-01
+scope: 真实公开中文技术简历与公开中文技术 JD 的逐对人工匹配判断
+limitations:
+  - 标签是人工证据判断，不是真实投递、面试或录用结果
+  - 所有样本只进入训练集，不进入人工 holdout 或最终评测集
+  - 每一对单独审阅，不通过规则翻转标签，也不使用教师模型生成理由
+
+pairs:
+  - id: p01_dxcqcv_frontend
+    resume_source_id: dxcqcv_frontend
+    jd_id: hf_job_educational_train_2026_05_17_7249854
+    jd_direction: 前端开发
+    level: 高匹配
+    direction_match: true
+    education_match: true
+    experience_match: true
+    matched_skills: [JavaScript, TypeScript, React, Vue, Node.js]
+    missing_skills: [Git]
+    matched_projects: [低代码平台和模块化页面搭建]
+    rationale: 候选人具有多年企业前端与低代码平台经验，React、Vue、TypeScript 和前后端协作证据覆盖该实习 JD 的主要要求。
+
+  - id: p02_woozy_frontend
+    resume_source_id: woozyzzz_frontend
+    jd_id: hf_job_educational_train_2026_05_17_7587973
+    jd_direction: 前端开发
+    level: 高匹配
+    direction_match: true
+    education_match: true
+    experience_match: true
+    matched_skills: [TypeScript, JavaScript, Vue]
+    missing_skills: []
+    matched_projects: [京东物流开放平台的前端架构与性能优化]
+    rationale: 硕士学历、Vue 与 TypeScript 技能以及大型前端项目经验均直接满足岗位要求，且经验明显高于实习岗位门槛。
+
+  - id: p03_xiaomin_frontend
+    resume_source_id: xiaomin_zhou_frontend
+    jd_id: hf_job_educational_train_2026_05_17_7210866
+    jd_direction: 前端开发
+    level: 较匹配
+    direction_match: true
+    education_match: true
+    experience_match: false
+    matched_skills: [JavaScript, TypeScript, Vue]
+    missing_skills: [微信小程序, uni-app]
+    matched_projects: [基于 Vue 和 TypeScript 的记账单页应用]
+    rationale: 前端基础和 Vue 项目证据充分，但简历没有微信小程序、uni-app 和六个月实习可用性的直接证据。
+
+  - id: p04_justin_llm
+    resume_source_id: justin_ai_infra
+    jd_id: hf_job_educational_train_2026_05_17_3245260
+    jd_direction: 算法工程
+    level: 较匹配
+    direction_match: true
+    education_match: true
+    experience_match: true
+    matched_skills: [Python, Transformers, RAG, LangGraph]
+    missing_skills: [PyTorch, TensorFlow]
+    matched_projects: [基于文章树的 RAG 精度调优, LLM 推理与训练平台开发]
+    rationale: 已有 LLM 推理、微调平台和 RAG 落地经历，但简历没有明确给出该 JD 强调的 PyTorch 或 TensorFlow 项目证据。
+
+  - id: p05_zheng_java
+    resume_source_id: zhengxiaoyao_game_java
+    jd_id: hf_job_educational_train_2026_05_17_7557917
+    jd_direction: 后端开发
+    level: 较匹配
+    direction_match: false
+    education_match: true
+    experience_match: true
+    matched_skills: [Java, Linux, Go]
+    missing_skills: [Spring Boot, Spring Cloud, Vue, MySQL, Redis]
+    matched_projects: [校内 Java 系统开发, 游戏 Java 开发经历]
+    rationale: Java 开发与完整项目经历可迁移，但简历主方向偏游戏客户端，且缺少该全栈 JD 的 Spring、Vue、MySQL 和 Redis 直接证据。
+
+  - id: p06_wusas_java
+    resume_source_id: wusas_java
+    jd_id: hf_job_educational_train_2026_05_17_7671368
+    jd_direction: 后端开发
+    level: 较匹配
+    direction_match: true
+    education_match: true
+    experience_match: true
+    matched_skills: [Java, MySQL, Git, Docker]
+    missing_skills: [Spring Boot, MyBatis, Redis]
+    matched_projects: [基于 SSM 框架的新客服销售系统]
+    rationale: 本科软件工程背景和 Java、MySQL、SSM 项目满足初级岗位主体要求，但 Spring Boot、MyBatis 和 Redis 证据不完整。
+
+  - id: p07_lander_mobile
+    resume_source_id: lander_android
+    jd_id: hf_job_educational_train_2026_05_17_3245256
+    jd_direction: 客户端开发
+    level: 较匹配
+    direction_match: true
+    education_match: true
+    experience_match: true
+    matched_skills: [Android, Java, C, C++]
+    missing_skills: [OpenGL, OpenCV, iOS]
+    matched_projects: [FeelingAlarm 安卓闹钟应用, 2048 安卓移植]
+    rationale: Android 开发与移动端项目方向一致，但岗位核心的图形图像算法、OpenGL 和 OpenCV 经历没有直接证据。
+
+  - id: p08_njuhao_algorithm
+    resume_source_id: njuhao_engineering
+    jd_id: hf_job_educational_train_2026_05_17_3405171
+    jd_direction: 算法工程
+    level: 较匹配
+    direction_match: true
+    education_match: true
+    experience_match: true
+    matched_skills: [Python, PyTorch, TensorFlow, OpenCV]
+    missing_skills: [通信算法, 图像信号处理]
+    matched_projects: [基于深度学习的视频异常事件检测系统]
+    rationale: 硕士学历和计算机视觉算法项目覆盖岗位主体要求，但没有通信算法或图像信号处理方向的直接项目证据。
+
+  - id: p09_dennis_data
+    resume_source_id: dennis_data
+    jd_id: hf_job_educational_train_2026_05_17_2557760
+    jd_direction: 数据开发
+    level: 较匹配
+    direction_match: true
+    education_match: true
+    experience_match: true
+    matched_skills: [Python, SQL, MATLAB]
+    missing_skills: [Hadoop, Spark, Kafka, 数据仓库]
+    matched_projects: [电影数据爬取清洗与分析, 油气管道优化数据库与可视化]
+    rationale: 双硕士背景和数据清洗、分析、SQL 项目满足基础要求，但缺少数据仓库及 Hadoop、Spark、Kafka 工程证据。
+
+  - id: p10_winter_frontend
+    resume_source_id: winterdogdog_frontend
+    jd_id: hf_job_educational_train_2026_05_17_7587973
+    jd_direction: 前端开发
+    level: 基本匹配
+    direction_match: true
+    education_match: true
+    experience_match: true
+    matched_skills: [TypeScript, JavaScript]
+    missing_skills: [Vue]
+    matched_projects: [ERP 系统用户管理和财务管理界面]
+    rationale: 有前端实习、JavaScript 和页面开发经历，但该岗位明确要求熟练 Vue，简历未提供 Vue 直接证据。
+
+  - id: p11_surui_frontend
+    resume_source_id: surui_frontend
+    jd_id: hf_job_educational_validation_2026_05_17_7909019
+    jd_direction: 前端开发
+    level: 较匹配
+    direction_match: true
+    education_match: true
+    experience_match: false
+    matched_skills: [JavaScript, ECharts]
+    missing_skills: [React, React Native, Vue]
+    matched_projects: [旅游数据可视化平台, 校庆微信小程序]
+    rationale: 本科背景和两个前端项目可证明基本开发能力，但没有正式实习经历，也没有岗位偏好的 React 与 React Native 证据。
+
+  - id: p12_yanlee_frontend
+    resume_source_id: yanlee_frontend
+    jd_id: hf_job_educational_train_2026_05_17_7249854
+    jd_direction: 前端开发
+    level: 高匹配
+    direction_match: true
+    education_match: true
+    experience_match: true
+    matched_skills: [JavaScript, React, Vue, Git]
+    missing_skills: [Vite]
+    matched_projects: [小程序技术架构与组件研发]
+    rationale: 五年前端经验、React/Vue 技术和小程序架构经历全面覆盖岗位职责，实际经验明显高于实习岗位要求。
+
+  - id: n01_dxcqcv_algorithm
+    resume_source_id: dxcqcv_frontend
+    jd_id: hf_job_educational_train_2026_05_17_3405171
+    jd_direction: 算法工程
+    level: 低匹配
+    direction_match: false
+    education_match: false
+    experience_match: false
+    matched_skills: []
+    missing_skills: [算法预研, 图像信号处理, 通信算法, 系统性能验证]
+    matched_projects: []
+    rationale: 简历集中在企业前端和 Node.js 应用开发，不满足硕士学历，也没有算法预研、信号处理或系统性能验证证据。
+
+  - id: n02_woozy_java
+    resume_source_id: woozyzzz_frontend
+    jd_id: hf_job_educational_train_2026_05_17_7671368
+    jd_direction: 后端开发
+    level: 低匹配
+    direction_match: false
+    education_match: true
+    experience_match: false
+    matched_skills: [Git]
+    missing_skills: [Java, Spring Boot, MyBatis, MySQL, Redis]
+    matched_projects: []
+    rationale: 候选人是资深前端方向，虽满足学历但没有 Java 后端框架和数据库开发的直接证据。
+
+  - id: n03_xiaomin_data
+    resume_source_id: xiaomin_zhou_frontend
+    jd_id: hf_job_educational_train_2026_05_17_2557760
+    jd_direction: 数据开发
+    level: 低匹配
+    direction_match: false
+    education_match: true
+    experience_match: false
+    matched_skills: []
+    missing_skills: [SQL, MySQL, Hadoop, Spark, Kafka]
+    matched_projects: []
+    rationale: 候选人的可核验证据主要是前端入门项目，未展示数据工程、SQL 或大数据平台经历。
+
+  - id: n04_justin_frontend
+    resume_source_id: justin_ai_infra
+    jd_id: hf_job_educational_train_2026_05_17_7249854
+    jd_direction: 前端开发
+    level: 低匹配
+    direction_match: false
+    education_match: true
+    experience_match: false
+    matched_skills: [JavaScript]
+    missing_skills: [HTML, CSS, React, Vue, Vite]
+    matched_projects: []
+    rationale: AI Infra 和 LLM 项目不能替代前端页面、交互与框架经验，简历仅有 JavaScript 弱相关信号。
+
+  - id: n05_zheng_data
+    resume_source_id: zhengxiaoyao_game_java
+    jd_id: hf_job_educational_train_2026_05_17_2557760
+    jd_direction: 数据开发
+    level: 低匹配
+    direction_match: false
+    education_match: false
+    experience_match: false
+    matched_skills: [SQL]
+    missing_skills: [数据仓库, Hadoop, Spark, Kafka, 数据质量]
+    matched_projects: []
+    rationale: 游戏和 Java 应用开发经历与数据工程职责不同，且没有硕士学历及数仓、大数据技术栈证据。
+
+  - id: n06_wusas_frontend
+    resume_source_id: wusas_java
+    jd_id: hf_job_educational_validation_2026_05_17_7909019
+    jd_direction: 前端开发
+    level: 低匹配
+    direction_match: false
+    education_match: true
+    experience_match: false
+    matched_skills: [React]
+    missing_skills: [JavaScript, HTML, CSS, 前端性能优化]
+    matched_projects: []
+    rationale: 候选人核心经历是 Java 后端和 SSM 系统，React 只构成弱相关信号，不能证明完整前端交付能力。
+
+  - id: n07_lander_data
+    resume_source_id: lander_android
+    jd_id: hf_job_educational_train_2026_05_17_2557760
+    jd_direction: 数据开发
+    level: 低匹配
+    direction_match: false
+    education_match: false
+    experience_match: false
+    matched_skills: []
+    missing_skills: [Python, SQL, 数据仓库, Hadoop, Spark, Kafka]
+    matched_projects: []
+    rationale: Android 客户端和信息安全学习经历与硕士层级的数据工程岗位缺少技能、项目和方向重合。
+
+  - id: n08_njuhao_frontend
+    resume_source_id: njuhao_engineering
+    jd_id: hf_job_educational_train_2026_05_17_7249854
+    jd_direction: 前端开发
+    level: 低匹配
+    direction_match: false
+    education_match: true
+    experience_match: false
+    matched_skills: [JavaScript]
+    missing_skills: [HTML, CSS, React, Vue, Vite]
+    matched_projects: []
+    rationale: 简历的主体是计算机视觉算法研究和后端工具，缺少前端页面、交互、框架及浏览器工程项目证据。
+
+  - id: n09_dennis_frontend
+    resume_source_id: dennis_data
+    jd_id: hf_job_educational_train_2026_05_17_7587973
+    jd_direction: 前端开发
+    level: 低匹配
+    direction_match: false
+    education_match: true
+    experience_match: false
+    matched_skills: []
+    missing_skills: [Vue, TypeScript, 前端性能优化]
+    matched_projects: []
+    rationale: 数据分析与运筹项目没有 Vue、TypeScript 或 Web 前端交付证据，方向不匹配。
+
+  - id: n10_winter_llm
+    resume_source_id: winterdogdog_frontend
+    jd_id: hf_job_educational_train_2026_05_17_3245260
+    jd_direction: 算法工程
+    level: 低匹配
+    direction_match: false
+    education_match: true
+    experience_match: false
+    matched_skills: []
+    missing_skills: [Python, PyTorch, TensorFlow, Transformer, 大模型微调]
+    matched_projects: []
+    rationale: 前端实习和通信研究经历没有大模型、NLP 或深度学习框架的直接证据。
+
+  - id: n11_surui_java
+    resume_source_id: surui_frontend
+    jd_id: hf_job_educational_train_2026_05_17_7671368
+    jd_direction: 后端开发
+    level: 低匹配
+    direction_match: false
+    education_match: true
+    experience_match: false
+    matched_skills: []
+    missing_skills: [Java, Spring Boot, MyBatis, MySQL, Redis]
+    matched_projects: []
+    rationale: 可核验项目集中在前端可视化和小程序，没有 Java 后端框架、数据库或接口服务开发证据。
+
+  - id: n12_yanlee_algorithm
+    resume_source_id: yanlee_frontend
+    jd_id: hf_job_educational_train_2026_05_17_3405171
+    jd_direction: 算法工程
+    level: 低匹配
+    direction_match: false
+    education_match: false
+    experience_match: false
+    matched_skills: [Python]
+    missing_skills: [算法预研, 图像信号处理, 通信算法, 硕士学历]
+    matched_projects: []
+    rationale: 多年前端工程经验与算法预研岗方向不同，Python 弱相关信号不足以替代硕士学历和信号处理研究证据。

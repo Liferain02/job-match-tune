@@ -1,0 +1,1347 @@
+schema_version: 1
+reviewed_at: 2026-09-02
+scope: 中文技术岗求职者自行公开的完整简历页面；仅用于本地研究训练
+policy:
+  permission_rule: 未发现明确禁止训练或再利用的声明
+  privacy_rule: 原始网页和 PDF 不落盘，只保留去除联系方式及个人属性后的技术经历文本
+  labeling_rule: 岗位方向人工核验，其他标签只能逐字抽取原文证据
+
+sources:
+  - id: sprying_frontend
+    url: https://sprying.github.io/resume/
+    format: html
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: dxcqcv_frontend
+    url: https://dxcqcv.github.io/resume/html/index.html
+    format: html
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: dave0824_backend
+    url: https://dave0824.github.io/about/
+    format: html
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: woozyzzz_frontend
+    url: https://woozyzzz.github.io/cv/dist/
+    format: html
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: xiaomin_zhou_frontend
+    url: https://xiaomin-zhou.github.io/Resume/
+    format: html
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: brokes6_android
+    url: https://brokes6.github.io/
+    format: html
+    target_direction: 客户端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: justin_ai_infra
+    url: https://justin-12138.github.io/cv.html
+    format: html
+    target_direction: AI Infra
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: cjkyros_backend
+    url: https://cjkyros.github.io/
+    format: html
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: zhengxiaoyao_game_java
+    url: https://zhengxiaoyao0716.github.io/my-resume/
+    format: html
+    target_direction: 客户端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: wusas_java
+    url: https://wusas.github.io/resume/Java%E5%BC%80%E5%8F%91%E5%B7%A5%E7%A8%8B%E5%B8%88.pdf
+    format: pdf
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: lander_android
+    url: https://landerlyoung.github.io/assets/documents/resume.pdf
+    format: pdf
+    target_direction: 客户端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: njuhao_engineering
+    url: https://njuhaozhang.github.io/src/chenese_resume_v1.pdf
+    format: pdf
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: dennis_data
+    url: https://dennis-sun.github.io/Resume_DennisSun.pdf
+    format: pdf
+    target_direction: 数据开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: calxu_algorithm
+    url: https://calxu.github.io/quote/resume_202202.pdf
+    format: pdf
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: winterdogdog_frontend
+    url: https://winterdogdog.github.io/shendongdong.pdf
+    format: pdf
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: surui_frontend
+    url: https://surui2001.github.io/images/MyCV.pdf
+    format: pdf
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: zhuchenshu_backend
+    url: https://zhuchenshu.github.io/2018/09/17/%E7%AE%80%E5%8E%86/%E5%9F%BA%E6%9C%AC%E7%AE%80%E5%8E%86.pdf
+    format: pdf
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: yanlee_frontend
+    url: https://yanlee26.github.io/assets/doc/LiYan-ResumeCN.pdf
+    format: pdf
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: nowcoder_20230707_llm_algorithm
+    url: https://uploadfiles.nowcoder.com/images/20230707/286302797_1688737974240/96FEF2FAE781D345739C3C166EBC1A95
+    source_page_url: https://www.nowcoder.com/discuss/506948783847047168
+    format: image
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: nowcoder_20240326_java_intern
+    url: https://uploadfiles.nowcoder.com/message_images/20240326/817222347_1711419766810/discuss_1711419766316.jpeg
+    source_page_url: https://www.nowcoder.com/feed/main/detail/3b84d2d270084ed484cb2bfa2c5ebf7d
+    format: image
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: nowcoder_20250116_frontend
+    url: https://uploadfiles.nowcoder.com/images/20250116/721281625_1737028694155/D2B5CA33BD970F64A6301FA75AE2EB22
+    source_page_url: https://www.nowcoder.com/discuss/709494634371612672
+    format: image
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: nowcoder_20250515_java_backend
+    url: https://uploadfiles.nowcoder.com/images/20250515/508360968_1747282454871/D2B5CA33BD970F64A6301FA75AE2EB22
+    source_page_url: https://www.nowcoder.com/discuss/752502006916321280
+    format: image
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: dengshuang_cv_algorithm
+    url: https://ds0529.github.io/files/ShuangDengCV-CN.pdf
+    format: pdf
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: liyu_ml_algorithm
+    url: https://sthsf.github.io/about/cv/Resume_liyu.pdf
+    format: pdf
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: johnnwen_recommendation_algorithm
+    url: https://johnnwen.github.io/attach/%E7%8E%8B%E6%9C%89%E6%96%87%E7%AE%80%E5%8E%86.pdf
+    format: pdf
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: jacsonlee_java_backend
+    url: https://jacsonlee.github.io/Blog/p/jason.pdf
+    format: pdf
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: tiling_tan_frontend
+    url: https://tiling-tan.github.io/CSS_resume/resume.pdf
+    format: pdf
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: whatwhyhow_frontend
+    url: https://whatwhyhow7.github.io/resume/assets/pdf/%E5%89%8D%E7%AB%AF%E5%B7%A5%E7%A8%8B%E5%B8%88_%E7%8E%8B%E6%96%87%E8%B1%AA_18811778915.pdf
+    format: pdf
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: byelemon_python_backend
+    url: https://bye-lemon.github.io/about/about.pdf
+    format: pdf
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: hansenjohn_cv_algorithm
+    url: https://hansenjohn.github.io/files/%E8%92%8B%E7%BF%B0%E6%A3%AE%E7%AE%80%E5%8E%8620250612.pdf
+    format: pdf
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: yutheon_cv_algorithm
+    url: https://yutheon.github.io/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: chaiheju_ai_algorithm
+    url: https://chaiheju.github.io/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: zhuangxiaoyan_java_backend
+    url: https://zhuang-xiaoyan.github.io/zhuangxiaoyan/resume/
+    format: html
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: dshuishui_go_backend
+    url: https://dshuishui.github.io/zh/
+    format: html
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: kirigiri_ai_engineering
+    url: https://kirigirisuzumiya.github.io/cn
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: zshs_java_ai_backend
+    url: https://zshs000.github.io/
+    format: html
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: sake29_java_backend
+    url: https://sake29.github.io/
+    format: html
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: hankliu62_frontend
+    url: https://hankliu62.github.io/resume/
+    format: html
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: nowcoder_20241010_software_test
+    url: https://uploadfiles.nowcoder.com/images/20241010/73502180_1728557205456/9EAD0A3FA0121D9CFF79B81623584286
+    source_page_url: https://www.nowcoder.com/feed/main/detail/a0f668f50f7b4d28b62d474c9f7e2eff
+    format: image
+    target_direction: 测试开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: nowcoder_20260731_embedded_test
+    urls:
+      - https://uploadfiles.nowcoder.com/images/20260731/890020483_1785470476247/A7AD72BA730791EC2DDADEF8ED2582F4
+      - https://uploadfiles.nowcoder.com/images/20260731/890020483_1785470476119/E040E211116E3BECD26A71C555A861FA
+    source_page_url: https://www.nowcoder.com/feed/main/detail/4862b0f3ed8845be9f5ac9364d4522a8
+    format: image
+    target_direction: 测试开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: nowcoder_20260621_embedded
+    url: https://uploadfiles.nowcoder.com/images/20260621/930878733_1782012240864/5C225BE10113296E0398BF75911E120E
+    source_page_url: https://www.nowcoder.com/feed/main/detail/9ee88f95ef6e472fa4f83672d877e361
+    format: image
+    target_direction: 嵌入式开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: shanghaixuhuan_data_backend
+    url: https://shanghaixuhuan.github.io/
+    format: html
+    target_direction: 数据开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: paxinla_data_engineering
+    url: https://paxinla.github.io/my-online-resume/cn/
+    format: html
+    target_direction: 数据开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: tangjingwei_embedded
+    url: https://tang-jingwei.github.io/
+    format: html
+    target_direction: 嵌入式开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: boberic_robotics_algorithm
+    url: https://bob-eric.github.io/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: lsg_data_algorithm
+    url: https://lsgggggg.github.io/
+    format: html
+    target_direction: 数据开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: liushuai_robotics_embedded
+    url: https://liushuai-neo.github.io/files/LiuShuai_CV.pdf
+    format: pdf
+    target_direction: 嵌入式开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: hejiahua_embedded
+    url: https://hejiahua007.github.io/about/
+    format: html
+    target_direction: 嵌入式开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: liuwenwu_cpp_embedded
+    url: https://liu-wenwu.github.io/about/
+    format: html
+    target_direction: 嵌入式开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: zanelam_planning_algorithm
+    url: https://zanelam.github.io/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: stevehao_robotics_embedded
+    url: https://stevehao74.github.io/
+    format: html
+    target_direction: 嵌入式开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: davidhlp_java_backend
+    url: https://davidhlp.github.io/about/
+    format: html
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: xiaorui2_java_backend
+    url: https://xiaorui2.github.io/about/
+    format: html
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: liuxinglong_backend
+    url: https://liuxinglong.github.io/
+    format: html
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: ai_algorithm_1095362317
+    url: https://1095362317.github.io/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: liulu_thermal_ml_algorithm
+    url: https://liulu789.github.io/resume/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: imchong_robot_control
+    url: https://imchong.github.io/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: xueming_recommendation
+    url: https://xuemingw.github.io/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: mojiajun_ai_test
+    url: https://gav010625-hub.github.io/mo-jiajun-resume/
+    format: html
+    target_direction: 测试开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: luenxu_ai_application
+    url: https://a912289748.github.io/resume/
+    format: html
+    target_direction: AI应用开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: pengrunze_control_algorithm
+    url: https://runze12345.github.io/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: xueyu_ai_delivery_sre
+    url: https://xueyu231.github.io/resume/
+    format: html
+    target_direction: 运维开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: haipihuang_robotics
+    url: https://haipihuang.github.io/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: ciwei_java_backend
+    url: https://ciweigg2.github.io/ciwei-resume/
+    format: html
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: danniesheng_data_science
+    url: https://danniesheng.github.io/resume-cn/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: zhh_network_backend
+    url: https://zhh2001.github.io/resume
+    format: html
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: taccisum_java_backend
+    url: https://taccisum.github.io/resume/index_advanced.html
+    format: html
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: presbyter_go_backend
+    url: https://presbyter.github.io/CV/
+    format: html
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: zy_go_backend
+    url: https://zy84338719.github.io/resume-easy/
+    format: html
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: xiangyutang_ml_algorithm
+    url: https://xiangyutang.github.io/resume.pdf
+    format: pdf
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: xcqiu_cv_algorithm
+    url: https://xcqiu.github.io/documents/CV_QIU_Xuchong_CN.pdf
+    format: pdf
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: babbittry_embedded
+    url: https://babbittry.github.io/resume/
+    format: html
+    target_direction: 嵌入式开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: lotayou_cv_algorithm
+    url: https://lotayou.github.io/lingboyang-cv-2023.pdf
+    format: pdf
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: yongzhishe_java_backend
+    url: https://yongzhishe.github.io/assets/Curriculum_Vitae.pdf
+    format: pdf
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: jypeng_recommendation_algorithm
+    url: https://jypeng28.github.io/files/CV_jypeng.pdf
+    format: pdf
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: cbachen_remote_sensing_algorithm
+    url: https://cbachen1997.github.io/file/Resume-CBA.pdf
+    format: pdf
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: janwrice_embedded
+    url: https://janwrice.github.io/about.html
+    format: html
+    target_direction: 嵌入式开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: nomo_ai_backend
+    url: https://nomo-zhuoyu.github.io/NOMO_HOME/HTML/introduction.html
+    format: html
+    target_direction: AI应用开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: tenghehan_nlp_algorithm
+    url: https://tenghehan.github.io/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: ranqiu_llm_algorithm
+    url: https://ran-qiu.github.io/My-resume/
+    format: html
+    target_direction: AI应用开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: muxiafeng_test_development
+    url: https://muxiafeng.github.io/
+    format: html
+    target_direction: 测试开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: tyouzu_frontend
+    url: https://tyouzu1.github.io/resume/
+    format: html
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: yococoxc_ios_client
+    url: https://yococoxc.github.io/15203420020073.html
+    format: html
+    target_direction: 客户端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: ghzphy_semiconductor_algorithm
+    url: https://ghzphy.github.io/resume/resume_zh-cn.html
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: angie_ai_application
+    url: https://angieissleepy.github.io/portfolio/
+    format: html
+    target_direction: AI应用开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: huangjj_automation_test
+    url: https://huangjj27.github.io/resume.html
+    format: html
+    target_direction: 测试开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: refraindai_embedded
+    url: https://refraindai.github.io/
+    format: html
+    target_direction: 嵌入式开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: leafccc_go_backend
+    url: https://leafccc.github.io/guide/
+    format: html
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: oxygen_robotics_embedded
+    url: https://oxygen-ddl.github.io/
+    format: html
+    target_direction: 嵌入式开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: durant_autonomous_embedded
+    url: https://durant35.github.io/uploads/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6%E7%AE%97%E6%B3%95%E5%B7%A5%E7%A8%8B%E5%B8%88_%E4%B8%AD%E5%B1%B1%E5%A4%A7%E5%AD%A6_%E8%BD%AF%E4%BB%B6%E5%B7%A5%E7%A8%8B%E7%A0%94%E7%A9%B6%E7%94%9F_%E9%99%88%E8%83%9C%E6%9D%B0.pdf
+    format: pdf
+    target_direction: 嵌入式开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: myoungxu_cv_algorithm
+    url: https://myoungxu.github.io/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: junjiesu_ai_agent
+    url: https://junjie-su.github.io/files/CV-%E8%8B%8F%E4%BF%8A%E6%9D%B0.pdf
+    format: pdf
+    target_direction: AI应用开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: liboya_embedded
+    url: https://liboya-cb.github.io/
+    format: html
+    target_direction: 嵌入式开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: charlie_xiao_systems
+    url: https://charlie-xiao.github.io/assets/pdf/yxiao-cv/yxiao-cv-zh.pdf
+    format: pdf
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: zhongwuzw_ios_client
+    url: https://zhongwuzw.github.io/about/
+    format: html
+    target_direction: 客户端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: jayvee_nlp_algorithm
+    url: https://jayveehe.github.io/about/resume.html
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: liudongdong_cv_algorithm
+    url: https://liudongdong1.github.io/about/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: zhaozhipeng_multimodal_algorithm
+    url: https://zhaozhipeng1997.github.io/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: agathe_erlang_backend
+    url: https://agathechristie.github.io/about/
+    format: html
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: mccsx_frontend
+    url: https://mccsx.github.io/resume/resume2019.pdf
+    format: pdf
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: gaosun_fullstack
+    url: https://gao-sun.github.io/showcase/resume.html
+    format: html
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: cnythiama_llm_data
+    url: https://cnythiama.github.io/About.Me/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: tulvgengenr_hpc_backend
+    url: https://tulvgengenr.github.io/cv/
+    format: html
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: gbone_medical_cv_algorithm
+    url: https://gbone3176.github.io/cv/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: teisei_bigdata_backend
+    url: https://teisei.github.io/resume/cv_cheng_zh/
+    format: html
+    target_direction: 数据开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: visiky_frontend_visualization
+    url: https://visiky.github.io/resume/?template=template2&user=visiky
+    format: html
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: bjkjkzhou_ai_algorithm
+    url: https://bjkjkzhou.github.io/zhouhengai/resume/resume_ZhouHeng.html
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: jingsam_gis_backend
+    url: https://jingsam.github.io/assets/%E7%AE%80%E5%8E%86_GIS_%E7%A0%94%E5%8F%91%E4%B8%BB%E7%AE%A1_%E5%BD%AD%E9%87%91%E9%87%91_%E6%AD%A6%E6%B1%89%E5%A4%A7%E5%AD%A6_18771991849.pdf
+    format: pdf
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: althealam_data_algorithm
+    url: https://althealam.github.io/documents/kaheilam-cv-cn.pdf
+    format: pdf
+    target_direction: 数据开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: desargues_cv_algorithm
+    url: https://desarguesc.github.io/assets/cv-single-page.pdf
+    format: pdf
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: alphagomk_cv_algorithm
+    url: https://alphagomk.github.io/contents/CV_MK_ZH.pdf
+    format: pdf
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: scau_algae_geoai
+    url: https://scau-algae.github.io/my-cv/pages/about/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: langjihao_ai_fullstack
+    url: https://langjihao.github.io/
+    format: html
+    target_direction: AI应用开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: frank2679_ml_systems
+    url: https://frank2679.github.io/resume/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: eatonl_cv_algorithm
+    url: https://eatonl.github.io/pdf/lyt.pdf
+    format: pdf
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: fanhang_energy_data
+    url: https://fanhang.github.io/pdf/fanhang_CV.pdf
+    format: pdf
+    target_direction: 数据开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: mindawei_java_data
+    url: https://mindawei.github.io/about/docs/resume/cv-zh.pdf
+    format: pdf
+    target_direction: 数据开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: lianghuaibin_java_backend
+    url: https://lianghuaibin.github.io/lianghuaibin.pdf
+    format: pdf
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: callstorm_sre
+    url: https://callstorm.github.io/about/
+    format: html
+    target_direction: 运维开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: holajulie_frontend
+    url: https://holajulie.github.io/resume/project/index.html
+    format: html
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: hongyuxie_java_backend
+    url: https://hongyuxie.github.io/MyResume_CN/
+    format: html
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: abnerma_cloud_infra
+    url: https://abner-ma.github.io/
+    format: html
+    target_direction: AI Infra
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: shengzh_spark_data
+    url: https://shengzh.github.io/
+    format: html
+    target_direction: 数据开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: asgardtim_cv_embedded
+    url: https://asgard-tim.github.io/
+    format: html
+    target_direction: 嵌入式开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: cnwuyueyu_medical_cv
+    url: https://cnwuyueyu.github.io/resume/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: anonbug_frontend
+    url: https://anonbug.github.io/resume/
+    format: html
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: kutugu_frontend
+    url: https://kutugu.github.io/resume/
+    format: html
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: fengzhiheng_hpc_data
+    url: https://fengzhiheng.github.io/about/
+    format: html
+    target_direction: 数据开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: comradewong_frontend
+    url: https://comradewong.github.io/new-resume/
+    format: html
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: xinyer_mobile
+    url: https://xinyer.github.io/about/
+    format: html
+    target_direction: 客户端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: zjffun_frontend
+    url: https://zjffun.github.io/online-resume/
+    format: html
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: aidcheng_golang_backend
+    url: https://aidcheng.github.io/static/assets/cv/cheng-chinese.pdf
+    format: pdf
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: binherunning_nlp_algorithm
+    url: https://binherunning.github.io/cv/cv_zh.pdf
+    format: pdf
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: liaoziqiang_hpc_algorithm
+    url: https://liao-ziqiang.github.io/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: ccnyou_cpp_client
+    url: https://ccnyou.github.io/about/index.htm
+    format: html
+    target_direction: 客户端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: raynaye_test_data
+    url: https://raynaye.github.io/CV/
+    format: html
+    target_direction: 测试开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: happytraveller_security_test
+    url: https://happytraveller-alone.github.io/resume/resume.pdf
+    format: pdf
+    target_direction: 安全工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: xxjan_data_algorithm
+    url: https://xxjan719.github.io/post/resume/Chinese_cv.pdf
+    format: pdf
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: ranguo_embedded
+    url: https://ran-guo.github.io/resume/images/CV/cv%28cn%29.pdf
+    format: pdf
+    target_direction: 嵌入式开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: adrianwang_golang_backend
+    url: https://adrianwangs.github.io/about/
+    format: html
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: keymaker_kernel_security
+    url: https://raw.githubusercontent.com/keymaker-arch/resume/main/resume.pdf
+    source_page_url: https://github.com/keymaker-arch/resume
+    format: pdf
+    target_direction: 安全工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: sulq_backend_ai
+    url: https://raw.githubusercontent.com/su-lq/resume/master/README.org
+    source_page_url: https://github.com/su-lq/resume
+    format: html
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: mrrobotter_android
+    url: https://raw.githubusercontent.com/MrRobotter/AndroidGuide/master/resource/Android/%E6%88%91%E7%9A%84%E7%AE%80%E5%8E%86.md
+    source_page_url: https://github.com/MrRobotter/AndroidGuide/blob/master/resource/Android/%E6%88%91%E7%9A%84%E7%AE%80%E5%8E%86.md
+    format: html
+    target_direction: 客户端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: piasy_android_multimedia
+    url: https://piasy.github.io/resume/piasy_resume_zh.pdf
+    source_page_url: https://piasy.github.io/resume/
+    format: pdf
+    target_direction: 客户端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: rnet_frontend_fullstack
+    url: https://rnet-ao.github.io/index.html
+    format: html
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: gongvirgil_php_backend
+    url: https://gongvirgil.github.io/resume/GongQiang_PHPer_Resume.pdf
+    source_page_url: https://gongvirgil.github.io/resume/
+    format: pdf
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: xushaoxiao_backend_infra
+    url: https://xushaoxiao.github.io/files/resume-lance-latest.pdf
+    format: pdf
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: umeimmense_frontend
+    url: https://umeimmense.github.io/resume/resume.pdf
+    source_page_url: https://umeimmense.github.io/resume/
+    format: pdf
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: xudongwang_ai_algorithm
+    url: https://xd-w.github.io/cv/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: yyhsz_frontend
+    url: https://yyhsz.github.io/resume/src/%E5%89%8D%E7%AB%AF%E5%B7%A5%E7%A8%8B%E5%B8%88-%E4%BD%99%E9%93%B6%E6%B5%B7-%E5%8C%97%E4%BA%AC%E7%A7%91%E6%8A%80%E5%A4%A7%E5%AD%A6.pdf
+    source_page_url: https://yyhsz.github.io/resume/src/index.html
+    format: pdf
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: flachang_frontend
+    url: https://flachang.github.io/.-999/dist/index.html
+    format: html
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: zjjohn_ops_frontend
+    url: https://zj-john.github.io/cv/ckbdbl400000m2ktycvykzhf2.html
+    format: html
+    target_direction: 运维开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: csming_android
+    url: https://csming1995.github.io/resume/
+    format: html
+    target_direction: 客户端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: damanyang_embedded
+    url: https://daman-yang.github.io/chinese/
+    format: html
+    target_direction: 嵌入式开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: yeshunlong_ai_fullstack
+    url: https://yeshunlong.github.io/document/resume.pdf
+    format: pdf
+    target_direction: AI Infra
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: lvxiaoxin_python_backend
+    url: https://lvxiaoxin.github.io/CV.pdf
+    format: pdf
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: jiahuimeng_ai_application
+    url: https://jiahui-meng.github.io/index_cn.html
+    format: html
+    target_direction: AI应用开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: mrbian_fullstack
+    url: https://mrbian.github.io/images/resume.pdf
+    format: pdf
+    target_direction: 后端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: ovilia_frontend
+    url: https://ovilia.github.io/cv/cn.html
+    source_page_url: https://github.com/Ovilia/cv
+    format: html
+    target_direction: 前端开发
+    license_status: source_declared_mit
+    training_decision: allowed_after_deidentification
+
+  - id: liweitianux_data_backend
+    url: https://raw.githubusercontent.com/liweitianux/resume/master/resume-zh.tex
+    source_page_url: https://github.com/liweitianux/resume
+    format: html
+    target_direction: 数据开发
+    license_status: source_declared_lppl
+    training_decision: allowed_after_deidentification
+
+  - id: hoochanlon_ops
+    url: https://raw.githubusercontent.com/hoochanlon/jsonresume-theme-mix/master/resume.json
+    source_page_url: https://github.com/hoochanlon/jsonresume-theme-mix
+    format: html
+    target_direction: 运维开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: yujiangshui_frontend
+    url: https://yujiangshui.github.io/about-me/
+    format: html
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: sixmsliu_unity_client
+    url: https://666msliu.github.io/
+    format: html
+    target_direction: 客户端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: mywsq_frontend
+    url: https://mywsq.github.io/resume/
+    format: html
+    target_direction: 前端开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: serea_security_algorithm
+    url: https://serea.github.io/files/CV_Suliya_public.pdf
+    format: pdf
+    target_direction: 安全工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: youhuibai_ai_infra
+    url: https://youhuibai.github.io/attaches/CV.pdf
+    format: pdf
+    target_direction: AI Infra
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: jingwenwang_algorithm
+    url: https://jingwenwang95.github.io/resume/CV_CN.pdf
+    format: pdf
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: taoyouxian_data_backend
+    url: https://taoyouxian.github.io/cv/cv/taoyouxian.pdf
+    format: pdf
+    target_direction: 数据开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: intrepidli_ai_backend
+    url: https://intrepidli.github.io/uploads/resume_zh.pdf
+    format: pdf
+    target_direction: AI应用开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: arccsc_gpu_algorithm
+    url: https://arccsc-china.github.io/docs/ShuyanZhang-CV.pdf
+    format: pdf
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: llpspark_cv_algorithm
+    url: https://llpspark.github.io/Download/Resume_Download/resume.pdf
+    format: pdf
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: sherryw_ml_algorithm
+    url: https://sherryw0424.github.io/CV/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: luyq_embodied_algorithm
+    url: https://luyq-hhh.github.io/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: lilanovo_ai_security
+    url: https://lilanovo.github.io/cv/
+    format: html
+    target_direction: 安全工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: dashandong_embedded_imaging
+    url: https://dashandong.github.io/assets/pdf/DashanDong_CV_zh.pdf
+    format: pdf
+    target_direction: 嵌入式开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: jackhit_embedded
+    url: https://jack-hit.github.io/pdf/jingwen_CN.pdf
+    format: pdf
+    target_direction: 嵌入式开发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: fhshen_cv_algorithm
+    url: https://fhshen2022.github.io/pdf/resume.pdf
+    format: pdf
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: ezeli_nlp_algorithm
+    url: https://ezeli.github.io/about/%E6%9D%8E%E5%BD%A4%20-%20%E4%B8%AA%E4%BA%BA%E7%AE%80%E5%8E%86.pdf
+    format: pdf
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: microhan_autonomous_algorithm
+    url: https://micro-han.github.io/assets/doc/YXH_CN_CV_v25.2.9.pdf
+    format: pdf
+    target_direction: 汽车软件/智驾研发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: ppbangkgt_autonomous_algorithm
+    url: https://ppbangkgt.github.io/resume/
+    format: html
+    target_direction: 汽车软件/智驾研发
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: xuchaoxi_ai_security
+    url: https://xuchaoxi.github.io/
+    format: html
+    target_direction: 安全工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+  - id: yuhongwei_algorithm
+    url: https://yuhongwei22.github.io/
+    format: html
+    target_direction: 算法工程
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_after_deidentification
+
+excluded_sources:
+  - name: yaogina.github.io/gina511.github.io/profile/湖南大学人工智能专业姚姬娜.pdf
+    reason: 搜索索引仍有内容，但公开 PDF 已返回 404，删除失效来源
+  - name: zhaoky.github.io/flqin/2015
+    reason: 公开页面已返回 404，删除失效来源
+  - name: guoliang25.github.io/Resume/resume.html
+    reason: 公开页面已返回 404，删除失效来源
+  - name: psychelzh.github.io/resume_zh
+    reason: 公开页面已返回 404，删除失效来源
+  - name: galenwong.github.io/resume/resume.pdf
+    reason: 公开 PDF 已返回 404，删除失效来源
+  - name: zhikangniu.github.io/assets/resume-zh_CN.pdf
+    reason: 搜索索引仍有内容，但公开 PDF 已返回 404，移除失效来源
+  - name: phyjun.github.io/downloads/CV.pdf
+    reason: 搜索索引仍有内容，但公开 PDF 已返回 404，移除失效来源
+  - name: angelxyj.github.io/resume
+    reason: 搜索索引仍有内容，但公开页面已返回 404，移除失效来源
+  - name: gwdgithubnom.github.io/cv/resume.pdf
+    reason: 搜索索引仍有内容，但公开 PDF 已返回 404，移除失效来源
+  - name: mangatats.github.io/resume
+    reason: 复核时页面已返回 404，移除失效来源
+  - name: chenhao-zju.github.io/CV/CV_chinese.pdf
+    reason: 复核时公开 PDF 已返回 404，移除失效来源
+  - name: luomingxu.github.io/Resume
+    reason: 页面把长篇 AI 观点随笔混入技能段，无法稳定形成高质量技能监督
+  - name: snowdreams1006.github.io/resume
+    reason: 工作与项目段含大量 Lorem ipsum 占位文本，不进入真实简历训练池
+  - name: wangminan.github.io
+    reason: 搜索索引仍有内容，但公开页面已返回 404，删除失效来源
+  - name: jimberz.github.io/赵健博_TJU.pdf
+    reason: 搜索索引仍有内容，但公开 PDF 已返回 404，删除失效来源
+  - name: nowcoder.com/feed/main/detail/859bcb2e48f64036a1f22e6320a82dcd
+    reason: 截图缺少教育经历，虽有项目和技能但不足以构成完整解析训练样本
+  - name: max1122chen.github.io/关于我/简历
+    reason: 页面导航和学习笔记混入项目段，无法稳定抽出完整项目证据
+  - name: zou2021.github.io/resume
+    reason: 项目描述包含与技术训练无关且不适合保留的人设文本
+  - name: lydiacai1203.github.io/resume.html
+    reason: 公开页面已返回 404，删除失效来源
+  - name: HICV-CN/resume-templates
+    reason: 抽查技术岗模板发现教师资格证、试讲和班级管理等教师岗位污染
+  - name: cxycxyg/resume-json-en.cn
+    reason: 抽查发现岗位与经历错配、时间线异常和明显批量合成痕迹
+  - name: cxycxyg/Encoder.Qwen-score.reason-dataset
+    reason: JD 信息量过低，简历不一致，模型理由存在与输入冲突

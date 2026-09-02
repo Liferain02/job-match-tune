@@ -1,0 +1,55 @@
+default_sources:
+  - name: self_published_chinese_technical_resumes
+    task: resume_parse
+    source_url: configs/public_chinese_resume_sources.yaml
+    local_path: data/external/public_chinese_resume_snapshots
+    provenance: 求职者自行公开的中文技术简历网页或 PDF
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_for_local_research_after_deidentification
+    selection: 逐份人工确认技术岗位方向；只保留教育、技能、工作、项目和成果段落
+    label_method: 人工岗位映射加原文证据抽取，不使用教师模型扩写
+    limitation: 便利抽样且页面发布时间不一，不能代表当前中文技术求职市场分布
+
+  - name: faircv_unique_chinese_technical_templates
+    task: resume_parse
+    source_url: https://huggingface.co/datasets/OhMyKing/FairCV
+    source_revision: ece2a0e45439c0c1c5d70c92d30bf662756dd656
+    local_path: data/external/faircv/data/resumes_template.json
+    provenance: 中文求职公平性研究的 59 份原始简历模板
+    license_status: source_declared_research_noncommercial
+    training_decision: allowed_for_local_research_after_demographic_section_removal
+    selection: 只保留 49 份技术岗唯一模板，排除产品岗，不使用 71.9 万组合扩写
+    label_method: 岗位映射加教育、技能、项目等原文证据抽取
+    limitation: 合成模板，不是现实求职者简历，不支持真实分布结论
+
+  - name: human_reviewed_public_resume_jd_pairs
+    task: match
+    source_url: configs/human_reviewed_public_match_pairs.yaml
+    local_path: data/external/public_match_imports_zh_tech.jsonl
+    provenance: 脱敏自发布真实简历与公开真实 JD 的逐对人工证据判断
+    license_status: not_stated_no_explicit_prohibition
+    training_decision: allowed_for_local_research_training_only
+    selection: 每份简历一个同方向样本和一个跨方向负样本，不通过规则翻转标签
+    label_method: 人工核对方向、学历、经验、技能和项目原文证据，不使用教师模型
+    limitation: 人工匹配判断不是真实投递、面试或录用结果，只进入训练集
+
+optional_auxiliary_sources:
+  - name: djinni_candidate_profiles_en
+    task: resume_parse
+    source_url: https://huggingface.co/datasets/lang-uk/recruitment-dataset-candidate-profiles-english
+    source_revision: 86255174c6c378a2b52cd7e81d79002c64d899a6
+    local_path: data/private/djinni_real_ranking_v1/source/candidates.parquet
+    provenance: Djinni 平台 2020--2023 匿名候选人资料
+    license_status: confirmed_mit
+    training_decision: optional_auxiliary_disabled_by_default
+    reason: 英文且包含非技术岗位，与中文技术岗产品目标存在域偏移
+
+  - name: netsol_resume_score_details_en
+    task: match
+    source_url: https://huggingface.co/datasets/netsol/resume-score-details
+    source_revision: f2b49384c133beaf0a927bad6f91acc633cd0326
+    local_path: data/external/netsol_resume_score_details
+    provenance: 基于简历样本由 GPT-4o 生成 JD、评分、要求判断和理由
+    license_status: source_declared_cc
+    training_decision: optional_auxiliary_disabled_by_default
+    reason: 英文教师弱监督，不是招聘专家判断或真实投递结果
